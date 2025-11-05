@@ -1,0 +1,15 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Lost and Found Website for amity university gwalior , student",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "College_project",
+    "Lost_And_Found_Website"
+  ],
+  "author": "Satyam Tomar",
+  "license": "ISC"
+}
