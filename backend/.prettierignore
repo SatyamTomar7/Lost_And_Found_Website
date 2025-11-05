@@ -1,0 +1,33 @@
+# Dependency folder
+node_modules
+
+# Build output folders
+dist
+build
+
+# Environment variables files (sensitive data)
+.env
+.env.local
+.env.*.local
+
+# Log files
+*.log
+
+# Uploads folder (e.g., multer uploads)
+uploads
+uploads/*
+
+# Coverage reports
+coverage
+
+# Minified or bundled JS files
+*.min.js
+*.bundle.js
+
+# Public or static assets
+public/
+public/*
+
+# Database dumps or backups (if you use any)
+*.dump
+*.backup
