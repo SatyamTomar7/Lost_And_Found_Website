@@ -17,10 +17,10 @@ const userSchema = new Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      match: [
-        /^[\w.-]+@s\.amity\.edu$/,
-        "Please provide a valid Amity University email (@s.amity.edu)",
-      ],
+      // match: [
+      //   /^[\w.-]+@s\.amity\.edu$/,
+      //   "Please provide a valid Amity University email (@s.amity.edu)",
+      // ],
     },
     password: {
       type: String,

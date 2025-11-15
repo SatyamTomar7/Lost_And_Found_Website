@@ -3,4 +3,15 @@ const USER_ROLES = {
   STUDENT: "student",
   ADMIN: "admin",
 };
-export {DB_NAME,USER_ROLES}
+
+ // Departments/Blocks
+const  DEPARTMENTS=[
+    'Block A',
+    'Block B', 
+    'Block C',
+    'Block D',
+    'Block E'
+  ]
+
+
+export {DB_NAME,USER_ROLES,DEPARTMENTS}
