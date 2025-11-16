@@ -58,22 +58,20 @@ const validateOTPVerification = [
   handleValidationErrors,
 ];
 
-const validateAdminLogin=[
+const validateAdminLogin = [
   body("username")
-  .trim()
-  .isLength({min:3,max:50})
-  .withMessage("username must be between 3 and 50 characters"),
+    .trim()
+    .isLength({ min: 3, max: 50 })
+    .withMessage("username must be between 3 and 50 characters"),
 
-  body("password")
-  .notEmpty()
-  .withMessage("Password is required"),
+  body("password").notEmpty().withMessage("Password is required"),
 
   body("department")
-  .isIn(DEPARTMENTS)
-  .withMessage(`Department must be one of : ${DEPARTMENTS.join(', ')}`),
-   
-  handleValidationErrors
-]
+    .isIn(DEPARTMENTS)
+    .withMessage(`Department must be one of : ${DEPARTMENTS.join(", ")}`),
+
+  handleValidationErrors,
+];
 
 const validateLogin = [
   body("email")
@@ -81,6 +79,12 @@ const validateLogin = [
     .normalizeEmail()
     .withMessage("Please provide a valid amity email"),
   body("password").notEmpty().withMessage("Password is required"),
+  handleValidationErrors,
 ];
 
-export { validateUserRegistration, validateOTPVerification, validateLogin ,validateAdminLogin};
+export {
+  validateUserRegistration,
+  validateOTPVerification,
+  validateLogin,
+  validateAdminLogin,
+};

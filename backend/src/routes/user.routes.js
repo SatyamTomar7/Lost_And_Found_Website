@@ -1,4 +1,5 @@
 import { Router } from "express";
+import app from "../app.js"
 import {
   adminLogin,
   getMe,
@@ -10,6 +11,7 @@ import {
 } from "../controllers/auth.controller.js";
 import {protect} from "../middlewares/auth.middleware.js"
 import { validateAdminLogin, validateLogin, validateOTPVerification, validateUserRegistration } from "../middlewares/validation.middleware.js";
+import { errorHandler } from "../middlewares/errorHandler.middlewares.js";
 const router = Router();
 
 router.post("/register",validateUserRegistration,register);
@@ -22,5 +24,5 @@ router.get("/me",protect,getMe);
 router.post("/logout",protect,logout)
 
 
-
+app.use(errorHandler)
 export default router;
