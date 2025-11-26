@@ -13,5 +13,32 @@ const  DEPARTMENTS=[
     'Block E'
   ]
 
+    // Categories
+ const ITEM_CATEGORIES= [
+    'Electronics',
+    'Accessories',
+    'Books',
+    'Clothing',
+    'Daily Items',
+    'Jewelry',
+    'Documents',
+    'Sports Equipment',
+    'Other'
+  ]
+const ITEM_STATUS = {
+  PENDING: 'pending',
+  FOUND: 'found',
+  COLLECTED: 'collected',
+  RETURNED: 'returned',
+  UNCLAIMED: 'unclaimed'
+};
 
-export {DB_NAME,USER_ROLES,DEPARTMENTS}
+    // Colors
+  COLORS= [
+    'Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple',
+    'Pink', 'Brown', 'Black', 'White', 'Grey', 'Silver',
+    'Gold', 'Multi-colored', 'Other'
+  ]
+
+
+export {DB_NAME,USER_ROLES,DEPARTMENTS,ITEM_CATEGORIES,COLORS,ITEM_STATUS}
