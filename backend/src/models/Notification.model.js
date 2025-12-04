@@ -2,7 +2,7 @@ import mongoose, { Schema } from "mongoose";
 import { NOTIFICATION_TYPES } from "../constants.js";
 const notificationSchema = new Schema(
   {
-    userid: {
+    userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -10,6 +10,7 @@ const notificationSchema = new Schema(
     type: {
       type: String,
       enum: Object.values(NOTIFICATION_TYPES),
+      required:true
     },
     title: {
       type: String,
@@ -24,7 +25,7 @@ const notificationSchema = new Schema(
       maxlength: [500, "Message cannot exceed 500 characters"],
     },
     data: {
-      LostItemId: {
+      lostItemId: {
         type: Schema.Types.ObjectId,
         ref: "LostItem",
       },
@@ -62,7 +63,7 @@ const notificationSchema = new Schema(
   }
 );
 
-notificationSchema.index({userid:1,createdAt:-1});
+notificationSchema.index({userId:1,createdAt:-1});
 notificationSchema.index({isRead:1,priority:-1})
 notificationSchema.index({expiresAt:1},{expireAfterSeconds:0})
 //Mark as read method
