@@ -40,5 +40,13 @@ const ITEM_STATUS = {
     'Gold', 'Multi-colored', 'Other'
   ]
 
+const NOTIFICATION_TYPES= {
+  MATCH_FOUND: 'match_found',
+  ITEM_RETURNED: 'item_returned',
+  ITEM_CLAIMED: 'item_claimed',
+  SYSTEM_ALERT: 'system_alert'
+}
 
-export {DB_NAME,USER_ROLES,DEPARTMENTS,ITEM_CATEGORIES,COLORS,ITEM_STATUS}
+
+
+export {DB_NAME,USER_ROLES,DEPARTMENTS,ITEM_CATEGORIES,COLORS,ITEM_STATUS,NOTIFICATION_TYPES}
