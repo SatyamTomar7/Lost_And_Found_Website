@@ -34,7 +34,7 @@ const ITEM_STATUS = {
 };
 
     // Colors
-  COLORS= [
+ const COLORS= [
     'Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple',
     'Pink', 'Brown', 'Black', 'White', 'Grey', 'Silver',
     'Gold', 'Multi-colored', 'Other'

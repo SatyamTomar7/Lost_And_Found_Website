@@ -133,7 +133,7 @@ export const login = asyncHandler(async (req, res) => {
 });
 export const adminLogin = asyncHandler(async (req, res) => {
   const { username, password, department } = req.body;
-  const email = `${username}3677@gmail.com`;
+  const email = `${username}367@gmail.com`;
 
   const user = await User.findOne({
     email,
@@ -172,21 +172,22 @@ export const adminLogin = asyncHandler(async (req, res) => {
   );
 });
 export const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
-  if (!user) throw new ApiError(404, "User not found");
+  // const user = await User.findById(req.user._id);
+  if (!req.user) throw new ApiError(404, "User not found");
   return res.status(200).json(
     new ApiResponse(
       200,
+      req.user,
       {
-        id: user._id,
-        name: user.name,
-        role: user.role,
-        department: user.department,
-        profileImage: user.profileImage,
-        isEmailVerified: user.isEmailVerified,
-        isActive: user.isActive,
-        lastLogin: user.lastLogin,
-        createdAt: user.createdAt,
+        // id: req.user._id,
+        // name: req.user.name,
+        // role: req.user.role,
+        // department: req.user.department,
+        // profileImage: req.user.profileImage,
+        // isEmailVerified: req.user.isEmailVerified,
+        // isActive: req.user.isActive,
+        // lastLogin: req.user.lastLogin,
+        // createdAt: req.user.createdAt,
       },
       "User details fetched successfully"
     )

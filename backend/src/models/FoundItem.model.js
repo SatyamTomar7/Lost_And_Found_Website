@@ -132,4 +132,4 @@ foundItemSchema.index({ department: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
 foundItemSchema.index({ category: 1, color: 1 });
 foundItemSchema.index({ adminId: 1 });
-export const FoundItem = mongoose.model("foundItem", foundItemSchema);
+export const FoundItem = mongoose.model("FoundItem", foundItemSchema);

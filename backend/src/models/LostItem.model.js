@@ -1,5 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { ITEM_CATEGORIES ,COLORS,ITEM_STATUS} from "../constants.js";
+import { FoundItem } from "./FoundItem.model.js";
 const lostItemSchema=new Schema({
 userId:{
     type:Schema.Types.ObjectId,

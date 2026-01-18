@@ -5,9 +5,9 @@ const connectDB=async()=>{
 try{
 const connectionInstance=await mongoose.connect(`${process.env.MONGODB_URI}/${DB_NAME}`);
 console.log(`\n MongoDB connected !! DB HOST: ${connectionInstance.connection.host}`);
-// if (process.env.NODE_ENV === 'development') {
-//   mongoose.set('debug', true); // sirf dev ke liye
-// }
+if (process.env.NODE_ENV === 'development') {
+  mongoose.set('debug', true); // sirf dev ke liye
+}
 
 }
 catch(error){

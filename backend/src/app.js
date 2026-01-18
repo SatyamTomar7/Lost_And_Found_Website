@@ -18,7 +18,8 @@ const io = new Server(httpServer, {
 socketHandler(io);
 app.set("socketio", io);
 
-import authRoutes from "./routes/user.routes.js";
+import authRoutes from "./routes/auth.routes.js";
+import lostRoutes from "./routes/lostitem.routes.js"
 
 app.use(
   helmet({
@@ -67,6 +68,7 @@ app.use(
 app.use(express.static("public"));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/lostitems", lostRoutes);
 
 app.get("/api/health", () => {
   res.status(200).json({

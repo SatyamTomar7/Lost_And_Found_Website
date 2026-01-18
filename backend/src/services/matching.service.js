@@ -1,5 +1,5 @@
 import {LostItem} from "../models/LostItem.model.js";
-import {FoundItem} from "../models/LostItem.model.js";
+import {FoundItem} from "../models/FoundItem.model.js";
 
 class MatchingService {
   constructor() {

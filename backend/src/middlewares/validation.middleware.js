@@ -1,6 +1,6 @@
-import { body, validationResult } from "express-validator";
+import { body, validationResult,param,query } from "express-validator";
 import { ApiError } from "../utils/ApiError.js"; // note .js for ESM
-import { DEPARTMENTS } from "../constants.js";
+import { COLORS, DEPARTMENTS, ITEM_CATEGORIES } from "../constants.js";
 
 // Handle validation errors
 const handleValidationErrors = (req, res, next) => {
@@ -82,9 +82,79 @@ const validateLogin = [
   handleValidationErrors,
 ];
 
+const validateLostItem = [
+  body("name")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Item name must be between 2 and 100 characters"),
+
+  body("description")
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 10, max: 500 })
+    .withMessage("Description must be between 10 and 500 characters"),
+
+  body("category")
+    .isIn(ITEM_CATEGORIES)
+    .withMessage(`Category must be one of ${ITEM_CATEGORIES.join(", ")}`),
+
+  body("color")
+    .isIn(COLORS)
+    .withMessage(`Color must be one of: ${COLORS.join(", ")}`),
+
+  body("brand")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Brand cannot exceed 50 characters"),
+
+  body("dateLost")
+    .isISO8601()
+    .withMessage("Please provide a valid date")
+    .custom((value) => {
+      if (new Date(value) > new Date()) {
+        throw new Error("Date lost cannot be in the future");
+      }
+      return true;
+    }),
+
+  body("placeLost")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Place lost must be between 2 and 100 characters"),
+
+  body("contactInfo.phone")
+    .optional()
+    .isMobilePhone("en-IN")
+    .withMessage("Please provide a valid Indian phone number"),
+
+  handleValidationErrors,
+];
+const validateObjectId = [
+  param("id").isMongoId().withMessage("Invalid ID format"),
+
+  handleValidationErrors,
+];
+const validatePagination = [
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Page must be a positive integer"),
+
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage("Limit must be between 1 and 100"),
+
+  handleValidationErrors,
+];
+
 export {
   validateUserRegistration,
   validateOTPVerification,
   validateLogin,
   validateAdminLogin,
+  validateLostItem,
+  validateObjectId,
+  validatePagination
 };

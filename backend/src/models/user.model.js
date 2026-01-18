@@ -86,7 +86,7 @@ userSchema.methods.getJWTToken = function () {
       id: this._id,
       email: this.email,
       role: this.role,
-      department: this.department,
+      department: this.department,   //for student how it works
     },
     process.env.JWT_SECRET,
     {
