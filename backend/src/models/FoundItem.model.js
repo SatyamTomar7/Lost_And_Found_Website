@@ -60,6 +60,7 @@ const foundItemSchema = new Schema(
       trim: true,
       maxlength: [100, "Place found can not exceed 100 characters"],
     },
+
     images: [
       {
         url: String,
@@ -75,6 +76,11 @@ const foundItemSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "LostItem",
       default: null,
+    },
+    claimedBy:{
+      type:Schema.Types.ObjectId,
+      ref:"User",
+      default:null
     },
     claimedAt: Date,
     returnedAt: Date,
