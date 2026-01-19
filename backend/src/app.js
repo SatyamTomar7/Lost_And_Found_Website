@@ -19,7 +19,8 @@ socketHandler(io);
 app.set("socketio", io);
 
 import authRoutes from "./routes/auth.routes.js";
-import lostRoutes from "./routes/lostitem.routes.js"
+import lostItemRoutes from "./routes/lostitem.routes.js";
+import foundItemRoutes from "./routes/founditem.routes.js";
 
 app.use(
   helmet({
@@ -68,7 +69,8 @@ app.use(
 app.use(express.static("public"));
 
 app.use("/api/auth", authRoutes);
-app.use("/api/lostitems", lostRoutes);
+app.use("/api/lostitems", lostItemRoutes);
+app.use("/api/founditems",foundItemRoutes);
 
 app.get("/api/health", () => {
   res.status(200).json({

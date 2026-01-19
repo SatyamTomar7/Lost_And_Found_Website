@@ -1,4 +1,4 @@
-import { body, validationResult,param,query } from "express-validator";
+import { body, validationResult, param, query } from "express-validator";
 import { ApiError } from "../utils/ApiError.js"; // note .js for ESM
 import { COLORS, DEPARTMENTS, ITEM_CATEGORIES } from "../constants.js";
 
@@ -130,6 +130,56 @@ const validateLostItem = [
 
   handleValidationErrors,
 ];
+const validateFoundItem = [
+  body("name")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Item name must be between 2 and 100 characters"),
+
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Description can not exceed 500 characters"),
+
+  body("category")
+    .isIn(ITEM_CATEGORIES)
+    .withMessage(`Category must be one of: ${ITEM_CATEGORIES.join(", ")}`),
+
+  body("color")
+    .isIn(COLORS)
+    .withMessage(`Color must be one of: ${COLORS.join(", ")}`),
+
+  body("brand")
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage("Brand can not exceed 50 characters"),
+
+  body("dateFound")
+    .isISO8601()
+    .withMessage("Please provide a valid date")
+    .custom((value) => {
+      if (new Date(value) > new Date()) {
+        throw new Error("Date found cannot be in the future");
+      }
+      return true;
+    }),
+
+  body("placeFound")
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Place found must be between 2 and 100 characters"),
+
+  body("storageLocation")
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Storage location can not exceed 100 characters"),
+
+  handleValidationErrors,
+];
+
 const validateObjectId = [
   param("id").isMongoId().withMessage("Invalid ID format"),
 
@@ -156,5 +206,6 @@ export {
   validateAdminLogin,
   validateLostItem,
   validateObjectId,
-  validatePagination
+  validatePagination,
+  validateFoundItem,
 };
