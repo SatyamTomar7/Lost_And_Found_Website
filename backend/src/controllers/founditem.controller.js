@@ -1,4 +1,4 @@
-import { NOTIFICATION_TYPES } from "../constants.js";
+import { ITEM_STATUS, NOTIFICATION_TYPES } from "../constants.js";
 import { FoundItem } from "../models/FoundItem.model.js";
 import { LostItem } from "../models/LostItem.model.js";
 import { emailService } from "../services/email.service.js";
@@ -7,7 +7,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Notification } from "../models/Notification.model.js";
-import { isValidObjectId } from "mongoose";
 
 export const addFoundItem = asyncHandler(async (req, res) => {
   //prepare foundItem data
@@ -161,3 +160,155 @@ export const getFoundItem = asyncHandler(async (req, res) => {
     )
   );
 });
+
+export const updateFoundItem = asyncHandler(async (req, res) => {
+  let foundItem = await FoundItem.findById(req.params.id);
+  if (!foundItem) {
+    throw new ApiError(404, "FoundItem not found");
+  }
+  //check department access
+  if (foundItem.department !== req.user.department) {
+    throw new ApiError(
+      403,
+      "Access denied. You can only update items from your department."
+    );
+  }
+  foundItem = await FoundItem.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  }).populate("adminId", "name department");
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        data: foundItem,
+      },
+      "Found Item updated successfully"
+    )
+  );
+});
+export const markAsReturned = asyncHandler(async (req, res) => {
+  const { claimedByUserId } = req.body;
+  const foundItem = await FoundItem.findById(req.params.id);
+  if (!foundItem) throw new ApiError(404, "FoundItem not found");
+  if (foundItem.department !== req.user.department) {
+    throw new ApiError(403, "Access denied");
+  }
+  foundItem.status = ITEM_STATUS.RETURNED;
+  foundItem.claimedBy = claimedByUserId;
+  foundItem.claimedAt = new Date();
+  foundItem.returnedAt = new Date();
+  await foundItem.save();
+  if (foundItem.matchedLostItemId) {
+    await LostItem.findByIdAndUpdate(foundItem.matchedLostItemId, {
+      status: ITEM_STATUS.COLLECTED,
+      matchedFoundItemId: foundItem._id,
+    });
+  }
+  const populatedItem = await FoundItem.findById(foundItem._id)
+    .populate("adminId", "name department")
+    .populate("claimedBy", "name email");
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        data: populatedItem,
+      },
+      "Item marked as returned successfully"
+    )
+  );
+});
+export const markAsUnclaimed = asyncHandler(async (req, res) => {
+  const foundItem = await FoundItem.findById(req.params.id);
+  if (!foundItem) throw new ApiError(404, "FoundItem not found");
+  if (foundItem.department !== req.user.department) {
+    throw new ApiError(403, "Access denied");
+  }
+  foundItem.status = ITEM_STATUS.UNCLAIMED;
+  await foundItem.save();
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        data: foundItem,
+      },
+      "Item marked as unclaimed'"
+    )
+  );
+});
+export const deleteFoundItem = asyncHandler(async (req, res) => {
+  const foundItem = await FoundItem.findById(req.params.id);
+  if (!foundItem) throw new ApiError(404, "FoundItem not found");
+  if (foundItem.department !== req.user.department) {
+    throw new ApiError(403, "Access denied");
+  }
+  foundItem.isActive = false;
+  await foundItem.save();
+  res.status(200).json(new ApiResponse(
+    200,
+    {},
+    "Found item deleted successfully"
+  ))
+});
+export const searchFoundItems=asyncHandler(async(req ,res)=>{
+ const { q, category, color, department, dateFrom, dateTo } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    let query = { isActive: true };
+
+    // If admin, filter by their department
+    if (req.user.role === 'admin') {
+      query.department = req.user.department;
+    } else if (department) {
+      query.department = department;
+    }
+
+    // Text search
+    if (q) {
+      query.$text = { $search: q };
+    }
+
+    // Filter by category
+    if (category) {
+      query.category = category;
+    }
+
+    // Filter by color
+    if (color) {
+      query.color = color;
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.dateFound = {};
+      if (dateFrom) query.dateFound.$gte = new Date(dateFrom);
+      if (dateTo) query.dateFound.$lte = new Date(dateTo);
+    }
+
+    const foundItems = await FoundItem.find(query)
+      .populate('adminId', 'name department')
+      .populate('claimedBy', 'name email')
+      .sort(q ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await FoundItem.countDocuments(query);
+    const totalPages = Math.ceil(total / limit);
+    res.status(200).json(new ApiResponse(
+      200,
+      {
+        count:foundItems.length,
+        pagination:{
+          page,
+          pages:totalPages,
+          total,
+          limit
+        },
+        data:foundItems
+      },
+      "Items searched successfully"
+    ))
+})
