@@ -21,7 +21,7 @@ app.set("socketio", io);
 import authRoutes from "./routes/auth.routes.js";
 import lostItemRoutes from "./routes/lostitem.routes.js";
 import foundItemRoutes from "./routes/founditem.routes.js";
-
+import matchRoutes from "./routes/matches.routes.js"
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -71,6 +71,7 @@ app.use(express.static("public"));
 app.use("/api/auth", authRoutes);
 app.use("/api/lostitems", lostItemRoutes);
 app.use("/api/founditems",foundItemRoutes);
+app.use("/api/matches",matchRoutes);
 
 app.get("/api/health", () => {
   res.status(200).json({

@@ -23,7 +23,6 @@ export const submitLostItem = asyncHandler(async (req, res) => {
 
   // Create lost item document
   const lostItem = await LostItem.create(lostItemData);
-
   const matches = await matchingService.findMatchesForLostItem(
     lostItem._id,
     70
