@@ -4,7 +4,7 @@ import matchingService from "../services/matching.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-
+import { User } from "../models/user.model.js";
 export const checkLostItemMatches = asyncHandler(async (req, res) => {
   const lostItemId = req.params.id;
   const threshold = parseInt(req.query.threshold) || 60;
@@ -102,6 +102,132 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
         },
       },
       "FoundItem Match Found Successfully"
+    )
+  );
+});
+export const getMatchingStats = asyncHandler(async (req, res) => {
+  const department = req.user.role === "admin" ? req.user.department : null;
+  const totalLostItems = await LostItem.countDocuments({
+    isActive: true,
+    ...(department && { placeLost: new RegExp(department, "i") }),
+  });
+
+  const totalFoundItems = await FoundItem.countDocuments({
+    isActive: true,
+    ...(department && { department }),
+  });
+  const matchedItems = await LostItem.countDocuments({
+    matchedFoundItemId: { $ne: null },
+    ...(department && { placeLost: new RegExp(department, "i") }),
+  });
+  const returnedItem = await FoundItem.countDocuments({
+    status: "returned",
+    ...(department && { department }),
+  });
+
+  const matchRate =
+    totalLostItems > 0 ? ((matchedItems / totalLostItems) * 100).toFixed(2) : 0;
+  const returnRate =
+    totalFoundItems > 0
+      ? ((returnedItem / totalFoundItems) * 100).toFixed(2)
+      : 0;
+
+  const categoryStats = await LostItem.aggregate([
+    {
+      $match: {
+        isActive: true,
+        ...(department && { placeLost: new RegExp(department, "i") }),
+      },
+    },
+    {
+      $group: {
+        _id: "$category",
+        total: { $sum: 1 },
+        matched: {
+          $sum: { $cond: [{ $ne: ["$matchedFoundItemId", null] }, 1, 0] },
+        },
+      },
+    },
+    {
+      $project: {
+        category: "$_id",
+        total: 1,
+        matched: 1,
+        matchRate: {
+          $cond: [
+            { $eq: ["$total", 0] },
+            0,
+            { $multiply: [{ $divide: ["$matched", "$total"] }, 100] },
+          ],
+        },
+      },
+    },
+    {
+      $sort: { total: -1 },
+    },
+  ]);
+
+  const foundItems = await FoundItem.find({
+    isActive: true,
+    ...(department && { department }),
+  });
+
+  const lostItems = await LostItem.find({ isActive: true });
+  const matches = [];
+
+  for (const foundItem of foundItems) {
+    for (const lostItem of lostItems) {
+      const matchScore = matchingService.calculateMatchScore(
+        lostItem,
+        foundItem
+      );
+      if (matchScore > 60) {
+        const user = await User.findById(lostItem.userId).select("name email");
+        matches.push({
+          foundItem: {
+            id: foundItem._id,
+            name: foundItem.name,
+            category: foundItem.category,
+            color: foundItem.color,
+            department: foundItem.department,
+            dateFound: foundItem.dateFound,
+            placeFound: foundItem.placeFound,
+          },
+          lostItem: {
+            id: lostItem._id,
+            name: lostItem.name,
+            category: lostItem.category,
+            color: lostItem.color,
+            dateLost: lostItem.dateLost,
+            placeLost: lostItem.placeLost,
+            description: lostItem.description,
+          },
+          similarity: matchScore,
+          user,
+        });
+      }
+    }
+  }
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        data: {
+          overview: {
+            totalLostItems,
+            totalFoundItems,
+            matchedItems,
+            returnedItem,
+            matchRate: parseFloat(matchRate),
+            returnRate: parseFloat(returnRate),
+          },
+          matches,
+          categoryBreakdown: categoryStats,
+          department: department || "All Department",
+        },
+      },
+      "Matching Status fetched Successfully"
     )
   );
 });
