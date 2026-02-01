@@ -47,6 +47,11 @@ const NOTIFICATION_TYPES= {
   SYSTEM_ALERT: 'system_alert'
 }
 
+  // File upload
+ const FILE_UPLOAD = {
+    MAX_SIZE: 5 * 1024 * 1024, // 5MB
+    ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'],
+    UPLOAD_PATH: 'uploads/items/'
+  }
 
-
-export {DB_NAME,USER_ROLES,DEPARTMENTS,ITEM_CATEGORIES,COLORS,ITEM_STATUS,NOTIFICATION_TYPES}
+export {DB_NAME,USER_ROLES,DEPARTMENTS,ITEM_CATEGORIES,COLORS,ITEM_STATUS,NOTIFICATION_TYPES,FILE_UPLOAD}
