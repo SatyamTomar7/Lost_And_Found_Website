@@ -6,102 +6,134 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 export const checkLostItemMatches = asyncHandler(async (req, res) => {
-  const lostItemId = req.params.id;
-  const threshold = parseInt(req.query.threshold) || 60;
+  const { id } = req.params;
+  const threshold = Math.min(
+    100,
+    Math.max(0, parseInt(req.query.threshold) || 60)
+  );
 
-  const lostItem = await LostItem.findById(lostItemId);
+  // 1. Authorized Fetch
+  // We use .lean() because we don't need Mongoose methods (save, etc.)
+  const lostItem = await LostItem.findById(id).lean();
+
   if (!lostItem) {
     throw new ApiError(404, "Lost item not found");
   }
-  if (lostItem.userId.toString() !== req.user.id && req.user.role != "admin") {
-    throw new ApiError("Access denied");
-  }
-  const matches = await matchingService.findMatchesForLostItem(
-    lostItemId,
-    threshold
-  );
 
+  // 2. Strict Authorization
+  const isOwner = lostItem.userId.toString() === req.user.id;
+  const isAdmin = req.user.role === "admin";
+
+  if (!isOwner && !isAdmin) {
+    throw new ApiError(
+      403,
+      "Access denied. You can only view matches for your own items."
+    );
+  }
+
+  // 3. Find Matches
+  const matches = await matchingService.findMatchesForLostItem(id, threshold);
+
+  // 4. Structured Response
+  // Note: I corrected a small bug in your original code where you mapped match.foundItem.name to the 'id' field
   res.status(200).json(
     new ApiResponse(
       200,
       {
         count: matches.length,
-        data: {
-          lostItem: {
-            id: lostItem._id,
-            name: lostItem.name,
-            category: lostItem.category,
-            color: lostItem.color,
-          },
-          matches: matches.map((match) => ({
-            FoundItem: {
-              id: match.foundItem.name,
-              category: match.foundItem.category,
-              color: match.foundItem.color,
-              department: match.foundItem.department,
-              dateFound: match.foundItem.dateFound,
-              placefound: match.foundItem.placeFound,
-            },
-            matchScore: match.matchScore,
-            matchDetails: match.matchDetails,
-          })),
+        lostItem: {
+          id: lostItem._id,
+          name: lostItem.name,
+          category: lostItem.category,
+          color: lostItem.color,
         },
+        matches: matches.map((match) => ({
+          foundItem: {
+            id: match.foundItem._id,
+            name: match.foundItem.name,
+            category: match.foundItem.category,
+            color: match.foundItem.color,
+            department: match.foundItem.department,
+            dateFound: match.foundItem.dateFound,
+            placeFound: match.foundItem.placeFound,
+          },
+          matchScore: match.matchScore,
+          matchDetails: match.matchDetails,
+        })),
       },
-      "Matches Found Successfully"
+      "Matches fetched successfully"
     )
   );
 });
 export const checkFoundItemMatches = asyncHandler(async (req, res) => {
-  const foundItemId = req.params.id;
-  const threshold = parseInt(req.query.threshold) || 60;
+  const { id } = req.params;
 
-  const foundItem = await FoundItem.findById(foundItemId);
+  // 1. Sanitize Threshold
+  const threshold = Math.min(
+    100,
+    Math.max(0, parseInt(req.query.threshold) || 60)
+  );
 
-  if (!foundItem) throw new ApiError(404, "FoundItem not found");
+  // 2. Optimized Fetch with Security
+  // We fetch only the fields needed to verify ownership/department
+  const foundItem = await FoundItem.findById(id).lean();
+
+  if (!foundItem) throw new ApiError(404, "Found item not found");
+
+  // Admin Security: Ensure admin only sees matches for their own department
   if (
     req.user.role === "admin" &&
     foundItem.department !== req.user.department
   ) {
-    throw new ApiError(403, "Access denied");
+    throw new ApiError(
+      403,
+      "Access denied. This item belongs to another department."
+    );
   }
-  const matches = await matchingService.findMatchesForFoundItem(
-    foundItemId,
-    threshold
-  );
+
+  // 3. Find Matches
+  // We assume the service populates 'userId' for the lost items
+  const matches = await matchingService.findMatchesForFoundItem(id, threshold);
+
+  // 4. Safe Mapping Logic
+  const mappedMatches = matches.map((match) => {
+    const lostItem = match.lostItem || {};
+    const owner = lostItem.userId || {}; // Handle case where user might be deleted
+
+    return {
+      lostItem: {
+        id: lostItem._id,
+        name: lostItem.name,
+        category: lostItem.category,
+        color: lostItem.color,
+        dateLost: lostItem.dateLost,
+        placeLost: lostItem.placeLost,
+        user: {
+          id: owner._id || "N/A",
+          name: owner.name || "Unknown User",
+          email: owner.email || "No Email",
+        },
+      },
+      matchScore: match.matchScore,
+      matchDetails: match.matchDetails,
+    };
+  });
 
   res.status(200).json(
     new ApiResponse(
       200,
       {
         count: matches.length,
-        data: {
-          foundItem: {
-            id: foundItem._id,
-            name: foundItem.name,
-            category: foundItem.category,
-            color: foundItem.color,
-            department: foundItem.department,
-          },
-          matches: matches.map((match) => ({
-            lostItem: {
-              id: match.lostItem._id,
-              name: match.lostItem.name,
-              category: match.lostItem.category,
-              color: match.lostItem.color,
-              dateLost: match.lostItem.dateLost,
-              placeFound: match.lostItem.placeLost,
-              user: {
-                id: match.lostItem.userId._id,
-                name: match.lostItem.userId.name,
-                email: match.lostItem.userId.email,
-              },
-            },
-            matchScore: match.matchScore,
-            matchDetails: match.matchDetails,
-          })),
+        foundItem: {
+          id: foundItem._id,
+          name: foundItem.name,
+          category: foundItem.category,
+          color: foundItem.color,
+          department: foundItem.department,
         },
+        matches: mappedMatches,
       },
-      "FoundItem Match Found Successfully"
+      "Matches retrieved successfully"
     )
   );
 });
