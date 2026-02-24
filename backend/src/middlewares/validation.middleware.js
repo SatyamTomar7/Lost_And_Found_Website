@@ -28,8 +28,8 @@ const validateUserRegistration = [
   body("email")
     .isEmail()
     .withMessage("Please provide a valid email")
-    // .matches(/^[\w.-]+@s\.amity\.edu$/)
-    // .withMessage("Email must be an Amity University email (@s.amity.edu)")
+    .matches(/^[\w.-]+@s\.amity\.edu$/)
+    .withMessage("Email must be an Amity University email (@s.amity.edu)")
     .normalizeEmail(),
 
   body("password")

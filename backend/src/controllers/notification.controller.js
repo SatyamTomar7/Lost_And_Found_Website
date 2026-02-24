@@ -43,24 +43,44 @@ export const getNotifications = asyncHandler(async (req, res) => {
   );
 });
 
+// export const markAsRead = asyncHandler(async (req, res) => {
+//   const notification = await Notification.findById(req.params.id);
+//   if (!notification) throw new ApiError(404, "Notification not found");
+//   if (notification.userId.toString() !== req.user.id) {
+//     throw new ApiError(403, "Access denied");
+//   }
+//   await notification.markAsRead();
+
+//   res.status(200).json(
+//     new ApiResponse(
+//       200,
+//       {
+//         data: notification,
+//       },
+//       "Notification marked as read"
+//     )
+//   );
+// });
+
 export const markAsRead = asyncHandler(async (req, res) => {
-  const notification = await Notification.findById(req.params.id);
-  if (!notification) throw new ApiError(404, "Notification not found");
-  if (notification.userId.toString() !== req.user.id) {
-    throw new ApiError(403, "Access denied");
+  // Find and update in one go, ensuring the user owns the notification
+  const notification = await Notification.findOneAndUpdate(
+    { _id: req.params.id, userId: req.user.id }, 
+    { $set: { isRead: true } }, // Or whatever your method does internally
+    { new: true }
+  );
+
+  if (!notification) {
+    throw new ApiError(404, "Notification not found or unauthorized");
   }
-  await notification.markAsRead();
 
   res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        data: notification,
-      },
-      "Notification marked as read"
-    )
+    new ApiResponse(200, { id: notification._id }, "Notification marked as read")
   );
 });
+
+
+
 export const markAllAsRead = asyncHandler(async (req, res) => {
   const result = await Notification.updateMany(
     { userId: req.user.id, isRead: false },
