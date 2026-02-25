@@ -509,7 +509,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                   />
                 ) : (
                   lostItems.map((item) => (
-                    <LostItemCard key={item.id} item={item} />
+                    <LostItemCard key={item._id} item={item} />
                   ))
                 )}
               </div>
@@ -567,7 +567,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
           ) : (
             notifications.map((n) => (
               <NotificationItem
-                key={n.id}
+                key={n._id}
                 notification={n}
                 onClick={handleNotificationClick}
               />

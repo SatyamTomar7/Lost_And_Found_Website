@@ -398,7 +398,7 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                   ) : (
                     foundItems.map((item) => (
                       <FoundItemCard
-                        key={item.id}
+                        key={item._id}
                         item={item}
                         onUpdateStatus={handleUpdateStatus}
                         isUpdating={updateStatusMutation.isPending}
