@@ -8,6 +8,7 @@ import {
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { promisify } from 'util';
 export const uploadSingleimage = asyncHandler(async (req, res) => {
   // 1. Promisify the Multer middleware to avoid callback nesting
   const upload = promisify(uploadSingle);
