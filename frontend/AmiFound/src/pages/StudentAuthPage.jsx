@@ -185,7 +185,7 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
             </p>
           </div>
 
-          {formType === "login" && (
+          {/* {formType === "login" && (
             <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
               <div className="form-group">
                 <label className="form-label">Email Address</label>
@@ -288,6 +288,163 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 <label className="form-label">Verification Code</label>
                 <input
                   {...register("otp")}
+                  className={`form-control otp-input ${errors.otp ? "is-invalid" : ""}`}
+                  maxLength="6"
+                  placeholder="000000"
+                  disabled={isAnyPending}
+                />
+                {errors.otp && (
+                  <div className="error-message">{errors.otp.message}</div>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
+                <FaCheck />
+                {otpMutation.isPending ? "Verifying…" : "Verify Email"}
+              </button>
+              <button
+                type="button"
+                onClick={() => resendMutation.mutate()}
+                className="btn btn--outline btn--full-width"
+                disabled={resendMutation.isPending}
+              >
+                <FaRedo />
+                {resendMutation.isPending ? "Resending…" : "Resend OTP"}
+              </button>
+            </form>
+          )} */}
+
+          {formType === "login" && (
+            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+              <div className="form-group">
+                {/* 1. Added htmlFor linked to id */}
+                <label htmlFor="login-email" className="form-label">
+                  Email Address
+                </label>
+                <input
+                  id="login-email" // 2. Unique ID
+                  {...register("email")}
+                  autoComplete="email" // 3. Browsers suggest saved emails
+                  className={`form-control ${errors.email ? "is-invalid" : ""}`}
+                  placeholder="your.name@s.amity.edu"
+                  disabled={isAnyPending}
+                />
+                {errors.email && (
+                  <div className="error-message">{errors.email.message}</div>
+                )}
+              </div>
+              <div className="form-group">
+                <label htmlFor="login-password" className="form-label">
+                  Password
+                </label>
+                <input
+                  id="login-password"
+                  type="password"
+                  {...register("password")}
+                  autoComplete="current-password" // 4. Essential for Password Managers
+                  className={`form-control ${errors.password ? "is-invalid" : ""}`}
+                  placeholder="Enter your password"
+                  disabled={isAnyPending}
+                />
+                {errors.password && (
+                  <div className="error-message">{errors.password.message}</div>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
+                <FaSignInAlt />
+                {loginMutation.isPending ? "Logging in…" : "Login"}
+              </button>
+            </form>
+          )}
+
+          {formType === "register" && (
+            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+              <div className="form-group">
+                <label htmlFor="register-name" className="form-label">
+                  Full Name
+                </label>
+                <input
+                  id="register-name"
+                  {...register("name")}
+                  autoComplete="name" // Suggests user's full name
+                  className={`form-control ${errors.name ? "is-invalid" : ""}`}
+                  placeholder="Enter your full name"
+                  disabled={isAnyPending}
+                />
+                {errors.name && (
+                  <div className="error-message">{errors.name.message}</div>
+                )}
+              </div>
+              <div className="form-group">
+                <label htmlFor="register-email" className="form-label">
+                  Amity Email
+                </label>
+                <input
+                  id="register-email"
+                  {...register("email")}
+                  autoComplete="email"
+                  className={`form-control ${errors.email ? "is-invalid" : ""}`}
+                  placeholder="your.name@s.amity.edu"
+                  disabled={isAnyPending}
+                />
+                {errors.email && (
+                  <div className="error-message">{errors.email.message}</div>
+                )}
+              </div>
+              <div className="form-group">
+                <label htmlFor="register-password" className="form-label">
+                  Password
+                </label>
+                <input
+                  id="register-password"
+                  type="password"
+                  {...register("password")}
+                  autoComplete="new-password" // 5. Tells browser to suggest a strong password
+                  className={`form-control ${errors.password ? "is-invalid" : ""}`}
+                  placeholder="Create a password"
+                  disabled={isAnyPending}
+                />
+                {errors.password && (
+                  <div className="error-message">{errors.password.message}</div>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
+                <FaUserPlus />
+                {registerMutation.isPending
+                  ? "Sending OTP…"
+                  : "Register & Send OTP"}
+              </button>
+            </form>
+          )}
+
+          {formType === "otp" && (
+            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+              <div className="otp-message">
+                <FaEnvelope />
+                <p>
+                  Verification code sent to{" "}
+                  <strong>{pendingRegistration?.email}</strong>
+                </p>
+              </div>
+              <div className="form-group">
+                <label htmlFor="otp-input" className="form-label">
+                  Verification Code
+                </label>
+                <input
+                  id="otp-input"
+                  {...register("otp")}
+                  autoComplete="one-time-code" // 6. Mobile browsers can auto-fill from SMS/Email
                   className={`form-control otp-input ${errors.otp ? "is-invalid" : ""}`}
                   maxLength="6"
                   placeholder="000000"

@@ -57,7 +57,6 @@ const Header = ({ currentUser, currentAdmin, onLogout }) => {
               <button
                 onClick={onLogout}
                 className="btn btn--outline"
-                // style={{ display: "flex", alignItems: "center", gap: "8px" }}
               >
                 <FaSignOutAlt aria-hidden="true" />
                 Logout

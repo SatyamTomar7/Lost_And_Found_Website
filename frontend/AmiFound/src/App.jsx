@@ -29,11 +29,6 @@ const PageLoader = () => (
   <div className="page-loader">
     <div className="loading-spinner">
       <FaSpinner
-        // style={{
-        //   animation: "spin 1s linear infinite",
-        //   fontSize: "2rem",
-        //   color: "var(--color-primary)",
-        // }}
       />
       <p>Loading...</p>
     </div>
