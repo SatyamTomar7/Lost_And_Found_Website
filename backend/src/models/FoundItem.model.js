@@ -5,7 +5,6 @@ import {
   ITEM_CATEGORIES,
   ITEM_STATUS,
 } from "../constants.js";
-import { LostItem } from "./LostItem.model.js";
 const foundItemSchema = new Schema(
   {
     adminId: {

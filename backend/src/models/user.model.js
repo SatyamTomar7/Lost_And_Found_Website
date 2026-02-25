@@ -17,10 +17,23 @@ const userSchema = new Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      // match: [
-      //   /^[\w.-]+@s\.amity\.edu$/,
-      //   "Please provide a valid Amity University email (@s.amity.edu)",
-      // ],
+      validate: {
+        validator: function (v) {
+          // 1. List of your 5 pre-saved Admin emails
+          const adminEmails = [
+            "rktripathi@gwa.amity.edu",
+            "spsharma@gwa.amity.edu",
+            "rac@gwa.amity.edu",
+            "rbayadav@gwa.amity.edu",
+            "ksingh2@gwa.amity.edu",
+          ];
+
+          // 2. Allow if it's one of these 5 OR if it's a standard student email
+          return adminEmails.includes(v) || /^[\w.-]+@s\.amity\.edu$/.test(v);
+        },
+        message: (props) =>
+          `${props.value} is not a valid Amity email. Students must use @s.amity.edu`,
+      },
     },
     password: {
       type: String,
@@ -86,7 +99,7 @@ userSchema.methods.getJWTToken = function () {
       id: this._id,
       email: this.email,
       role: this.role,
-      department: this.department,   //for student how it works
+      department: this.department, //for student how it works
     },
     process.env.JWT_SECRET,
     {
