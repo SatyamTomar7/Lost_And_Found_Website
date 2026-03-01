@@ -1,6 +1,6 @@
-import {LostItem} from "../models/LostItem.model.js";
-import {FoundItem} from "../models/FoundItem.model.js";
-
+import { LostItem } from "../models/LostItem.model.js";
+import { FoundItem } from "../models/FoundItem.model.js";
+import { ITEM_STATUS } from "../constants.js";
 class MatchingService {
   constructor() {
     // Weights for different matching criteria
@@ -128,17 +128,53 @@ class MatchingService {
   }
 
   // Find potential matches for a lost item
+  // async findMatchesForLostItem(lostItemId, threshold = 60) {
+  //   try {
+  //     const lostItem = await LostItem.findById(lostItemId);
+  //     if (!lostItem) return [];
+
+  //     const foundItems = await FoundItem.find({
+  //       isActive: true,
+  //       status: "found",
+  //     }).populate("adminId", "name department");
+
+  //     const matches = [];
+
+  //     for (const foundItem of foundItems) {
+  //       const matchScore = this.calculateMatchScore(lostItem, foundItem);
+
+  //       if (matchScore >= threshold) {
+  //         matches.push({
+  //           foundItem,
+  //           matchScore,
+  //           matchDetails: this.getMatchDetails(lostItem, foundItem),
+  //         });
+  //       }
+  //     }
+
+  //     matches.sort((a, b) => b.matchScore - a.matchScore);
+
+  //     return matches;
+  //   } catch (error) {
+  //     console.error("Error finding matches for lost item:", error);
+  //     return [];
+  //   }
+  // }
+
   async findMatchesForLostItem(lostItemId, threshold = 60) {
     try {
       const lostItem = await LostItem.findById(lostItemId);
       if (!lostItem) return [];
 
+      // 1. Optimization: Filter by category early to reduce the loop size
       const foundItems = await FoundItem.find({
         isActive: true,
         status: "found",
+        category: lostItem.category, // Performance boost: only compare same categories
       }).populate("adminId", "name department");
 
       const matches = [];
+      const matchedIds = [];
 
       for (const foundItem of foundItems) {
         const matchScore = this.calculateMatchScore(lostItem, foundItem);
@@ -149,12 +185,28 @@ class MatchingService {
             matchScore,
             matchDetails: this.getMatchDetails(lostItem, foundItem),
           });
+
+          // Collect IDs for database sync
+          matchedIds.push(foundItem._id);
         }
       }
 
-      matches.sort((a, b) => b.matchScore - a.matchScore);
+      // 2. DATABASE SYNC: Update both sides so the UI stays consistent
+      if (matchedIds.length > 0) {
+        // Add found item IDs to the Lost Item record
+        await LostItem.findByIdAndUpdate(lostItemId, {
+          $addToSet: { matchedFoundItemIds: { $each: matchedIds } },
+        });
 
-      return matches;
+        // Add this Lost Item ID to all matching Found Item records
+        await FoundItem.updateMany(
+          { _id: { $in: matchedIds } },
+          { $addToSet: { matchedLostItemIds: lostItemId } }
+        );
+      }
+
+      // Sort by highest score first
+      return matches.sort((a, b) => b.matchScore - a.matchScore);
     } catch (error) {
       console.error("Error finding matches for lost item:", error);
       return [];
@@ -167,12 +219,15 @@ class MatchingService {
       const foundItem = await FoundItem.findById(foundItemId);
       if (!foundItem) return [];
 
+      // 1. Potential candidates dhoondein (Category match hona compulsory rakhein performance ke liye)
       const lostItems = await LostItem.find({
         isActive: true,
-        status: "pending",
+        status: ITEM_STATUS.PENDING,
+        category: foundItem.category, // Filter early for performance
       }).populate("userId", "name email");
 
       const matches = [];
+      const matchedIds = [];
 
       for (const lostItem of lostItems) {
         const matchScore = this.calculateMatchScore(lostItem, foundItem);
@@ -183,14 +238,29 @@ class MatchingService {
             matchScore,
             matchDetails: this.getMatchDetails(lostItem, foundItem),
           });
+
+          // ID collect karein sync ke liye
+          matchedIds.push(lostItem._id);
         }
       }
 
-      matches.sort((a, b) => b.matchScore - a.matchScore);
+      // 2. DATABASE SYNC: Dono sides update karein
+      if (matchedIds.length > 0) {
+        // Found Item mein saare Lost Item IDs push karein ($addToSet avoids duplicates)
+        await FoundItem.findByIdAndUpdate(foundItemId, {
+          $addToSet: { matchedLostItemIds: { $each: matchedIds } },
+        });
 
-      return matches;
+        // Har ek Lost Item mein ye Found Item ID push karein
+        await LostItem.updateMany(
+          { _id: { $in: matchedIds } },
+          { $addToSet: { matchedFoundItemIds: foundItemId } }
+        );
+      }
+
+      return matches.sort((a, b) => b.matchScore - a.matchScore);
     } catch (error) {
-      console.error("Error finding matches for found item:", error);
+      console.error("Error finding matches:", error);
       return [];
     }
   }

@@ -8,6 +8,7 @@ import {
   markAsUnclaimed,
   searchFoundItems,
   updateFoundItem,
+  getMatchedLostItemsForItem
 } from "../controllers/founditem.controller.js";
 const router = express.Router();
 import { protect, isAdmin } from "../middlewares/auth.middleware.js";
@@ -24,5 +25,7 @@ router.get("/:id", validateObjectId, getFoundItem);
 router.put("/:id", validateObjectId, validateFoundItem, updateFoundItem);
 router.put("/:id/returned", validateObjectId, markAsReturned);
 router.put("/:id/unclaimed", validateObjectId, markAsUnclaimed);
+router.get("/:id/matched-lost-items", getMatchedLostItemsForItem);
+
 router.delete("/:id", validateObjectId, deleteFoundItem);
 export default router;

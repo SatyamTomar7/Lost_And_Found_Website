@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { ITEM_STATUS, NOTIFICATION_TYPES } from "../constants.js";
 import { FoundItem } from "../models/FoundItem.model.js";
 import { LostItem } from "../models/LostItem.model.js";
@@ -71,7 +72,6 @@ export const addFoundItem = asyncHandler(async (req, res) => {
             req.user.department
           )
           .catch((err) => console.error("Email Error:", err));
-
         if (io) {
           io.sendNotificationToUser(match.lostItem.userId._id, {
             ...notification.toObject(),
@@ -86,7 +86,6 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 
   // 4. Final Population for Response
   const populatedItem = await foundItem.populate("adminId", "name department");
-
   res.status(201).json(
     new ApiResponse(
       201,
@@ -101,13 +100,14 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     )
   );
 });
+
 export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
   // 1. Parse and sanitize inputs
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 10);
   const { status } = req.query;
 
-  // 2. Build Query
+  // 2. Build Query - Filtering by the admin's department
   const query = {
     department: req.user.department,
     isActive: true,
@@ -119,11 +119,17 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
     FoundItem.find(query)
       .populate("adminId", "name")
       .populate("claimedBy", "name email")
-      .populate("matchedLostItemId", "name userID")
+      // UPDATED: Populate the array of potential lost item matches
+      .populate({
+        path: "matchedLostItemIds",
+        select: "name userId category status createdAt",
+        // Deep populate userId to see the name/email of the person who lost it
+        populate: { path: "userId", select: "name email" },
+      })
       .sort({ createdAt: -1 })
       .limit(limit)
       .skip((page - 1) * limit)
-      .lean(), // Added .lean() for faster, read-only performance
+      .lean(),
     FoundItem.countDocuments(query),
   ]);
 
@@ -143,40 +149,55 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
         },
         data: foundItems,
       },
-      "Data fetched successfully"
+      foundItems.length > 0
+        ? "Department data fetched"
+        : "No items found for this department"
     )
   );
 });
+
 export const getFoundItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   // 1. Build a secure query
-  // If the user is an admin, they can only "find" it if it belongs to their department
+  // Security check: Admins can only view items assigned to their specific department
   const query = { _id: id };
   if (req.user.role === "admin") {
     query.department = req.user.department;
   }
 
-  // 2. Execute query with .lean() for performance
+  // 2. Execute query with Deep Population
   const foundItem = await FoundItem.findOne(query)
     .populate("adminId", "name department")
     .populate("claimedBy", "name email")
-    .populate("matchedLostItemId", "name userId")
+    // UPDATED: Populate the array of potential matches
+    .populate({
+      path: "matchedLostItemIds",
+      select: "name userId status category createdAt",
+      // Deep populate to see who lost each matching item
+      populate: { path: "userId", select: "name email" },
+    })
     .lean();
 
   // 3. Simple error handling
   if (!foundItem) {
-    // This will trigger if the ID is wrong OR if the department doesn't match
-    throw new ApiError(404, "Found item not found or access denied");
+    throw new ApiError(
+      404,
+      "Found item not found or access denied for your department"
+    );
   }
 
+  // 4. Response
   res
     .status(200)
     .json(
-      new ApiResponse(200, { data: foundItem }, "Data fetched successfully")
+      new ApiResponse(
+        200,
+        { data: foundItem },
+        "Found item details and potential claimants fetched successfully"
+      )
     );
 });
-
 export const updateFoundItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -218,94 +239,219 @@ export const updateFoundItem = asyncHandler(async (req, res) => {
       )
     );
 });
-export const markAsReturned = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { claimedByUserId } = req.body;
 
-  // 1. Update FoundItem in one step
-  // We include department security in the filter
-  const foundItem = await FoundItem.findOneAndUpdate(
-    {
-      _id: id,
-      department: req.user.department,
-    },
-    {
-      $set: {
-        status: ITEM_STATUS.RETURNED,
-        claimedBy: claimedByUserId,
-        claimedAt: new Date(),
-        returnedAt: new Date(),
+export const markAsReturned = asyncHandler(async (req, res) => {
+  const { id } = req.params; // FoundItem ID
+  const { lostItemId, claimedByUserId } = req.body;
+  if (!lostItemId || !claimedByUserId) {
+    throw new ApiError(
+      400,
+      "Lost Item ID and Claimant ID are required for handover"
+    );
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Update the FoundItem
+    // Array ko clear kar rahe hain aur final matched ID set kar rahe hain
+    const foundItem = await FoundItem.findOneAndUpdate(
+      { _id: id, department: req.user.department },
+      {
+        $set: {
+          status: ITEM_STATUS.RETURNED,
+          claimedBy: claimedByUserId,
+          matchedLostItemId: lostItemId, // Ye final 1-to-1 link hai
+          returnedAt: new Date(),
+          matchedLostItemIds: [], // Cleanup: Potential matches ab valid nahi rahe
+        },
       },
-    },
-    { new: true, runValidators: true }
-  )
-    .populate("adminId", "name department")
-    .populate("claimedBy", "name email");
+      { new: true, session, runValidators: true }
+    ).populate("claimedBy", "name email");
+
+    if (!foundItem) {
+      throw new ApiError(404, "Found item not found or access denied");
+    }
+
+    // 2. Update the specific LostItem
+    const lostUpdate = await LostItem.findOneAndUpdate(
+      { _id: lostItemId, userId: claimedByUserId },
+      {
+        $set: {
+          status: ITEM_STATUS.COLLECTED, // Ya COLLECTED jo bhi aapka constant ho
+          matchedFoundItemId: foundItem._id, // Final 1-to-1 link
+          matchedFoundItemIds: [], // Cleanup potential matches for this specific item
+        },
+      },
+      { session, new: true }
+    );
+    console.log("=>>>>>>lostupdate", foundItem._id);
+
+    if (!lostUpdate) {
+      throw new ApiError(
+        400,
+        "Specific lost item record not found or user mismatch"
+      );
+    }
+
+    // 3. GLOBAL CLEANUP (Many-to-Many Cleanup)
+    // Ye FoundItem ab system se bahar hai, isliye ise baaki sabhi LostItems ke
+    // "potential matches" array se nikal dena chahiye.
+    await LostItem.updateMany(
+      { matchedFoundItemIds: foundItem._id },
+      { $pull: { matchedFoundItemIds: foundItem._id } },
+      { session }
+    );
+
+    // Same for FoundItems (Agar ye LostItem kisi aur FoundItem se match ho raha tha)
+    await FoundItem.updateMany(
+      { matchedLostItemIds: lostItemId },
+      { $pull: { matchedLostItemIds: lostItemId } },
+      { session }
+    );
+
+    await session.commitTransaction();
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { foundItem },
+          "Item returned and all related potential matches cleared"
+        )
+      );
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Handover Error:", error);
+    throw new ApiError(
+      error.statusCode || 500,
+      error.message || "Internal Server Error during handover"
+    );
+  } finally {
+    session.endSession();
+  }
+});
+
+export const markAsUnclaimed = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Update the FoundItem
+    // Status change karein aur potential matches ke arrays ko clear kar dein
+    const foundItem = await FoundItem.findOneAndUpdate(
+      {
+        _id: id,
+        department: req.user.department,
+      },
+      {
+        $set: {
+          status: ITEM_STATUS.UNCLAIMED,
+          matchedLostItemIds: [], // Ab ye kisi se match nahi ho raha
+        },
+        $unset: {
+          claimedBy: "",
+          claimedAt: "",
+          returnedAt: "",
+          matchedLostItemId: "", // Final match field bhi clear karein agar thi toh
+        },
+      },
+      {
+        new: true,
+        session,
+        runValidators: true,
+      }
+    ).populate("adminId", "name department");
+
+    if (!foundItem) {
+      throw new ApiError(
+        404,
+        "Found item not found or you lack permission for this department"
+      );
+    }
+
+    // 2. Global Cleanup in LostItem Collection
+    // Jitne bhi Lost Items is Found Item ko "Potential Match" dikha rahe the,
+    // wahan se iski ID remove ($pull) karein taaki user ka UI update ho jaye.
+    await LostItem.updateMany(
+      { matchedFoundItemIds: id },
+      { $pull: { matchedFoundFoundItemIds: id } },
+      { session }
+    );
+
+    await session.commitTransaction();
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { data: foundItem },
+          "Item marked as unclaimed and all potential links removed"
+        )
+      );
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Unclaimed Status Error:", error);
+    throw new ApiError(
+      error.statusCode || 500,
+      error.message || "Failed to mark item as unclaimed"
+    );
+  } finally {
+    session.endSession();
+  }
+});
+export const getMatchedLostItemsForItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const foundItem = await FoundItem.findOne({
+    _id: id,
+    department: req.user.department,
+  })
+    .select("matchedLostItemIds name")
+    .populate({
+      path: "matchedLostItemIds",
+      select: "name color placeLost dateLost userId status",
+      populate: {
+        path: "userId",
+        select: "name email",
+      },
+    });
 
   if (!foundItem) {
     throw new ApiError(404, "Found item not found or access denied");
   }
 
-  // 2. Link with LostItem if applicable
-  // We don't need to 'await' the populated fetch again later
-  if (foundItem.matchedLostItemId) {
-    await LostItem.findByIdAndUpdate(foundItem.matchedLostItemId, {
-      $set: {
-        status: ITEM_STATUS.COLLECTED,
-        matchedFoundItemId: foundItem._id,
-      },
-    });
+  if (
+    !foundItem.matchedLostItemIds ||
+    foundItem.matchedLostItemIds.length === 0
+  ) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { data: [] }, "No matched lost items found"));
   }
 
-  res
+  // Filter out already returned/resolved lost items
+  const activeMatches = foundItem.matchedLostItemIds.filter(
+    (lostItem) =>
+      lostItem.status !== "Returned" && lostItem.status !== "Collected"
+  );
+
+  return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        { data: foundItem },
-        "Item marked as returned successfully"
+        { data: activeMatches },
+        "Matched lost items fetched successfully"
       )
     );
 });
-export const markAsUnclaimed = asyncHandler(async (req, res) => {
-  const { id } = req.params;
 
-  // 1. Update and Security Check in one go
-  // The query filter ensures the item exists AND belongs to the admin's department
-  const foundItem = await FoundItem.findOneAndUpdate(
-    {
-      _id: id,
-      department: req.user.department,
-    },
-    {
-      $set: { status: ITEM_STATUS.UNCLAIMED },
-      // Optional: Clear claiming data if previously present
-      $unset: { claimedBy: "", claimedAt: "", returnedAt: "" },
-    },
-    {
-      new: true,
-      runValidators: true,
-    }
-  ).populate("adminId", "name department");
-
-  // 2. Error handling
-  if (!foundItem) {
-    throw new ApiError(
-      404,
-      "Found item not found or you lack permission for this department"
-    );
-  }
-
-  res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { data: foundItem },
-        "Item marked as unclaimed successfully"
-      )
-    );
-});
 export const deleteFoundItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 

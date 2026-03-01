@@ -42,7 +42,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
           userId: req.user.id,
           type: NOTIFICATION_TYPES.MATCH_FOUND,
           title: "Potential Match Found",
-          message: `We found a ${match.matchScore}% match for your lost ${lostItem.name}.`,
+          message: `We found a ${match.matchScore}% match for your lost ${lostItem.name} in ${match.foundItem.department}.`,
           data: {
             lostItemId: lostItem._id,
             foundItemId: match.foundItem._id,
@@ -107,17 +107,23 @@ export const getMyLostItems = asyncHandler(async (req, res) => {
   // 3. Execute in Parallel (The "Now" standard)
   const [lostItems, total] = await Promise.all([
     LostItem.find(query)
-      .populate("matchedFoundItemId", "name department adminId")
+      // UPDATED: Populate the array of IDs and include nested admin details if needed
+      .populate({
+        path: "matchedFoundItemIds",
+        select: "name department adminId status category",
+        populate: { path: "adminId", select: "name department" },
+      })
       .sort({ createdAt: -1 })
       .limit(limit)
       .skip((page - 1) * limit)
-      .lean(), // Performance optimization for read-only data
+      .lean(), // lean() makes it a plain JS object, much faster for reading
     LostItem.countDocuments(query),
   ]);
 
   // 4. Calculate Metadata
   const totalPages = Math.ceil(total / limit);
 
+  // 5. Response
   res.status(200).json(
     new ApiResponse(
       200,
@@ -131,41 +137,50 @@ export const getMyLostItems = asyncHandler(async (req, res) => {
         },
         data: lostItems,
       },
-      "Items fetched successfully"
+      lostItems.length > 0
+        ? "Items fetched successfully"
+        : "No lost items found."
     )
   );
 });
-
 export const getLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   // 1. Build an Authorized Query
-  // If user is admin, they can see any item.
-  // If not, they can ONLY find the item if the userId matches.
   const query = { _id: id };
+
+  // Security check: Only the owner or an admin can view the details
   if (req.user.role !== "admin") {
     query.userId = req.user.id;
   }
 
-  // 2. Optimized Fetch
+  // 2. Optimized Fetch with Deep Population
   const lostItem = await LostItem.findOne(query)
     .populate("userId", "name email")
-    .populate("matchedFoundItemId", "name department adminId")
-    .lean(); // Use lean for faster, read-only performance
+    // UPDATED: Changed to array field and added admin population for matches
+    .populate({
+      path: "matchedFoundItemIds",
+      select: "name department adminId status category createdAt",
+      populate: { path: "adminId", select: "name department" },
+    })
+    .lean();
 
   // 3. Simple Error Handling
   if (!lostItem) {
-    // If null, it's either the wrong ID or the user isn't authorized
     throw new ApiError(404, "Lost item not found or access denied");
   }
 
+  // 4. Response
   res
     .status(200)
     .json(
-      new ApiResponse(200, { data: lostItem }, "Data fetched successfully")
+      new ApiResponse(
+        200,
+        { data: lostItem },
+        "Lost item details and potential matches fetched successfully"
+      )
     );
 });
-
 export const updateLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 

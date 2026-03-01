@@ -50,7 +50,7 @@ const foundItemSchema = new Schema(
         validator: function (date) {
           return date <= new Date();
         },
-        message: "Date found cannot be in the future"
+        message: "Date found cannot be in the future",
       },
     },
     placeFound: {
@@ -71,15 +71,26 @@ const foundItemSchema = new Schema(
       enum: [ITEM_STATUS.FOUND, ITEM_STATUS.RETURNED, ITEM_STATUS.UNCLAIMED],
       default: ITEM_STATUS.FOUND,
     },
+
+    matchedLostItemIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "LostItem",
+      },
+    ],
+
+    // Ye field pehle se hai, iska use 'Handover' ke waqt karein
+    // Isko hum change nahi karenge, ye final 1-to-1 match rahega
     matchedLostItemId: {
       type: Schema.Types.ObjectId,
       ref: "LostItem",
       default: null,
     },
-    claimedBy:{
-      type:Schema.Types.ObjectId,
-      ref:"User",
-      default:null
+
+    claimedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
     claimedAt: Date,
     returnedAt: Date,
@@ -137,4 +148,5 @@ foundItemSchema.index({ department: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
 foundItemSchema.index({ category: 1, color: 1 });
 foundItemSchema.index({ adminId: 1 });
+foundItemSchema.index({ matchedLostItemIds: 1 }); // Multi-key index for the array
 export const FoundItem = mongoose.model("FoundItem", foundItemSchema);

@@ -5,6 +5,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
+import { ITEM_STATUS } from "../constants.js";
 export const checkLostItemMatches = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const threshold = Math.min(
@@ -139,6 +140,7 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
 });
 export const getMatchingStats = asyncHandler(async (req, res) => {
   const department = req.user.role === "admin" ? req.user.department : null;
+
   const totalLostItems = await LostItem.countDocuments({
     isActive: true,
     ...(department && { placeLost: new RegExp(department, "i") }),
@@ -148,12 +150,14 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     isActive: true,
     ...(department && { department }),
   });
+
   const matchedItems = await LostItem.countDocuments({
     matchedFoundItemId: { $ne: null },
     ...(department && { placeLost: new RegExp(department, "i") }),
   });
+
   const returnedItem = await FoundItem.countDocuments({
-    status: "returned",
+    status: ITEM_STATUS.RETURNED,
     ...(department && { department }),
   });
 
@@ -194,18 +198,28 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
         },
       },
     },
-    {
-      $sort: { total: -1 },
-    },
+    { $sort: { total: -1 } },
   ]);
 
+  // ── Only fetch active, unresolved items for live matching ──────────────────
   const foundItems = await FoundItem.find({
     isActive: true,
+    status: { $ne: ITEM_STATUS.RETURNED }, // exclude already returned
     ...(department && { department }),
   });
 
-  const lostItems = await LostItem.find({ isActive: true });
+  const lostItems = await LostItem.find({
+    isActive: true,
+    status: { $nin: [ITEM_STATUS.COLLECTED, ITEM_STATUS.RETURNED] }, // exclude claimed
+  });
+
+  // ── Build matches ──────────────────────────────────────────────────────────
   const matches = [];
+
+  // Batch fetch users to avoid N+1 queries
+  const userIds = [...new Set(lostItems.map((l) => l.userId.toString()))];
+  const users = await User.find({ _id: { $in: userIds } }).select("name email");
+  const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
   for (const foundItem of foundItems) {
     for (const lostItem of lostItems) {
@@ -213,8 +227,9 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
         lostItem,
         foundItem
       );
+
       if (matchScore > 60) {
-        const user = await User.findById(lostItem.userId).select("name email");
+        const user = userMap[lostItem.userId.toString()];
         matches.push({
           foundItem: {
             id: foundItem._id,
@@ -235,7 +250,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
             description: lostItem.description,
           },
           similarity: matchScore,
-          user,
+          user: user || null,
         });
       }
     }
