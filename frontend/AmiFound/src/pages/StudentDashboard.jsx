@@ -214,7 +214,6 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
     });
 
   const { notifications, unreadCount } = notificationData;
-
   // ── Mutations ─────────────────────────────────────────────────────────────
   const submitLostItemMutation = useMutation({
     mutationFn: (data) => submitLostItem(data, data.photo?.[0]),

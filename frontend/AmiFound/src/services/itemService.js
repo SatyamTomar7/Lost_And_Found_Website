@@ -70,10 +70,18 @@ export const getDepartmentFoundItems = async () => {
   return response.json();
 };
 
-export const updateFoundItemStatus = async (itemId, status) => {
+export const updateFoundItemStatus = async (
+  itemId,
+  status,
+  lostItemId,
+  claimedByUserId,
+) => {
   let url = "";
+  let body = undefined;
+
   if (status === "Returned") {
     url = `${API_URL}/founditems/${itemId}/returned`;
+    body = JSON.stringify({ lostItemId, claimedByUserId });
   } else if (status === "Unclaimed") {
     url = `${API_URL}/founditems/${itemId}/unclaimed`;
   } else {
@@ -83,14 +91,35 @@ export const updateFoundItemStatus = async (itemId, status) => {
   const response = await fetch(url, {
     method: "PUT",
     headers: getAuthHeaders(),
+    ...(body && { body }),
   });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to update item status");
+  }
 
   return response.json();
 };
-
 export const getMatchStats = async () => {
   const response = await fetch(`${API_URL}/matches/stats`, {
     headers: getAuthHeaders(),
   });
+  return response.json();
+};
+export const getMatchedLostItemsForFoundItem = async (foundItemId) => {
+  const response = await fetch(
+    `${API_URL}/founditems/${foundItemId}/matched-lost-items`,
+    {
+      method: "GET",
+      headers: getAuthHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to fetch matched lost items");
+  }
+
   return response.json();
 };
