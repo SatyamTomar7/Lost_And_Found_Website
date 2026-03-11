@@ -2826,3 +2826,40 @@ input[type="radio"] {
   font-size: 14px;
   color: #333;
 }
+
+
+/* ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* ─── Collected Offline Button ─────────────────────────────────────────────── */
+.btn--collected-offline {
+  background-color: transparent;
+  color: #b45309;                   /* amber-700 */
+  border: 1.5px solid #b45309;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn--collected-offline:hover:not(:disabled) {
+  background-color: #b45309;
+  color: #fff;
+}
+
+.btn--collected-offline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Collected status badge ────────────────────────────────────────────────── */
+/* Adds support for the new "collected" status alongside existing found/returned/unclaimed */
+.status--collected {
+  background-color: #fef3c7;        /* amber-100 */
+  color: #92400e;                   /* amber-800 */
+  border: 1px solid #fcd34d;        /* amber-300 */
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  white-space: nowrap;
+}

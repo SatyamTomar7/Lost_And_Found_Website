@@ -123,3 +123,17 @@ export const getMatchedLostItemsForFoundItem = async (foundItemId) => {
 
   return response.json();
 };
+
+export const markItemCollectedOffline = async (itemId) => {
+  const response = await fetch(`${API_URL}/founditems/${itemId}/collected-offline`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to mark item as collected offline");
+  }
+
+  return response.json();
+};
