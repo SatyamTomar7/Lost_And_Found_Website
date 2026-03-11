@@ -20,7 +20,12 @@ import {
   FaPaperPlane,
   FaSpinner,
 } from "react-icons/fa";
-
+import {
+  COLORS,
+  ITEM_NAME,
+  ITEM_CONDITIONS,
+  CAMPUS_LOCATIONS,
+} from "../utils/itemConstants";
 import { submitLostItem, getMyLostItems } from "../services/itemService";
 import {
   getNotifications,
@@ -32,17 +37,39 @@ import {
 const today = new Date().toISOString().split("T")[0];
 
 const lostItemSchema = z.object({
-  name: z.string().min(1, "Item name is required"),
-  color: z.string().min(1, "Color is required"),
-  category: z.string().min(1, "Category is required"),
-  brand: z.string().optional(),
+  name: z.string().min(1, "Please select a name"),
+
+  color: z.string().min(1, "Please select a color"),
+
+  brand: z.string().max(20, "Brand name too long").optional().or(z.literal("")),
+  condition: z.enum(["New", "Used"], {
+    required_error: "Please select condition",
+  }),
   dateLost: z
     .string()
     .min(1, "Date is required")
     .refine((d) => d <= today, { message: "Date cannot be in the future" }),
-  placeLost: z.string().min(1, "Location is required"),
-  description: z.string().optional(),
-  photo: z.any().optional(),
+  placeLost: z.string().min(1, "Please select a location"),
+  description: z
+    .string()
+    .max(100, "Description cannot exceed 500 characters")
+    .optional()
+    .or(z.literal("")),
+
+  photo: z
+    .any()
+    .refine(
+      (files) => !files || files.length === 0 || files[0].size <= 5000000,
+      `Max file size is 5MB.`,
+    )
+    .refine(
+      (files) =>
+        !files ||
+        files.length === 0 ||
+        ["image/jpeg", "image/png", "image/jpg"].includes(files[0].type),
+      ".jpg, .jpeg, and .png files are accepted.",
+    )
+    .optional(),
 });
 
 const resolver = zodResolver(lostItemSchema);
@@ -71,9 +98,6 @@ const LostItemCard = React.memo(({ item }) => (
         <div className="item-meta">
           <span>
             <FaPalette /> {item.color}
-          </span>
-          <span>
-            <FaTag /> {item.category}
           </span>
           <span>
             <FaCalendarAlt /> {new Date(item.dateLost).toLocaleDateString()}
@@ -121,7 +145,6 @@ const EmptyState = React.memo(
       <IconComponent
         style={isSpinning ? { animation: "fa-spin 2s infinite linear" } : {}}
       />
-
       <h3>{title}</h3>
       <p>{description}</p>
     </div>
@@ -153,37 +176,18 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
     defaultValues: {
       name: "",
       color: "",
-      category: "",
       brand: "",
       dateLost: "",
       placeLost: "",
       description: "",
+      condition: "Used",
     },
   });
 
   // ── Queries ───────────────────────────────────────────────────────────────
-  // const { data: lostItems = [], isLoading: lostItemsLoading } = useQuery({
-  //   queryKey: QUERY_KEYS.lostItems,
-  //   queryFn: async () => {
-  //     const result = await getMyLostItems();
-  //     return result.data.data || [];
-  //   },
-  //   enabled: activeTab === "my-items",
-  // });
 
-  // const { data: notificationData = { notifications: [], unreadCount: 0 } } =
-  //   useQuery({
-  //     queryKey: QUERY_KEYS.notifications,
-  //     queryFn: async () => {
-  //       const result = await getNotifications();
-  //       return {
-  //         notifications: result.data.notifications || [],
-  //         unreadCount: result.data.unreadCount || 0,
-  //       };
-  //     },
-  //   });
-
-  // 1. My Lost Items: Optimization
+  // 1. My Lost Items: Poll every 5s so status updates (e.g. Pending → Collected)
+  //    appear quickly without the student needing to manually refresh.
   const { data: lostItems = [], isLoading: lostItemsLoading } = useQuery({
     queryKey: QUERY_KEYS.lostItems,
     queryFn: async () => {
@@ -191,11 +195,14 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
       return result.data.data || [];
     },
     enabled: activeTab === "my-items",
-    staleTime: 1000 * 60 * 2, // 2 minutes tak fresh maano (User bar-bar tab badle toh fetch na ho)
-    gcTime: 1000 * 60 * 10, // 10 minutes tak cache mein rakho
+    staleTime: 0, // Always treat as stale so refetch fires reliably
+    gcTime: 1000 * 60 * 5, // Keep in cache 5 min
+    refetchInterval: 5000, // Poll every 5 seconds while tab is active
+    refetchIntervalInBackground: false, // Pause polling when window is hidden
+    refetchOnWindowFocus: true, // Immediately refetch when user returns to tab
   });
 
-  // 2. Notifications: Real-time Optimization (Polling)
+  // 2. Notifications: Poll every 3s for near-instant status change alerts
   const { data: notificationData = { notifications: [], unreadCount: 0 } } =
     useQuery({
       queryKey: QUERY_KEYS.notifications,
@@ -206,14 +213,14 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
           unreadCount: result.data.unreadCount || 0,
         };
       },
-      // Optimization Concept:
-      staleTime: 0, // Notifications hamesha fresh check honi chahiye
-      refetchInterval: 10000, // Har 10 seconds mein auto-fetch karega (Polling)
-      refetchIntervalInBackground: false, // Jab user tab par na ho toh battery/data bachaye
-      refetchOnWindowFocus: true, // Jab user wapas app par aaye toh turant check kare
+      staleTime: 0,
+      refetchInterval: 3000, // Reduced from 10s → 3s for near-instant updates
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: true,
     });
 
   const { notifications, unreadCount } = notificationData;
+
   // ── Mutations ─────────────────────────────────────────────────────────────
   const submitLostItemMutation = useMutation({
     mutationFn: (data) => submitLostItem(data, data.photo?.[0]),
@@ -221,7 +228,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
     onSuccess: () => {
       reset();
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.lostItems });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications }); //added by me
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
       showMessage("Lost Item reported successfully!", "success");
     },
     onError: (err) =>
@@ -266,7 +273,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
   return (
     <div className="page active">
       <div className="dashboard-container">
-        {/* Header — main ke bahar */}
+        {/* Header */}
         <div className="dashboard-header">
           <div className="user-info">
             <div className="user-avatar">
@@ -289,7 +296,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
           </button>
         </div>
 
-        {/* Nav — main ke bahar */}
+        {/* Nav */}
         <nav
           className="dashboard-nav"
           role="tablist"
@@ -309,7 +316,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
           ))}
         </nav>
 
-        {/* Main — sirf tab content wrap karta hai */}
+        {/* Main */}
         <main className="dashboard-content-area">
           {activeTab === "report-lost" && (
             <div
@@ -334,30 +341,46 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       <label htmlFor="name" className="form-label">
                         Item Name *
                       </label>
-                      <input
+                      <select
                         id="name"
                         {...register("name")}
                         className={`form-control ${errors.name ? "is-invalid" : ""}`}
                         disabled={isFormDisabled}
-                      />
+                      >
+                        <option value="">Select Name</option>
+                        {ITEM_NAME.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
                       {errors.name && (
                         <div className="error-message">
                           {errors.name.message}
                         </div>
                       )}
                     </div>
+
                     <div className="form-group">
-                      <label htmlFor="color" className="form-label">
+                      <label htmlFor="itemColor" className="form-label">
                         Color *
                       </label>
-                      <input
-                        id="color"
+                      <select
+                        id="itemColor"
                         {...register("color")}
                         className={`form-control ${errors.color ? "is-invalid" : ""}`}
                         disabled={isFormDisabled}
-                      />
+                        aria-invalid={errors.color ? "true" : "false"}
+                      >
+                        <option value="">Select a color</option>
+                        {COLORS.map((color) => (
+                          <option key={color} value={color}>
+                            {color}
+                          </option>
+                        ))}
+                      </select>
                       {errors.color && (
-                        <div className="error-message">
+                        <div className="error-message" role="alert">
                           {errors.color.message}
                         </div>
                       )}
@@ -366,27 +389,58 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="category" className="form-label">
-                        Category *
-                      </label>
-                      <select
-                        id="category"
-                        {...register("category")}
-                        className={`form-control ${errors.category ? "is-invalid" : ""}`}
-                        disabled={isFormDisabled}
+                      <label className="form-label">Item Condition *</label>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "20px",
+                          marginTop: "10px",
+                          alignItems: "center",
+                        }}
                       >
-                        <option value="">Select Category</option>
-                        <option value="Electronics">Electronics</option>
-                        <option value="Accessories">Accessories</option>
-                        <option value="Books">Books</option>
-                        <option value="Clothing">Clothing</option>
-                        <option value="Daily Items">Daily Items</option>
-                        <option value="Jewelry">Jewelry</option>
-                        <option value="Documents">Documents</option>
-                      </select>
-                      {errors.category && (
-                        <div className="error-message">
-                          {errors.category.message}
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            value={ITEM_CONDITIONS.NEW}
+                            {...register("condition")}
+                            disabled={isFormDisabled}
+                            style={{ width: "16px", height: "16px" }}
+                          />
+                          New
+                        </label>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            value={ITEM_CONDITIONS.USED}
+                            {...register("condition")}
+                            disabled={isFormDisabled}
+                            style={{ width: "16px", height: "16px" }}
+                          />
+                          Used
+                        </label>
+                      </div>
+                      {errors.condition && (
+                        <div
+                          className="error-message"
+                          style={{ marginTop: "5px" }}
+                        >
+                          {errors.condition.message}
                         </div>
                       )}
                     </div>
@@ -408,12 +462,19 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       <label htmlFor="placeLost" className="form-label">
                         Place Lost *
                       </label>
-                      <input
+                      <select
                         id="placeLost"
                         {...register("placeLost")}
                         className={`form-control ${errors.placeLost ? "is-invalid" : ""}`}
                         disabled={isFormDisabled}
-                      />
+                      >
+                        <option value="">Select Location</option>
+                        {CAMPUS_LOCATIONS.map((location) => (
+                          <option key={location} value={location}>
+                            {location}
+                          </option>
+                        ))}
+                      </select>
                       {errors.placeLost && (
                         <div className="error-message">
                           {errors.placeLost.message}

@@ -1,0 +1,158 @@
+export const COLORS = [
+  "Black",
+  "White",
+  "Grey",
+  "Silver",
+  "Gold",
+  "Red",
+  "Blue",
+  "Navy Blue",
+  "Light Blue",
+  "Green",
+  "Dark Green",
+  "Yellow",
+  "Orange",
+  "Purple",
+  "Pink",
+  "Brown",
+  "Beige",
+  "Tan",
+  "Maroon",
+  "Teal",
+  "Magenta",
+  "Lavender",
+  "Charcoal",
+  "Multi-colored",
+  "Other",
+];
+
+export const ITEM_NAME = [
+  "Earbuds",
+  "Earphones",
+  "Headphones",
+  "Laptop",
+  "Mobile Phone",
+  "Student ID Card",
+  "Library Card",
+  "Admit Card",
+  "Marksheet",
+  "Calculator",
+  "Laptop Charger",
+  "Phone Charger",
+  "Power Bank",
+  "Money (Cash)",
+  "Credit/Debit Card",
+  "Wallet",
+  "House Keys",
+  "Dorm Keys",
+  "Smartwatch",
+  "Hard Drive",
+  "Water Bottle",
+  "Glasses Case",
+  "Tablet",
+  "Bracelet",
+  "Earrings",
+  "Necklace",
+  "Ring",
+  "Wristwatch",
+  "Other",
+];
+
+export const ITEM_CONDITIONS = {
+  NEW: "New",
+  USED: "Used",
+};
+
+
+export const ITEM_CATEGORIES = [
+  // Electronics (Specific)
+  "Mobile Phone - iOS",
+  "Mobile Phone - Android",
+  "Laptop - MacBook",
+  "Laptop - Windows/Linux",
+  "Tablet/iPad",
+  "Smartwatch/Apple Watch", // <--- Added Watch here
+  "Analog Watch", // <--- Separated from Smartwatches
+  "Earbuds/AirPods",
+  "Headphones",
+  "Power Bank/Charger",
+
+  // Personal Items
+  "Wallet/Purse",
+  "Keys/Keychains",
+  "Water Bottle",
+  "Glasses/Sunglasses",
+  "Umbrella",
+
+  // Academic
+  "ID Card/Library Card",
+  "Notebook/Textbook",
+  "Calculator",
+  "Stationery Pouch",
+
+  // Others
+  "Bag/Backpack",
+  "Clothing/Hoodie",
+  "Sports Equipment",
+  "Other",
+];
+
+export const CAMPUS_LOCATIONS = [
+  // --- Block A ---
+  "Block A - Classrooms",
+  "Block A - Corridor / Hallway",
+  "Block A - Library",
+  "Block A - Canteen",
+  "Block A - Seminar Hall",
+  "Block A - Parking",
+  "Block A - Washroom",
+
+  // --- Block B ---
+  "Block B - Classrooms",
+  "Block B - Corridor / Hallway",
+  "Block B - Library",
+  "Block B - Canteen",
+  "Block B - Auditorium",
+  "Block B - Parking",
+  "Block B - Washroom",
+
+  // --- Block C ---
+  "Block C - Classrooms",
+  "Block C - Corridor / Hallway",
+  "Block C - Library",
+  "Block C - Canteen",
+  "Block C - Seminar Hall",
+  "Block C - Parking",
+  "Block C - Washroom",
+
+  // --- Block D ---
+  "Block D - Classrooms",
+  "Block D - Corridor / Hallway",
+  "Block D - Library",
+  "Block D - Canteen",
+  "Block D - Seminar Hall",
+  "Block D - Parking",
+  "Block D - Washroom",
+
+  // --- Block E ---
+  "Block E - Classrooms",
+  "Block E - Corridor / Hallway",
+  "Block E - Library",
+  "Block E - Seminar Hall",
+  "Block E - Parking",
+  "Block E - Washroom",
+
+  // --- Sports & Athletics ---
+  "Main Ground (Open Field)",
+  "Cricket Ground (Match Play)",
+  "Cricket Practice Nets",
+  "Volleyball Court",
+  "Basketball Court",
+  "Badminton Court",
+
+  // --- General Areas ---
+  "Administrative Office",
+  "University Entrance / Main Gate",
+  "Main Garden / Open Area",
+  "Cafeteria (Main)"
+];

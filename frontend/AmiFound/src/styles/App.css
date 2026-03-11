@@ -2808,3 +2808,21 @@ select.form-control {
   border-radius: 8px;
   padding: 0.6rem 1rem;
 }
+
+/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.. */
+
+.form-group div {
+  padding: 5px 0;
+}
+
+input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #007bff; /* Matches your primary theme color */
+  cursor: pointer;
+}
+
+.form-group label {
+  font-size: 14px;
+  color: #333;
+}

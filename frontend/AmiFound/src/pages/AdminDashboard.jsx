@@ -1,3 +1,8 @@
+import {
+  COLORS,
+  ITEM_CONDITIONS,
+  CAMPUS_LOCATIONS,ITEM_NAME
+} from "../utils/itemConstants";
 import React, { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,14 +42,19 @@ import {
 const today = new Date().toISOString().split("T")[0];
 
 const foundItemSchema = z.object({
-  name: z.string().min(1, "Item name is required"),
-  color: z.string().min(1, "Color is required"),
-  category: z.string().min(1, "Category is required"),
+  name: z.string().min(1, "Please select a name"),
+
+  color: z.string().min(1, "Please select a color"),
+  brand: z.string().max(20, "Brand name too long").optional().or(z.literal("")),
+  condition: z.enum(["New", "Used"], {
+    required_error: "Please select condition",
+  }),
   dateFound: z
     .string()
     .min(1, "Date is required")
     .refine((d) => d <= today, { message: "Date cannot be in the future" }),
-  placeFound: z.string().min(1, "Location is required"),
+
+  placeFound: z.string().min(1, "Please select a location"),
 });
 
 const resolver = zodResolver(foundItemSchema);
@@ -88,9 +98,12 @@ const ReturnDetailsModal = ({ item, onClose }) => {
             <div className="return-details__item-card">
               <div className="return-details__item-name">{item.name}</div>
               <div className="item-meta">
-                <span><FaPalette /> {item.color}</span>
-                <span><FaTag /> {item.category}</span>
-                <span><FaMapMarkerAlt /> {item.placeFound}</span>
+                <span>
+                  <FaPalette /> {item.color}
+                </span>
+                <span>
+                  <FaMapMarkerAlt /> {item.placeFound}
+                </span>
                 <span>
                   <FaCalendarAlt />{" "}
                   {new Date(item.dateFound).toLocaleDateString()}
@@ -162,6 +175,7 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
     },
     staleTime: 0,
   });
+
 
   const handleConfirm = () => {
     if (!selectedLostItem) return;
@@ -240,8 +254,12 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
                       {lostItem.name}
                     </div>
                     <div className="return-modal__list-item-meta">
-                      <span><FaPalette /> {lostItem.color}</span>
-                      <span><FaMapMarkerAlt /> {lostItem.placeLost}</span>
+                      <span>
+                        <FaPalette /> {lostItem.color}
+                      </span>
+                      <span>
+                        <FaMapMarkerAlt /> {lostItem.placeLost}
+                      </span>
                       <span>
                         <FaCalendarAlt />{" "}
                         {new Date(lostItem.dateLost).toLocaleDateString()}
@@ -251,7 +269,10 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
                       <div className="return-modal__list-item-user">
                         <FaUser /> {lostItem.userId.name}
                         {lostItem.userId.email && (
-                          <span> · <FaEnvelope /> {lostItem.userId.email}</span>
+                          <span>
+                            {" "}
+                            · <FaEnvelope /> {lostItem.userId.email}
+                          </span>
                         )}
                       </div>
                     )}
@@ -276,9 +297,13 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
             disabled={!selectedLostItem || isLoading || loadingMatches}
           >
             {isLoading ? (
-              <><FaSpinner className="spin-icon" /> Processing…</>
+              <>
+                <FaSpinner className="spin-icon" /> Processing…
+              </>
             ) : (
-              <><FaCheck /> Confirm Return</>
+              <>
+                <FaCheck /> Confirm Return
+              </>
             )}
           </button>
         </div>
@@ -304,9 +329,12 @@ const SingleMatchCard = React.memo(({ match }) => (
         <p className="match-card__side-label">Found Item</p>
         <h4 className="match-card__item-name">{match.foundItem.name}</h4>
         <div className="item-meta">
-          <span><FaPalette /> {match.foundItem.color}</span>
-          <span><FaTag /> {match.foundItem.category}</span>
-          <span><FaMapMarkerAlt /> {match.foundItem.placeFound}</span>
+          <span>
+            <FaPalette /> {match.foundItem.color}
+          </span>
+          <span>
+            <FaMapMarkerAlt /> {match.foundItem.placeFound}
+          </span>
           <span>
             <FaCalendarAlt />{" "}
             {new Date(match.foundItem.dateFound).toLocaleDateString()}
@@ -322,9 +350,12 @@ const SingleMatchCard = React.memo(({ match }) => (
         <p className="match-card__side-label">Lost Item</p>
         <h4 className="match-card__item-name">{match.lostItem.name}</h4>
         <div className="item-meta">
-          <span><FaPalette /> {match.lostItem.color}</span>
-          <span><FaTag /> {match.lostItem.category}</span>
-          <span><FaMapMarkerAlt /> {match.lostItem.placeLost}</span>
+          <span>
+            <FaPalette /> {match.lostItem.color}
+          </span>
+          <span>
+            <FaMapMarkerAlt /> {match.lostItem.placeLost}
+          </span>
           <span>
             <FaCalendarAlt />{" "}
             {new Date(match.lostItem.dateLost).toLocaleDateString()}
@@ -343,127 +374,143 @@ const SingleMatchCard = React.memo(({ match }) => (
   </div>
 ));
 
-const MultiMatchSummaryCard = React.memo(({ itemName, matchCount, matches }) => {
-  const [expanded, setExpanded] = useState(false);
+const MultiMatchSummaryCard = React.memo(
+  ({ itemName, matchCount, matches }) => {
+    const [expanded, setExpanded] = useState(false);
 
-  return (
-    <div className="item-card match-card--multi">
-      <div className="match-card__header">
-        <div className="match-card__title-group">
-          <FaBox className="match-card__item-icon" />
-          <span className="match-card__item-title">{itemName}</span>
-        </div>
-        <span className="match-card__badge match-card__badge--multi">
-          <FaLink /> {matchCount} Matches
-        </span>
-      </div>
-
-      <div className="match-card__meta-row">
-        <span className="match-card__dept">
-          <FaMapMarkerAlt /> {matches[0]?.foundItem?.department}
-        </span>
-        <span className="match-card__avg-sim">
-          Avg similarity:{" "}
-          <strong>
-            {(
-              matches.reduce((sum, m) => sum + m.similarity, 0) / matchCount
-            ).toFixed(0)}%
-          </strong>
-        </span>
-      </div>
-
-      <button
-        className="match-card__toggle"
-        onClick={() => setExpanded((p) => !p)}
-        aria-expanded={expanded}
-      >
-        {expanded ? "Hide details" : "Show all matches"}
-        <span className={`match-card__chevron ${expanded ? "match-card__chevron--up" : ""}`}>
-          ▾
-        </span>
-      </button>
-
-      {expanded && (
-        <ul className="match-card__expanded-list">
-          {matches.map((match, idx) => (
-            <li key={match.lostItem.id} className="match-card__expanded-item">
-              <div className="match-card__expanded-rank">#{idx + 1}</div>
-              <div className="match-card__expanded-info">
-                <div className="match-card__expanded-name">
-                  {match.lostItem.name}
-                  <span className="match-card__expanded-sim">
-                    {match.similarity.toFixed(0)}%
-                  </span>
-                </div>
-                <div className="item-meta">
-                  <span><FaPalette /> {match.lostItem.color}</span>
-                  <span><FaMapMarkerAlt /> {match.lostItem.placeLost}</span>
-                </div>
-                <div className="match-card__expanded-user">
-                  <FaUser /> {match.user.name} · <FaEnvelope /> {match.user.email}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-});
-
-// ─── Sub-Components ──────────────────────────────────────────────────────────
-const FoundItemCard = React.memo(({ item, onMarkReturned, onUpdateStatus, isUpdating, onViewDetails }) => (
-  <div className="item-card">
-    <div className="item-header">
-      <div className="item-info">
-        <h4>{item.name}</h4>
-        <div className="item-meta">
-          <span><FaPalette /> {item.color}</span>
-          <span><FaTag /> {item.category}</span>
-          <span><FaCalendarAlt /> {new Date(item.dateFound).toLocaleDateString()}</span>
-          <span><FaMapMarkerAlt /> {item.placeFound}</span>
-        </div>
-        {item.matchedLostItemIds?.length > 0 && (
-          <div className="item-match-badge">
-            <FaLink /> {item.matchedLostItemIds.length} match
-            {item.matchedLostItemIds.length > 1 ? "es" : ""} found
+    return (
+      <div className="item-card match-card--multi">
+        <div className="match-card__header">
+          <div className="match-card__title-group">
+            <FaBox className="match-card__item-icon" />
+            <span className="match-card__item-title">{itemName}</span>
           </div>
+          <span className="match-card__badge match-card__badge--multi">
+            <FaLink /> {matchCount} Matches
+          </span>
+        </div>
+
+        <div className="match-card__meta-row">
+          <span className="match-card__dept">
+            <FaMapMarkerAlt /> {matches[0]?.foundItem?.department}
+          </span>
+          <span className="match-card__avg-sim">
+            Avg similarity:{" "}
+            <strong>
+              {(
+                matches.reduce((sum, m) => sum + m.similarity, 0) / matchCount
+              ).toFixed(0)}
+              %
+            </strong>
+          </span>
+        </div>
+
+        <button
+          className="match-card__toggle"
+          onClick={() => setExpanded((p) => !p)}
+          aria-expanded={expanded}
+        >
+          {expanded ? "Hide details" : "Show all matches"}
+          <span
+            className={`match-card__chevron ${expanded ? "match-card__chevron--up" : ""}`}
+          >
+            ▾
+          </span>
+        </button>
+
+        {expanded && (
+          <ul className="match-card__expanded-list">
+            {matches.map((match, idx) => (
+              <li key={match.lostItem.id} className="match-card__expanded-item">
+                <div className="match-card__expanded-rank">#{idx + 1}</div>
+                <div className="match-card__expanded-info">
+                  <div className="match-card__expanded-name">
+                    {match.lostItem.name}
+                    <span className="match-card__expanded-sim">
+                      {match.similarity.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="item-meta">
+                    <span>
+                      <FaPalette /> {match.lostItem.color}
+                    </span>
+                    <span>
+                      <FaMapMarkerAlt /> {match.lostItem.placeLost}
+                    </span>
+                  </div>
+                  <div className="match-card__expanded-user">
+                    <FaUser /> {match.user.name} · <FaEnvelope />{" "}
+                    {match.user.email}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
-      <span className={`status status--${item.status.toLowerCase()}`}>
-        {item.status}
-      </span>
-    </div>
-    <div className="item-actions">
-      {/* ── If returned: show View Details only ── */}
-      {item.status.toLowerCase() === "returned" ? (
-        <button
-          className="btn btn--sm btn--info"
-          onClick={() => onViewDetails(item)}
-        >
-          <FaInfoCircle /> View Details
-        </button>
-      ) : (
-        <>
+    );
+  },
+);
+
+// ─── Sub-Components ──────────────────────────────────────────────────────────
+const FoundItemCard = React.memo(
+  ({ item, onMarkReturned, onUpdateStatus, isUpdating, onViewDetails }) => (
+    <div className="item-card">
+      <div className="item-header">
+        <div className="item-info">
+          <h4>{item.name}</h4>
+          <div className="item-meta">
+            <span>
+              <FaPalette /> {item.color}
+            </span>
+            <span>
+              <FaCalendarAlt /> {new Date(item.dateFound).toLocaleDateString()}
+            </span>
+            <span>
+              <FaMapMarkerAlt /> {item.placeFound}
+            </span>
+          </div>
+          {item.matchedLostItemIds?.length > 0 && (
+            <div className="item-match-badge">
+              <FaLink /> {item.matchedLostItemIds.length} match
+              {item.matchedLostItemIds.length > 1 ? "es" : ""} found
+            </div>
+          )}
+        </div>
+        <span className={`status status--${item.status.toLowerCase()}`}>
+          {item.status}
+        </span>
+      </div>
+      <div className="item-actions">
+        {item.status.toLowerCase() === "returned" ? (
           <button
-            className="btn btn--sm btn--secondary"
-            onClick={() => onMarkReturned(item)}
-            disabled={isUpdating}
+            className="btn btn--sm btn--info"
+            onClick={() => onViewDetails(item)}
           >
-            <FaCheck /> Mark as Returned
+            <FaInfoCircle /> View Details
           </button>
-          <button
-            className="btn btn--sm btn--outline"
-            onClick={() => onUpdateStatus(item._id, "Unclaimed")}
-            disabled={isUpdating}
-          >
-            <FaClock /> Mark as Unclaimed
-          </button>
-        </>
-      )}
+        ) : (
+          <>
+            <button
+              className="btn btn--sm btn--secondary"
+              onClick={() => onMarkReturned(item)}
+              disabled={isUpdating}
+            >
+              <FaCheck /> Mark as Returned
+            </button>
+            <button
+              className="btn btn--sm btn--outline"
+              onClick={() => onUpdateStatus(item._id, "Unclaimed")}
+              disabled={isUpdating}
+            >
+              <FaClock /> Mark as Unclaimed
+            </button>
+          </>
+        )}
+      </div>
     </div>
-  </div>
-));
+  ),
+);
 
 const EmptyState = React.memo(
   ({ icon: IconComponent, title, description, isSpinning }) => (
@@ -481,7 +528,7 @@ const EmptyState = React.memo(
 const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
   const [activeTab, setActiveTab] = useState("add-found");
   const [returnModalItem, setReturnModalItem] = useState(null);
-  const [detailsModalItem, setDetailsModalItem] = useState(null); // ← NEW
+  const [detailsModalItem, setDetailsModalItem] = useState(null);
   const queryClient = useQueryClient();
 
   const {
@@ -494,13 +541,16 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     defaultValues: {
       name: "",
       color: "",
-      category: "",
       dateFound: "",
       placeFound: "",
+      brand: "",
+      condition: "Used",
     },
   });
 
   // ─── Queries ───────────────────────────────────────────────────────────────
+
+  // Found Items: Poll every 3s so admin sees status changes quickly too
   const { data: foundItems = [], isLoading: foundItemsLoading } = useQuery({
     queryKey: QUERY_KEYS.foundItems,
     queryFn: async () => {
@@ -508,20 +558,24 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
       return result.data.data || [];
     },
     enabled: activeTab === "found-items",
-    refetchInterval: 5000,
     staleTime: 0,
     gcTime: 1000 * 60 * 5,
+    refetchInterval: 3000, // Reduced from 5s → 3s
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
+  // Matches: Poll every 3s for near-instant match visibility after submit
   const { data: matches = [], isLoading: matchesLoading } = useQuery({
     queryKey: QUERY_KEYS.matches,
     queryFn: async () => {
       const result = await getMatchStats();
-      return result.data.data?.matches || [];
+      return result.data?.matches || [];
     },
     enabled: activeTab === "matches",
-    refetchInterval: 5000,
     staleTime: 0,
+    refetchInterval: 3000, // Reduced from 5s → 3s
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
 
@@ -533,6 +587,7 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
       if (result.success) {
         showMessage("Found item added successfully.", "success");
         reset();
+        // Invalidate both so data is fresh when admin switches tabs
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.foundItems });
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.matches });
         setActiveTab("matches");
@@ -544,14 +599,43 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
   const updateStatusMutation = useMutation({
     mutationFn: ({ itemId, newStatus, lostItemId, claimedByUserId }) =>
       updateFoundItemStatus(itemId, newStatus, lostItemId, claimedByUserId),
-    onMutate: () => setLoading(true),
+    onMutate: async ({ itemId, newStatus }) => {
+      // ── Optimistic update: immediately reflect new status in UI ──
+      // Cancel any in-flight refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.foundItems });
+
+      // Snapshot previous value so we can roll back on error
+      const previousFoundItems = queryClient.getQueryData(
+        QUERY_KEYS.foundItems,
+      );
+
+      // Optimistically update the cache
+      queryClient.setQueryData(QUERY_KEYS.foundItems, (old = []) =>
+        old.map((item) =>
+          item._id === itemId ? { ...item, status: newStatus } : item,
+        ),
+      );
+
+      setLoading(true);
+
+      // Return snapshot for rollback
+      return { previousFoundItems };
+    },
     onSuccess: () => {
+      // Force fresh data from server after optimistic update confirms
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.foundItems });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.matches });
       setReturnModalItem(null);
       showMessage("Item status updated successfully.", "success");
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      // Roll back optimistic update on failure
+      if (context?.previousFoundItems) {
+        queryClient.setQueryData(
+          QUERY_KEYS.foundItems,
+          context.previousFoundItems,
+        );
+      }
       showMessage("Failed to update item status.", "error");
     },
     onSettled: () => setLoading(false),
@@ -581,7 +665,6 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     [updateStatusMutation],
   );
 
-  // ← NEW
   const handleViewDetails = useCallback((item) => {
     setDetailsModalItem(item);
   }, []);
@@ -637,53 +720,161 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
           {activeTab === "add-found" && (
             <section className="dashboard-tab active" role="tabpanel">
               <div className="tab-content">
-                <h2><FaPlusCircle /> Add Found Item</h2>
-                <form onSubmit={handleSubmit(onSubmit)} className="dashboard-form">
+                <h2>
+                  <FaPlusCircle /> Add Found Item
+                </h2>
+                <form
+                  onSubmit={handleSubmit(onSubmit)}
+                  className="dashboard-form"
+                >
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="itemName" className="form-label">Item Name *</label>
-                      <input
-                        id="itemName"
+                      <label htmlFor="itemname" className="form-label">
+                        Item Name *
+                      </label>
+                      <select
+                        id="itemname"
                         {...register("name")}
                         className={`form-control ${errors.name ? "is-invalid" : ""}`}
                         disabled={isFormDisabled}
-                      />
-                      {errors.name && <div className="error-message">{errors.name.message}</div>}
+                      >
+                        <option value="">Select Name</option>
+                        {ITEM_NAME.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.name && (
+                        <div className="error-message">
+                          {errors.name.message}
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
-                      <label htmlFor="itemColor" className="form-label">Color *</label>
-                      <input
+                      <label htmlFor="itemColor" className="form-label">
+                        Color *
+                      </label>
+                      <select
                         id="itemColor"
                         {...register("color")}
                         className={`form-control ${errors.color ? "is-invalid" : ""}`}
                         disabled={isFormDisabled}
-                      />
-                      {errors.color && <div className="error-message">{errors.color.message}</div>}
+                        aria-invalid={errors.color ? "true" : "false"}
+                      >
+                        <option value="">Select a color</option>
+                        {COLORS.map((color) => (
+                          <option key={color} value={color}>
+                            {color}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.color && (
+                        <div className="error-message" role="alert">
+                          {errors.color.message}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="itemCategory" className="form-label">Category *</label>
+                      <label className="form-label">Item Condition *</label>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "20px",
+                          marginTop: "10px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            value={ITEM_CONDITIONS.NEW}
+                            {...register("condition")}
+                            disabled={isFormDisabled}
+                            style={{ width: "16px", height: "16px" }}
+                          />
+                          New
+                        </label>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            value={ITEM_CONDITIONS.USED}
+                            {...register("condition")}
+                            disabled={isFormDisabled}
+                            style={{ width: "16px", height: "16px" }}
+                          />
+                          Used
+                        </label>
+                      </div>
+                      {errors.condition && (
+                        <div
+                          className="error-message"
+                          style={{ marginTop: "5px" }}
+                        >
+                          {errors.condition.message}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="brand" className="form-label">
+                        Brand (optional)
+                      </label>
+                      <input
+                        id="brand"
+                        {...register("brand")}
+                        className="form-control"
+                        disabled={isFormDisabled}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="placeFound" className="form-label">
+                        Place Found *
+                      </label>
                       <select
-                        id="itemCategory"
-                        {...register("category")}
-                        className={`form-control ${errors.category ? "is-invalid" : ""}`}
+                        id="placeFound"
+                        {...register("placeFound")}
+                        className={`form-control ${errors.placeFound ? "is-invalid" : ""}`}
                         disabled={isFormDisabled}
                       >
-                        <option value="">Select Category</option>
-                        <option value="Electronics">Electronics</option>
-                        <option value="Accessories">Accessories</option>
-                        <option value="Books">Books</option>
-                        <option value="Clothing">Clothing</option>
-                        <option value="Daily Items">Daily Items</option>
-                        <option value="Jewelry">Jewelry</option>
-                        <option value="Documents">Documents</option>
+                        <option value="">Select Location</option>
+                        {CAMPUS_LOCATIONS.map((location) => (
+                          <option key={location} value={location}>
+                            {location}
+                          </option>
+                        ))}
                       </select>
-                      {errors.category && <div className="error-message">{errors.category.message}</div>}
+                      {errors.placeFound && (
+                        <div className="error-message">
+                          {errors.placeFound.message}
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
-                      <label htmlFor="dateFound" className="form-label">Date Found *</label>
+                      <label htmlFor="dateFound" className="form-label">
+                        Date Found *
+                      </label>
                       <input
                         id="dateFound"
                         type="date"
@@ -692,19 +883,12 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                         className={`form-control ${errors.dateFound ? "is-invalid" : ""}`}
                         disabled={isFormDisabled}
                       />
-                      {errors.dateFound && <div className="error-message">{errors.dateFound.message}</div>}
+                      {errors.dateFound && (
+                        <div className="error-message">
+                          {errors.dateFound.message}
+                        </div>
+                      )}
                     </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="placeFound" className="form-label">Place Found *</label>
-                    <input
-                      id="placeFound"
-                      {...register("placeFound")}
-                      className={`form-control ${errors.placeFound ? "is-invalid" : ""}`}
-                      disabled={isFormDisabled}
-                    />
-                    {errors.placeFound && <div className="error-message">{errors.placeFound.message}</div>}
                   </div>
 
                   <button
@@ -724,12 +908,23 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
           {activeTab === "found-items" && (
             <section className="dashboard-tab active" role="tabpanel">
               <div className="tab-content">
-                <h2><FaBox /> Department Found Items</h2>
+                <h2>
+                  <FaBox /> Department Found Items
+                </h2>
                 <div className="items-list">
                   {isTabLoading ? (
-                    <EmptyState icon={FaSpinner} title="" description="Loading..." isSpinning />
+                    <EmptyState
+                      icon={FaSpinner}
+                      title=""
+                      description="Loading..."
+                      isSpinning
+                    />
                   ) : foundItems.length === 0 ? (
-                    <EmptyState icon={FaInbox} title="No Found Items" description="No items found yet." />
+                    <EmptyState
+                      icon={FaInbox}
+                      title="No Found Items"
+                      description="No items found yet."
+                    />
                   ) : (
                     foundItems.map((item) => (
                       <FoundItemCard
@@ -751,24 +946,39 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
           {activeTab === "matches" && (
             <section className="dashboard-tab active" role="tabpanel">
               <div className="tab-content">
-                <h2><FaLink /> Matched Items</h2>
+                <h2>
+                  <FaLink /> Matched Items
+                </h2>
                 <div className="items-list">
                   {isTabLoading ? (
-                    <EmptyState icon={FaSpinner} title="" description="Loading..." isSpinning />
+                    <EmptyState
+                      icon={FaSpinner}
+                      title=""
+                      description="Loading..."
+                      isSpinning
+                    />
                   ) : matches.length === 0 ? (
-                    <EmptyState icon={FaLink} title="No Matches Found" description="No matches yet." />
+                    <EmptyState
+                      icon={FaLink}
+                      title="No Matches Found"
+                      description="No matches yet."
+                    />
                   ) : (
-                    Object.entries(groupedMatches).map(([foundItemId, itemMatches]) =>
-                      itemMatches.length === 1 ? (
-                        <SingleMatchCard key={foundItemId} match={itemMatches[0]} />
-                      ) : (
-                        <MultiMatchSummaryCard
-                          key={foundItemId}
-                          itemName={itemMatches[0].foundItem.name}
-                          matchCount={itemMatches.length}
-                          matches={itemMatches}
-                        />
-                      )
+                    Object.entries(groupedMatches).map(
+                      ([foundItemId, itemMatches]) =>
+                        itemMatches.length === 1 ? (
+                          <SingleMatchCard
+                            key={foundItemId}
+                            match={itemMatches[0]}
+                          />
+                        ) : (
+                          <MultiMatchSummaryCard
+                            key={foundItemId}
+                            itemName={itemMatches[0].foundItem.name}
+                            matchCount={itemMatches.length}
+                            matches={itemMatches}
+                          />
+                        ),
                     )
                   )}
                 </div>

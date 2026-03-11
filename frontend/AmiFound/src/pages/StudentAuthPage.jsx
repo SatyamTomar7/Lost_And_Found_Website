@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react"; // Added useEffect
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,8 +19,8 @@ import {
   isValidAmityEmail,
   resendOTP,
 } from "../services/authService";
-const today = new Date().toISOString().split("T")[0];
-// ─── Zod Schemas (module-level, stable) ──────────────────────────────────────
+
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
 
 const amityEmailRule = z
   .string()
@@ -54,7 +54,14 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
   const [formType, setFormType] = useState("login");
   const [pendingRegistration, setPendingRegistration] = useState(null);
 
-  // resolver changes only when formType changes
+  // 1. AUTO-REDIRECT: If token exists, send them to dashboard immediately
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      navigate("/student-dashboard", { replace: true });
+    }
+  }, [navigate]);
+
   const resolver = useMemo(() => zodResolver(schemaMap[formType]), [formType]);
 
   const {
@@ -76,10 +83,11 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
     onSuccess: (result) => {
       if (result.success && result.data) {
         setCurrentUser(result.data.user);
-        // Single source of truth: token stored here only (not in service)
         localStorage.setItem("authToken", result.data.token);
         showMessage("Login successful!", "success");
-        setTimeout(() => navigate("/student-dashboard"), 1000);
+        
+        // 2. HISTORY FIX: Use replace: true
+        setTimeout(() => navigate("/student-dashboard", { replace: true }), 1000);
       } else {
         showMessage(result.message || "Invalid email or password", "error");
       }
@@ -117,12 +125,14 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
       if (result.success) {
         const user = result.data.user || result.data;
         setCurrentUser(user);
-        // Single source of truth: token stored here only (not in service)
         if (result.data.token) {
           localStorage.setItem("authToken", result.data.token);
         }
+         localStorage.setItem("userRole",result.data.role)
         showMessage("Registration successful!", "success");
-        setTimeout(() => navigate("/student-dashboard"), 1000);
+        
+        // 3. HISTORY FIX: Use replace: true
+        setTimeout(() => navigate("/student-dashboard", { replace: true }), 1000);
       } else {
         showMessage(result.message || "Invalid OTP", "error");
       }
@@ -167,167 +177,30 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
     isSubmitting;
 
   return (
-    <div className="page active">
+    <main className="page active">
       <div className="auth-container">
         <div className="auth-card">
-          <div className="auth-header">
+          <header className="auth-header">
             <h2>
               {formType === "login" && "Student Login"}
               {formType === "register" && "Student Registration"}
               {formType === "otp" && "Verify Email"}
             </h2>
             <p>
-              {formType === "login" &&
-                "Access your account with official Amity email"}
-              {formType === "register" &&
-                "Create your account with official Amity email"}
+              {formType === "login" && "Access your account with official Amity email"}
+              {formType === "register" && "Create your account with official Amity email"}
               {formType === "otp" && "Enter the OTP sent to your email"}
             </p>
-          </div>
-
-          {/* {formType === "login" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
-              <div className="form-group">
-                <label className="form-label">Email Address</label>
-                <input
-                  {...register("email")}
-                  className={`form-control ${errors.email ? "is-invalid" : ""}`}
-                  placeholder="your.name@s.amity.edu"
-                  disabled={isAnyPending}
-                />
-                {errors.email && (
-                  <div className="error-message">{errors.email.message}</div>
-                )}
-              </div>
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <input
-                  type="password"
-                  {...register("password")}
-                  className={`form-control ${errors.password ? "is-invalid" : ""}`}
-                  placeholder="Enter your password"
-                  disabled={isAnyPending}
-                />
-                {errors.password && (
-                  <div className="error-message">{errors.password.message}</div>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="btn btn--primary btn--full-width"
-                disabled={isAnyPending}
-              >
-                <FaSignInAlt />
-                {loginMutation.isPending ? "Logging in…" : "Login"}
-              </button>
-            </form>
-          )}
-
-          {formType === "register" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
-              <div className="form-group">
-                <label className="form-label">Full Name</label>
-                <input
-                  {...register("name")}
-                  className={`form-control ${errors.name ? "is-invalid" : ""}`}
-                  placeholder="Enter your full name"
-                  disabled={isAnyPending}
-                />
-                {errors.name && (
-                  <div className="error-message">{errors.name.message}</div>
-                )}
-              </div>
-              <div className="form-group">
-                <label className="form-label">Amity Email</label>
-                <input
-                  {...register("email")}
-                  className={`form-control ${errors.email ? "is-invalid" : ""}`}
-                  placeholder="your.name@s.amity.edu"
-                  disabled={isAnyPending}
-                />
-                {errors.email && (
-                  <div className="error-message">{errors.email.message}</div>
-                )}
-              </div>
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <input
-                  type="password"
-                  {...register("password")}
-                  className={`form-control ${errors.password ? "is-invalid" : ""}`}
-                  placeholder="Create a password"
-                  disabled={isAnyPending}
-                />
-                {errors.password && (
-                  <div className="error-message">{errors.password.message}</div>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="btn btn--primary btn--full-width"
-                disabled={isAnyPending}
-              >
-                <FaUserPlus />
-                {registerMutation.isPending
-                  ? "Sending OTP…"
-                  : "Register & Send OTP"}
-              </button>
-            </form>
-          )}
-
-          {formType === "otp" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
-              <div className="otp-message">
-                <FaEnvelope />
-                <p>
-                  Verification code sent to{" "}
-                  <strong>{pendingRegistration?.email}</strong>
-                </p>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Verification Code</label>
-                <input
-                  {...register("otp")}
-                  className={`form-control otp-input ${errors.otp ? "is-invalid" : ""}`}
-                  maxLength="6"
-                  placeholder="000000"
-                  disabled={isAnyPending}
-                />
-                {errors.otp && (
-                  <div className="error-message">{errors.otp.message}</div>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="btn btn--primary btn--full-width"
-                disabled={isAnyPending}
-              >
-                <FaCheck />
-                {otpMutation.isPending ? "Verifying…" : "Verify Email"}
-              </button>
-              <button
-                type="button"
-                onClick={() => resendMutation.mutate()}
-                className="btn btn--outline btn--full-width"
-                disabled={resendMutation.isPending}
-              >
-                <FaRedo />
-                {resendMutation.isPending ? "Resending…" : "Resend OTP"}
-              </button>
-            </form>
-          )} */}
+          </header>
 
           {formType === "login" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
               <div className="form-group">
-                {/* 1. Added htmlFor linked to id */}
-                <label htmlFor="login-email" className="form-label">
-                  Email Address
-                </label>
+                <label htmlFor="login-email" className="form-label">Email Address</label>
                 <input
-                  id="login-email" // 2. Unique ID
+                  id="login-email"
                   {...register("email")}
-                  autoComplete="email" // 3. Browsers suggest saved emails
+                  autoComplete="email"
                   className={`form-control ${errors.email ? "is-invalid" : ""}`}
                   placeholder="your.name@s.amity.edu"
                   disabled={isAnyPending}
@@ -337,14 +210,12 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 )}
               </div>
               <div className="form-group">
-                <label htmlFor="login-password" className="form-label">
-                  Password
-                </label>
+                <label htmlFor="login-password" className="form-label">Password</label>
                 <input
                   id="login-password"
                   type="password"
                   {...register("password")}
-                  autoComplete="current-password" // 4. Essential for Password Managers
+                  autoComplete="current-password"
                   className={`form-control ${errors.password ? "is-invalid" : ""}`}
                   placeholder="Enter your password"
                   disabled={isAnyPending}
@@ -359,21 +230,19 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 disabled={isAnyPending}
               >
                 <FaSignInAlt />
-                {loginMutation.isPending ? "Logging in…" : "Login"}
+                <span>{loginMutation.isPending ? "Logging in…" : "Login"}</span>
               </button>
             </form>
           )}
 
           {formType === "register" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
               <div className="form-group">
-                <label htmlFor="register-name" className="form-label">
-                  Full Name
-                </label>
+                <label htmlFor="register-name" className="form-label">Full Name</label>
                 <input
                   id="register-name"
                   {...register("name")}
-                  autoComplete="name" // Suggests user's full name
+                  autoComplete="name"
                   className={`form-control ${errors.name ? "is-invalid" : ""}`}
                   placeholder="Enter your full name"
                   disabled={isAnyPending}
@@ -383,9 +252,7 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 )}
               </div>
               <div className="form-group">
-                <label htmlFor="register-email" className="form-label">
-                  Amity Email
-                </label>
+                <label htmlFor="register-email" className="form-label">Amity Email</label>
                 <input
                   id="register-email"
                   {...register("email")}
@@ -399,14 +266,12 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 )}
               </div>
               <div className="form-group">
-                <label htmlFor="register-password" className="form-label">
-                  Password
-                </label>
+                <label htmlFor="register-password" className="form-label">Password</label>
                 <input
                   id="register-password"
                   type="password"
                   {...register("password")}
-                  autoComplete="new-password" // 5. Tells browser to suggest a strong password
+                  autoComplete="new-password"
                   className={`form-control ${errors.password ? "is-invalid" : ""}`}
                   placeholder="Create a password"
                   disabled={isAnyPending}
@@ -421,15 +286,15 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 disabled={isAnyPending}
               >
                 <FaUserPlus />
-                {registerMutation.isPending
-                  ? "Sending OTP…"
-                  : "Register & Send OTP"}
+                <span>
+                  {registerMutation.isPending ? "Sending OTP…" : "Register & Send OTP"}
+                </span>
               </button>
             </form>
           )}
 
           {formType === "otp" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
+            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
               <div className="otp-message">
                 <FaEnvelope />
                 <p>
@@ -438,13 +303,11 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 </p>
               </div>
               <div className="form-group">
-                <label htmlFor="otp-input" className="form-label">
-                  Verification Code
-                </label>
+                <label htmlFor="otp-input" className="form-label">Verification Code</label>
                 <input
                   id="otp-input"
                   {...register("otp")}
-                  autoComplete="one-time-code" // 6. Mobile browsers can auto-fill from SMS/Email
+                  autoComplete="one-time-code"
                   className={`form-control otp-input ${errors.otp ? "is-invalid" : ""}`}
                   maxLength="6"
                   placeholder="000000"
@@ -460,7 +323,7 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 disabled={isAnyPending}
               >
                 <FaCheck />
-                {otpMutation.isPending ? "Verifying…" : "Verify Email"}
+                <span>{otpMutation.isPending ? "Verifying…" : "Verify Email"}</span>
               </button>
               <button
                 type="button"
@@ -469,7 +332,7 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
                 disabled={resendMutation.isPending}
               >
                 <FaRedo />
-                {resendMutation.isPending ? "Resending…" : "Resend OTP"}
+                <span>{resendMutation.isPending ? "Resending…" : "Resend OTP"}</span>
               </button>
             </form>
           )}
@@ -483,19 +346,15 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
               className="auth-switch-btn"
             >
               {formType === "login" ? (
-                <>
-                  Don&apos;t have an account? <strong>Register here</strong>
-                </>
+                <>Don't have an account? <strong>Register here</strong></>
               ) : (
-                <>
-                  Already have an account? <strong>Login here</strong>
-                </>
+                <>Already have an account? <strong>Login here</strong></>
               )}
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

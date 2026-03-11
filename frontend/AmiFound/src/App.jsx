@@ -100,8 +100,10 @@ function AppContent() {
       setCurrentAdmin(null);
       setCurrentUser(null);
       localStorage.removeItem("authToken");
+      localStorage.removeItem("userRole");
       setLoading(false);
-      navigate("/");
+      // navigate("/");
+      navigate("/", { replace: true });
     };
 
     logout()

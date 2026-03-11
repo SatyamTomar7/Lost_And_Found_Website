@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +19,15 @@ const getAdminLoginSchema = () => adminLoginSchema;
 // ─── Component ───────────────────────────────────────────────────────────────
 const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
   const navigate = useNavigate();
+
+  // 1. AUTO-REDIRECT LOGIC: If token exists, don't show login page
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      // replace: true removes the login page from browser history
+      navigate("/admin-dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const resolver = useMemo(
     () => zodResolver(getAdminLoginSchema()),
@@ -48,10 +57,17 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
     },
     onSuccess: (result) => {
       if (result.success && result.data) {
+        // Save Admin Data
         setCurrentAdmin(result.data.user);
         localStorage.setItem("authToken", result.data.token);
+        localStorage.setItem("userRole",result.data.role)
+        
         showMessage("Admin login successful!", "success");
-        setTimeout(() => navigate("/admin-dashboard"), 1000);
+
+        // 2. HISTORY MANAGEMENT: Use replace: true so back button works correctly
+        setTimeout(() => {
+          navigate("/admin-dashboard", { replace: true });
+        }, 1000);
       } else {
         setError("root.serverError", {
           type: "manual",
@@ -74,11 +90,9 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
   const isDisabled = isSubmitting || loginMutation.isPending;
 
   return (
-    /* 1. Landmark Change: div ko main mein badla */
     <main className="page active" id="main-content">
       <div className="auth-container">
         <div className="auth-card">
-          {/* 2. Semantic Header for the Card */}
           <header className="auth-header">
             <h2>Admin Login</h2>
             <p>Department administrator access</p>

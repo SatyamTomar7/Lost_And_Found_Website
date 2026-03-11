@@ -6,9 +6,8 @@ export const getNotifications = async () => {
   const response = await fetch(`${API_URL}/notifications`, {
     headers: getAuthHeaders(),
   });
-  const data=response.json();
-  console.log(">>>>>>>>>>>>>>response",data)
- return data;
+
+  return response.json();
 };
 
 export const markNotificationAsRead = async (notificationId) => {
