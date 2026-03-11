@@ -14,8 +14,8 @@ export const getNotifications = asyncHandler(async (req, res) => {
   // Using .lean() here makes a massive difference in speed for notification lists
   const [notifications, total, unreadCount] = await Promise.all([
     Notification.find(query)
-      .populate("data.lostItemId", "name category color")
-      .populate("data.foundItemId", "name category color department")
+      .populate("data.lostItemId", "name  color")
+      .populate("data.foundItemId", "name color department")
       .populate("data.adminId", "name department")
       .sort({ createdAt: -1 })
       .skip(skip)

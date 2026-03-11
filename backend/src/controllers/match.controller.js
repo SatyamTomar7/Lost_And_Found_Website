@@ -45,14 +45,12 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
         lostItem: {
           id: lostItem._id,
           name: lostItem.name,
-          category: lostItem.category,
           color: lostItem.color,
         },
         matches: matches.map((match) => ({
           foundItem: {
             id: match.foundItem._id,
             name: match.foundItem.name,
-            category: match.foundItem.category,
             color: match.foundItem.color,
             department: match.foundItem.department,
             dateFound: match.foundItem.dateFound,
@@ -105,7 +103,6 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
       lostItem: {
         id: lostItem._id,
         name: lostItem.name,
-        category: lostItem.category,
         color: lostItem.color,
         dateLost: lostItem.dateLost,
         placeLost: lostItem.placeLost,
@@ -128,7 +125,6 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
         foundItem: {
           id: foundItem._id,
           name: foundItem.name,
-          category: foundItem.category,
           color: foundItem.color,
           department: foundItem.department,
         },
@@ -141,6 +137,7 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
 export const getMatchingStats = asyncHandler(async (req, res) => {
   const department = req.user.role === "admin" ? req.user.department : null;
 
+  // 1. Basic Stats with Department Filtering
   const totalLostItems = await LostItem.countDocuments({
     isActive: true,
     ...(department && { placeLost: new RegExp(department, "i") }),
@@ -168,7 +165,8 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
       ? ((returnedItem / totalFoundItems) * 100).toFixed(2)
       : 0;
 
-  const categoryStats = await LostItem.aggregate([
+  // 2. Statistics by Item Name (replacing category)
+  const itemStats = await LostItem.aggregate([
     {
       $match: {
         isActive: true,
@@ -177,7 +175,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     },
     {
       $group: {
-        _id: "$category",
+        _id: "$name", // Grouping by name since category is removed
         total: { $sum: 1 },
         matched: {
           $sum: { $cond: [{ $ne: ["$matchedFoundItemId", null] }, 1, 0] },
@@ -186,7 +184,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     },
     {
       $project: {
-        category: "$_id",
+        itemName: "$_id",
         total: 1,
         matched: 1,
         matchRate: {
@@ -201,28 +199,29 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     { $sort: { total: -1 } },
   ]);
 
-  // ── Only fetch active, unresolved items for live matching ──────────────────
+  // 3. Fetch data for live matching
   const foundItems = await FoundItem.find({
     isActive: true,
-    status: { $ne: ITEM_STATUS.RETURNED }, // exclude already returned
+    status: { $ne: ITEM_STATUS.RETURNED },
     ...(department && { department }),
   });
 
   const lostItems = await LostItem.find({
     isActive: true,
-    status: { $nin: [ITEM_STATUS.COLLECTED, ITEM_STATUS.RETURNED] }, // exclude claimed
+    status: { $nin: [ITEM_STATUS.COLLECTED, ITEM_STATUS.RETURNED] },
   });
 
-  // ── Build matches ──────────────────────────────────────────────────────────
+  // 4. Build Matches using the updated fields
   const matches = [];
 
-  // Batch fetch users to avoid N+1 queries
+  // Batch fetch users
   const userIds = [...new Set(lostItems.map((l) => l.userId.toString()))];
   const users = await User.find({ _id: { $in: userIds } }).select("name email");
   const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
   for (const foundItem of foundItems) {
     for (const lostItem of lostItems) {
+      // Your service logic should now compare name-to-name instead of category-to-category
       const matchScore = matchingService.calculateMatchScore(
         lostItem,
         foundItem
@@ -234,7 +233,6 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           foundItem: {
             id: foundItem._id,
             name: foundItem.name,
-            category: foundItem.category,
             color: foundItem.color,
             department: foundItem.department,
             dateFound: foundItem.dateFound,
@@ -243,7 +241,6 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           lostItem: {
             id: lostItem._id,
             name: lostItem.name,
-            category: lostItem.category,
             color: lostItem.color,
             dateLost: lostItem.dateLost,
             placeLost: lostItem.placeLost,
@@ -260,19 +257,17 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
-        data: {
-          overview: {
-            totalLostItems,
-            totalFoundItems,
-            matchedItems,
-            returnedItem,
-            matchRate: parseFloat(matchRate),
-            returnRate: parseFloat(returnRate),
-          },
-          matches,
-          categoryBreakdown: categoryStats,
-          department: department || "All Department",
+        overview: {
+          totalLostItems,
+          totalFoundItems,
+          matchedItems,
+          returnedItem,
+          matchRate: parseFloat(matchRate),
+          returnRate: parseFloat(returnRate),
         },
+        matches,
+        itemBreakdown: itemStats, // renamed from categoryBreakdown
+        department: department || "All Departments",
       },
       "Matching Status fetched Successfully"
     )

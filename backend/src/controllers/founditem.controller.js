@@ -13,20 +13,22 @@ export const addFoundItem = asyncHandler(async (req, res) => {
   const {
     name,
     color,
-    category,
     dateFound,
     placeFound,
     photoUrl,
     photoPublicId,
+    brand,
+    condition,
   } = req.body;
 
   // 1. Prepare and create foundItem
   const foundItemData = {
     name,
     color,
-    category,
     dateFound,
     placeFound,
+    brand,
+    condition,
     adminId: req.user.id,
     department: req.user.department,
     images: photoUrl ? [{ url: photoUrl, public: photoPublicId }] : [],
@@ -173,7 +175,7 @@ export const getFoundItem = asyncHandler(async (req, res) => {
     // UPDATED: Populate the array of potential matches
     .populate({
       path: "matchedLostItemIds",
-      select: "name userId status category createdAt",
+      select: "name userId status  createdAt",
       // Deep populate to see who lost each matching item
       populate: { path: "userId", select: "name email" },
     })
@@ -203,8 +205,17 @@ export const updateFoundItem = asyncHandler(async (req, res) => {
 
   // 1. Destructure only the fields allowed to be updated
   // Prevents users from overwriting adminId or department
-  const { name, color, category, dateFound, placeFound, status } = req.body;
-  const updateData = { name, color, category, dateFound, placeFound, status };
+  const { name, color, condition, dateFound, placeFound, status, brand } =
+    req.body;
+  const updateData = {
+    name,
+    color,
+    condition,
+    dateFound,
+    placeFound,
+    status,
+    brand,
+  };
 
   // 2. Perform Atomic Update
   // We include department in the filter to ensure security in one step
@@ -286,7 +297,6 @@ export const markAsReturned = asyncHandler(async (req, res) => {
       },
       { session, new: true }
     );
-    console.log("=>>>>>>lostupdate", foundItem._id);
 
     if (!lostUpdate) {
       throw new ApiError(
@@ -482,7 +492,7 @@ export const deleteFoundItem = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Found item deleted successfully"));
 });
 export const searchFoundItems = asyncHandler(async (req, res) => {
-  const { q, category, color, department, dateFrom, dateTo } = req.query;
+  const { q, color, department, dateFrom, dateTo } = req.query;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
@@ -500,10 +510,6 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
     query.$text = { $search: q };
   }
 
-  // Filter by category
-  if (category) {
-    query.category = category;
-  }
 
   // Filter by color
   if (color) {

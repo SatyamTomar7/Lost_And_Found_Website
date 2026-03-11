@@ -110,7 +110,7 @@ export const getMyLostItems = asyncHandler(async (req, res) => {
       // UPDATED: Populate the array of IDs and include nested admin details if needed
       .populate({
         path: "matchedFoundItemIds",
-        select: "name department adminId status category",
+        select: "name department adminId status",
         populate: { path: "adminId", select: "name department" },
       })
       .sort({ createdAt: -1 })
@@ -160,7 +160,7 @@ export const getLostItem = asyncHandler(async (req, res) => {
     // UPDATED: Changed to array field and added admin population for matches
     .populate({
       path: "matchedFoundItemIds",
-      select: "name department adminId status category createdAt",
+      select: "name department adminId status createdAt",
       populate: { path: "adminId", select: "name department" },
     })
     .lean();
@@ -185,11 +185,11 @@ export const updateLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   // 1. Destructure allowed fields only
-  const { name, color, category, dateLost, placeLost, description } = req.body;
+  const { name, color, condition, dateLost, placeLost, description } = req.body;
   const updateData = {
     name,
     color,
-    category,
+    condition,
     dateLost,
     placeLost,
     description,
@@ -333,7 +333,7 @@ export const markAsCollected = asyncHandler(async (req, res) => {
 });
 
 export const searchLostItems = asyncHandler(async (req, res) => {
-  const { q, category, color, dateFrom, dateTo } = req.query;
+  const { q, color, dateFrom, dateTo } = req.query;
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 10);
 
@@ -348,7 +348,6 @@ export const searchLostItems = asyncHandler(async (req, res) => {
     ];
   }
 
-  if (category) query.category = category;
   if (color) query.color = color;
 
   // Date Range

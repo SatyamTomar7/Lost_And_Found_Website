@@ -1,6 +1,9 @@
 import mongoose, { Schema } from "mongoose";
-import { ITEM_CATEGORIES, COLORS, ITEM_STATUS } from "../constants.js";
-import { FoundItem } from "./FoundItem.model.js";
+import {
+  COLORS,
+  ITEM_STATUS,
+  ITEM_CONDITIONS,
+} from "../constants.js";
 const lostItemSchema = new Schema(
   {
     userId: {
@@ -19,15 +22,15 @@ const lostItemSchema = new Schema(
       trim: true,
       maxlength: [500, "Description can not exceed 500 characters"],
     },
-    category: {
-      type: String,
-      required: [true, "Category is required"],
-      enum: ITEM_CATEGORIES,
-    },
     color: {
       type: String,
       required: [true, "Color is required"],
       enum: COLORS,
+    },
+    condition: {
+      type: String,
+      required: [true, "Condition is required"],
+      enum:ITEM_CONDITIONS,
     },
     brand: {
       type: String,

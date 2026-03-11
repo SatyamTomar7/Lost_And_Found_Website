@@ -1,24 +1,34 @@
 import { body, validationResult, param, query } from "express-validator";
-import { ApiError } from "../utils/ApiError.js"; // note .js for ESM
-import { COLORS, DEPARTMENTS, ITEM_CATEGORIES } from "../constants.js";
+import { ApiError } from "../utils/ApiError.js";
+import {
+  COLORS,
+  DEPARTMENTS,
+  ITEM_CONDITIONS,
+  ITEM_NAME,
+  CAMPUS_LOCATIONS,
+} from "../constants.js";
 
-// Handle validation errors
+/**
+ * Reusable middleware to handle validation results
+ * Formats errors to be frontend-friendly
+ */
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const formattedErrors = errors.array().map((err) => ({
-      field: err.param,
+      field: err.path, // 'path' is the modern replacement for 'param'
       message: err.msg,
       value: err.value,
     }));
 
-    throw new ApiError(400, "Validation errors", formattedErrors);
+    // Throwing custom ApiError to be caught by global error middleware
+    throw new ApiError(400, "Validation failed", formattedErrors);
   }
-
   next();
 };
 
-// Define all validation rules
+// --- AUTH VALIDATIONS ---
+
 const validateUserRegistration = [
   body("name")
     .trim()
@@ -29,88 +39,68 @@ const validateUserRegistration = [
     .isEmail()
     .withMessage("Please provide a valid email")
     .matches(/^[\w.-]+@s\.amity\.edu$/)
-    .withMessage("Email must be an Amity University email (@s.amity.edu)")
+    .withMessage("Email must be an Amity student email (@s.amity.edu)")
     .normalizeEmail(),
 
   body("password")
     .isLength({ min: 6, max: 100 })
-    .withMessage("Password must be between 6 and 100 characters")
+    .withMessage("Password must be at least 6 characters long")
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage(
-      "Password must contain at least one uppercase letter, one lowercase letter, and one number"
-    ),
+    .withMessage("Password must include uppercase, lowercase, and a number"),
 
   handleValidationErrors,
 ];
 
 const validateOTPVerification = [
-  body("email")
-    .isEmail()
-    .withMessage("Please provide a valid email")
-    .normalizeEmail(),
-
+  body("email").isEmail().normalizeEmail().withMessage("Valid email required"),
   body("otp")
     .isLength({ min: 6, max: 6 })
-    .withMessage("OTP must be 6 digits long")
     .isNumeric()
-    .withMessage("OTP must contain only numbers"),
-
-  handleValidationErrors,
-];
-
-const validateAdminLogin = [
-  body("username")
-    .trim()
-    .isLength({ min: 3, max: 50 })
-    .withMessage("username must be between 3 and 50 characters"),
-
-  body("password").notEmpty().withMessage("Password is required"),
-
-  body("department")
-    .isIn(DEPARTMENTS)
-    .withMessage(`Department must be one of : ${DEPARTMENTS.join(", ")}`),
-
+    .withMessage("OTP must be a 6-digit number"),
   handleValidationErrors,
 ];
 
 const validateLogin = [
-  body("email")
-    .isEmail()
-    .normalizeEmail()
-    .withMessage("Please provide a valid amity email"),
+  body("email").isEmail().normalizeEmail().withMessage("Valid email required"),
   body("password").notEmpty().withMessage("Password is required"),
   handleValidationErrors,
 ];
 
+const validateAdminLogin = [
+  body("username").trim().notEmpty().withMessage("Username is required"),
+  body("password").notEmpty().withMessage("Password is required"),
+  body("department")
+    .isIn(DEPARTMENTS)
+    .withMessage(`Department must be one of: ${DEPARTMENTS.join(", ")}`),
+  handleValidationErrors,
+];
+
+// --- ITEM VALIDATIONS ---
+
 const validateLostItem = [
   body("name")
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("Item name must be between 2 and 100 characters"),
+    .isIn(ITEM_NAME)
+    .withMessage("Please select a valid item category"),
 
   body("description")
     .optional({ checkFalsy: true })
     .trim()
     .isLength({ min: 10, max: 500 })
-    .withMessage("Description must be between 10 and 500 characters"),
-
-  body("category")
-    .isIn(ITEM_CATEGORIES)
-    .withMessage(`Category must be one of ${ITEM_CATEGORIES.join(", ")}`),
+    .withMessage("Description should be between 10 and 500 characters"),
 
   body("color")
     .isIn(COLORS)
-    .withMessage(`Color must be one of: ${COLORS.join(", ")}`),
+    .withMessage("Please select a color from the approved list"),
 
-  body("brand")
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage("Brand cannot exceed 50 characters"),
+  body("condition")
+    .isIn(Object.values(ITEM_CONDITIONS))
+    .withMessage("Invalid condition selected"),
+
+  body("brand").optional({ checkFalsy: true }).trim().isLength({ max: 50 }),
 
   body("dateLost")
     .isISO8601()
-    .withMessage("Please provide a valid date")
+    .withMessage("Valid date is required")
     .custom((value) => {
       if (new Date(value) > new Date()) {
         throw new Error("Date lost cannot be in the future");
@@ -119,46 +109,41 @@ const validateLostItem = [
     }),
 
   body("placeLost")
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("Place lost must be between 2 and 100 characters"),
+    .isIn(CAMPUS_LOCATIONS)
+    .withMessage("Please select a valid campus location"),
 
   body("contactInfo.phone")
-    .optional()
+    .optional({ checkFalsy: true })
     .isMobilePhone("en-IN")
     .withMessage("Please provide a valid Indian phone number"),
 
   handleValidationErrors,
 ];
+
 const validateFoundItem = [
   body("name")
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("Item name must be between 2 and 100 characters"),
+    .isIn(ITEM_NAME)
+    .withMessage("Please select a valid item category"),
 
   body("description")
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 500 })
-    .withMessage("Description can not exceed 500 characters"),
+    .withMessage("Description cannot exceed 500 characters"),
 
-  body("category")
-    .isIn(ITEM_CATEGORIES)
-    .withMessage(`Category must be one of: ${ITEM_CATEGORIES.join(", ")}`),
+  body("condition")
+    .isIn(Object.values(ITEM_CONDITIONS))
+    .withMessage("Invalid condition selected"),
 
   body("color")
     .isIn(COLORS)
-    .withMessage(`Color must be one of: ${COLORS.join(", ")}`),
+    .withMessage("Please select a color from the approved list"),
 
-  body("brand")
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage("Brand can not exceed 50 characters"),
+  body("brand").optional({ checkFalsy: true }).trim().isLength({ max: 50 }),
 
   body("dateFound")
     .isISO8601()
-    .withMessage("Please provide a valid date")
+    .withMessage("Valid date is required")
     .custom((value) => {
       if (new Date(value) > new Date()) {
         throw new Error("Date found cannot be in the future");
@@ -167,35 +152,28 @@ const validateFoundItem = [
     }),
 
   body("placeFound")
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage("Place found must be between 2 and 100 characters"),
+    .isIn(CAMPUS_LOCATIONS)
+    .withMessage("Please select a valid campus location"),
 
   body("storageLocation")
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .isLength({ max: 100 })
-    .withMessage("Storage location can not exceed 100 characters"),
+    .withMessage("Storage location notes are too long"),
 
   handleValidationErrors,
 ];
+
+// --- UTILITY VALIDATIONS ---
 
 const validateObjectId = [
   param("id").isMongoId().withMessage("Invalid ID format"),
-
   handleValidationErrors,
 ];
+
 const validatePagination = [
-  query("page")
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage("Page must be a positive integer"),
-
-  query("limit")
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage("Limit must be between 1 and 100"),
-
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
   handleValidationErrors,
 ];
 
@@ -205,7 +183,7 @@ export {
   validateLogin,
   validateAdminLogin,
   validateLostItem,
+  validateFoundItem,
   validateObjectId,
   validatePagination,
-  validateFoundItem,
 };

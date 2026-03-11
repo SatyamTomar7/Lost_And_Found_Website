@@ -2,8 +2,8 @@ import mongoose, { Schema } from "mongoose";
 import {
   COLORS,
   DEPARTMENTS,
-  ITEM_CATEGORIES,
   ITEM_STATUS,
+  ITEM_CONDITIONS,
 } from "../constants.js";
 const foundItemSchema = new Schema(
   {
@@ -28,15 +28,15 @@ const foundItemSchema = new Schema(
       trim: true,
       maxlength: [500, "Description can not exceed 500 characters"],
     },
-    category: {
-      type: String,
-      required: [true, "Category is required"],
-      enum: ITEM_CATEGORIES,
-    },
     color: {
       type: String,
       required: [true, "Color is required"],
       enum: COLORS,
+    },
+    condition: {
+      type: String,
+      required: [true, "Condition is required"],
+      enum: ITEM_CONDITIONS,
     },
     brand: {
       type: String,
