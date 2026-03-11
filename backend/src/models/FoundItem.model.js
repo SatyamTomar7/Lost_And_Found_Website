@@ -68,7 +68,7 @@ const foundItemSchema = new Schema(
     ],
     status: {
       type: String,
-      enum: [ITEM_STATUS.FOUND, ITEM_STATUS.RETURNED, ITEM_STATUS.UNCLAIMED],
+      enum: [ITEM_STATUS.FOUND, ITEM_STATUS.RETURNED, ITEM_STATUS.UNCLAIMED,ITEM_STATUS.OFFLINE_RETURNED],
       default: ITEM_STATUS.FOUND,
     },
 

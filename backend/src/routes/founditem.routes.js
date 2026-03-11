@@ -8,7 +8,8 @@ import {
   markAsUnclaimed,
   searchFoundItems,
   updateFoundItem,
-  getMatchedLostItemsForItem
+  getMatchedLostItemsForItem,
+  markAsCollectedOffline,
 } from "../controllers/founditem.controller.js";
 const router = express.Router();
 import { protect, isAdmin } from "../middlewares/auth.middleware.js";
@@ -24,6 +25,8 @@ router.get("/search", searchFoundItems);
 router.get("/:id", validateObjectId, getFoundItem);
 router.put("/:id", validateObjectId, validateFoundItem, updateFoundItem);
 router.put("/:id/returned", validateObjectId, markAsReturned);
+
+router.put("/:id/collected-offline", validateObjectId, markAsCollectedOffline);
 router.put("/:id/unclaimed", validateObjectId, markAsUnclaimed);
 router.get("/:id/matched-lost-items", getMatchedLostItemsForItem);
 

@@ -268,7 +268,7 @@ export const markAsReturned = asyncHandler(async (req, res) => {
     // 1. Update the FoundItem
     // Array ko clear kar rahe hain aur final matched ID set kar rahe hain
     const foundItem = await FoundItem.findOneAndUpdate(
-      { _id: id, department: req.user.department },
+      { _id: id, department: req.user.department, status: ITEM_STATUS.FOUND },
       {
         $set: {
           status: ITEM_STATUS.RETURNED,
@@ -357,6 +357,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
       {
         _id: id,
         department: req.user.department,
+        status: ITEM_STATUS.FOUND,
       },
       {
         $set: {
@@ -389,7 +390,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
     // wahan se iski ID remove ($pull) karein taaki user ka UI update ho jaye.
     await LostItem.updateMany(
       { matchedFoundItemIds: id },
-      { $pull: { matchedFoundFoundItemIds: id } },
+      { $pull: { matchedFoundItemIds: id } },
       { session }
     );
 
@@ -410,6 +411,68 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
     throw new ApiError(
       error.statusCode || 500,
       error.message || "Failed to mark item as unclaimed"
+    );
+  } finally {
+    session.endSession();
+  }
+});
+export const markAsCollectedOffline = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const foundItem = await FoundItem.findOneAndUpdate(
+      {
+        _id: id,
+        department: req.user.department,
+        status: ITEM_STATUS.FOUND, // only allow if still active
+      },
+      {
+        $set: {
+          status: ITEM_STATUS.OFFLINE_RETURNED,
+          returnedAt: new Date(),
+          matchedLostItemIds: [], // stop matching
+        },
+        $unset: {
+          claimedBy: "",
+          matchedLostItemId: "",
+        },
+      },
+      { new: true, session, runValidators: true }
+    ).populate("adminId", "name department");
+
+    if (!foundItem) {
+      throw new ApiError(
+        404,
+        "Found item not found, access denied, or already resolved"
+      );
+    }
+
+    // Remove this found item from all lost items' potential match arrays
+    await LostItem.updateMany(
+      { matchedFoundItemIds: id },
+      { $pull: { matchedFoundItemIds: id } },
+      { session }
+    );
+
+    await session.commitTransaction();
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { data: foundItem },
+          "Item marked as collected offline. All potential matches cleared."
+        )
+      );
+  } catch (error) {
+    await session.abortTransaction();
+    throw new ApiError(
+      error.statusCode || 500,
+      error.message || "Failed to mark item as collected offline"
     );
   } finally {
     session.endSession();
@@ -509,7 +572,6 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
   if (q) {
     query.$text = { $search: q };
   }
-
 
   // Filter by color
   if (color) {

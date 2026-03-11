@@ -46,6 +46,7 @@ const ITEM_STATUS = {
   COLLECTED: "collected",
   RETURNED: "returned",
   UNCLAIMED: "unclaimed",
+  OFFLINE_RETURNED:"offline returned"
 }
 const COLORS = [
   "Black",
@@ -80,6 +81,7 @@ const NOTIFICATION_TYPES = {
   ITEM_RETURNED: "item_returned",
   ITEM_CLAIMED: "item_claimed",
   SYSTEM_ALERT: "system_alert",
+
 };
 
 // File upload
