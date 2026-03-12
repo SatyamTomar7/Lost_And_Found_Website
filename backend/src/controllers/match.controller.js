@@ -165,7 +165,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
       ? ((returnedItem / totalFoundItems) * 100).toFixed(2)
       : 0;
 
-  // 2. Statistics by Item Name (replacing category)
+  // 2. Statistics by Item Name
   const itemStats = await LostItem.aggregate([
     {
       $match: {
@@ -175,7 +175,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     },
     {
       $group: {
-        _id: "$name", // Grouping by name since category is removed
+        _id: "$name",
         total: { $sum: 1 },
         matched: {
           $sum: { $cond: [{ $ne: ["$matchedFoundItemId", null] }, 1, 0] },
@@ -199,33 +199,28 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     { $sort: { total: -1 } },
   ]);
 
-  // 3. Fetch data for live matching
+  // 3. Fetch data for live matching — only truly active items on both sides
   const foundItems = await FoundItem.find({
     isActive: true,
-    status: { $ne: ITEM_STATUS.RETURNED },
+    status: ITEM_STATUS.FOUND, // ← FIXED: only "found" status, excludes returned/unclaimed/offline_returned
     ...(department && { department }),
   });
 
   const lostItems = await LostItem.find({
     isActive: true,
-    status: { $nin: [ITEM_STATUS.COLLECTED, ITEM_STATUS.RETURNED] },
+    status: ITEM_STATUS.PENDING, // ← only pending lost items
   });
 
-  // 4. Build Matches using the updated fields
+  // 4. Build Matches
   const matches = [];
 
-  // Batch fetch users
   const userIds = [...new Set(lostItems.map((l) => l.userId.toString()))];
   const users = await User.find({ _id: { $in: userIds } }).select("name email");
   const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
   for (const foundItem of foundItems) {
     for (const lostItem of lostItems) {
-      // Your service logic should now compare name-to-name instead of category-to-category
-      const matchScore = matchingService.calculateMatchScore(
-        lostItem,
-        foundItem
-      );
+      const matchScore = matchingService.calculateMatchScore(lostItem, foundItem);
 
       if (matchScore > 60) {
         const user = userMap[lostItem.userId.toString()];
@@ -266,7 +261,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           returnRate: parseFloat(returnRate),
         },
         matches,
-        itemBreakdown: itemStats, // renamed from categoryBreakdown
+        itemBreakdown: itemStats,
         department: department || "All Departments",
       },
       "Matching Status fetched Successfully"

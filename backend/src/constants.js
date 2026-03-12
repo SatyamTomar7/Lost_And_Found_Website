@@ -81,6 +81,7 @@ const NOTIFICATION_TYPES = {
   ITEM_RETURNED: "item_returned",
   ITEM_CLAIMED: "item_claimed",
   SYSTEM_ALERT: "system_alert",
+    ITEM_UNAVAILABLE: "item_unavailable"
 
 };
 

@@ -2,7 +2,7 @@ import nodemailer from "nodemailer";
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransport({ 
+    this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
       secure: false,
@@ -11,8 +11,8 @@ class EmailService {
         pass: process.env.SMTP_PASS,
       },
       tls: {
-        rejectUnauthorized: false
-      }
+        rejectUnauthorized: false,
+      },
     });
   }
 
@@ -22,7 +22,7 @@ class EmailService {
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: email,
-        subject: 'Email Verification - Amity Lost & Found',
+        subject: "Email Verification - Amity Lost & Found",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #1e40af, #3b82f6); padding: 30px; text-align: center;">
@@ -63,27 +63,32 @@ class EmailService {
               </p>
             </div>
           </div>
-        `
+        `,
       };
 
       await this.transporter.sendMail(mailOptions);
       console.log(`OTP verification email sent to ${email}`);
       return true;
     } catch (error) {
-      console.error('Email sending error:', error);
+      console.error("Email sending error:", error);
       return false;
     }
   }
 
-
   //send match notification email
 
-  async sendMatchNotification(userEmail,userName,lostItem,foundItem,department){
+  async sendMatchNotification(
+    userEmail,
+    userName,
+    lostItem,
+    foundItem,
+    department
+  ) {
     try {
-      const mailOptions={
-        from:process.env.EMAIL_FROM,
-        to:userEmail,
-        subject:"Item Match Found - Amity Lost & Found",
+      const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: userEmail,
+        subject: "Item Match Found - Amity Lost & Found",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #059669, #10b981); padding: 30px; text-align: center;">
@@ -131,25 +136,24 @@ class EmailService {
               </p>
             </div>
           </div>
-        `
-      }
+        `,
+      };
       await this.transporter.sendMail(mailOptions);
       console.log(`Match notification email sent to ${userEmail}`);
       return true;
     } catch (error) {
-      console.error("Match notification email error:",error);
+      console.error("Match notification email error:", error);
       return false;
     }
   }
 
-  
   // Send item returned confirmation
   async sendItemReturnedConfirmation(userEmail, userName, itemName) {
     try {
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: userEmail,
-        subject: 'Item Successfully Returned - Amity Lost & Found',
+        subject: "Item Successfully Returned - Amity Lost & Found",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #059669, #10b981); padding: 30px; text-align: center;">
@@ -177,18 +181,80 @@ class EmailService {
               </p>
             </div>
           </div>
-        `
+        `,
       };
 
       await this.transporter.sendMail(mailOptions);
       console.log(`Item returned confirmation sent to ${userEmail}`);
       return true;
     } catch (error) {
-      console.error('Item returned email error:', error);
+      console.error("Item returned email error:", error);
+      return false;
+    }
+  }
+
+  async sendItemUnavailableNotification(email, userName, itemName, department) {
+    try {
+      const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: email,
+        subject: `Update: ${itemName} No Longer Available - Amity Lost & Found`,
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #b45309, #f59e0b); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Item Update</h1>
+            <p style="color: white; margin: 5px 0;">Regarding your lost item report</p>
+          </div>
+
+          <div style="padding: 30px; background: #f8fafc;">
+            <h2 style="color: #b45309;">Item No Longer Available</h2>
+            <p>Hello <strong>${userName}</strong>,</p>
+
+            <p>We wanted to inform you that the <strong>${itemName}</strong> found in 
+            <strong>${department}</strong> that previously matched your lost item report 
+            has been collected in person by its owner.</p>
+
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <p style="margin: 0;">
+                <strong>What this means:</strong><br><br>
+                This particular item is no longer available for collection. 
+                Your lost item report remains active and we will continue 
+                searching for other matches. You will be notified immediately 
+                if another match is found.
+              </p>
+            </div>
+
+            <div style="background: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h3 style="color: #1e40af; margin-top: 0;">What you can do</h3>
+              <ul style="color: #374151; line-height: 1.8;">
+                <li>Keep your lost item report active — we are still looking</li>
+                <li>Visit the ${department} office if you have additional information</li>
+                <li>Check the portal regularly for new matches</li>
+              </ul>
+            </div>
+
+            <p>We apologize for any inconvenience and will do our best to help you 
+            recover your item.</p>
+
+            <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
+            <p style="color: #6b7280; font-size: 12px;">
+              This notification was sent automatically by the Amity Lost & Found System.
+              Please do not reply to this email.
+            </p>
+          </div>
+        </div>
+      `,
+      };
+
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Item unavailable notification sent to ${email}`);
+      return true;
+    } catch (error) {
+      console.error("Item unavailable email error:", error);
       return false;
     }
   }
 }
 
-const emailService=new EmailService();
-export  {emailService}
+const emailService = new EmailService();
+export { emailService };

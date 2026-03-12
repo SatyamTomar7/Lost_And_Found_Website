@@ -418,22 +418,37 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
 });
 export const markAsCollectedOffline = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
+    // 1. Fetch foundItem BEFORE update to get matchedLostItemIds
+    const existingFoundItem = await FoundItem.findOne({
+      _id: id,
+      department: req.user.department,
+      status: ITEM_STATUS.FOUND,
+    }).populate({
+      path: "matchedLostItemIds",
+      select: "userId name",
+      populate: { path: "userId", select: "name email" },
+    });
+
+    if (!existingFoundItem) {
+      throw new ApiError(409, "Item has already been resolved and cannot be updated again.");
+    }
+
+    // 2. Now update the foundItem
     const foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
         department: req.user.department,
-        status: ITEM_STATUS.FOUND, // only allow if still active
+        status: ITEM_STATUS.FOUND,
       },
       {
         $set: {
           status: ITEM_STATUS.OFFLINE_RETURNED,
           returnedAt: new Date(),
-          matchedLostItemIds: [], // stop matching
+          matchedLostItemIds: [],
         },
         $unset: {
           claimedBy: "",
@@ -443,31 +458,62 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
       { new: true, session, runValidators: true }
     ).populate("adminId", "name department");
 
-    if (!foundItem) {
-      throw new ApiError(
-        404,
-        "Found item not found, access denied, or already resolved"
-      );
-    }
-
-    // Remove this found item from all lost items' potential match arrays
+    // 3. Clean up LostItems
     await LostItem.updateMany(
       { matchedFoundItemIds: id },
       { $pull: { matchedFoundItemIds: id } },
       { session }
     );
 
+    // 4. Notify all previously matched users
+    const io = req.app.get("socketio");
+    const previousMatches = existingFoundItem.matchedLostItemIds || [];
+
+    if (previousMatches.length > 0) {
+      await Promise.all(
+        previousMatches.map(async (lostItem) => {
+          if (!lostItem.userId) return;
+
+          // Create in-app notification
+          const notification = await Notification.create({
+            userId: lostItem.userId._id,
+            type: NOTIFICATION_TYPES.ITEM_UNAVAILABLE,
+            title: "Item No Longer Available",
+            message: `Sorry, the ${existingFoundItem.name} that matched your report has been collected by its owner in person. Please check if any other matches are found.`,
+            data: {
+              lostItemId: lostItem._id,
+              foundItemId: id,
+            },
+            priority: "medium",
+          });
+
+          // Real-time socket notification
+          if (io) {
+            io.sendNotificationToUser(lostItem.userId._id, {
+              ...notification.toObject(),
+            });
+          }
+
+          // Email notification
+          emailService.sendItemUnavailableNotification(
+            lostItem.userId.email,
+            lostItem.userId.name,
+            existingFoundItem.name,
+            req.user.department
+          ).catch((err) => console.error("Email Error:", err));
+        })
+      );
+    }
+
     await session.commitTransaction();
 
-    res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          { data: foundItem },
-          "Item marked as collected offline. All potential matches cleared."
-        )
-      );
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        { data: foundItem },
+        `Item marked as collected offline. ${previousMatches.length} user(s) notified.`
+      )
+    );
   } catch (error) {
     await session.abortTransaction();
     throw new ApiError(
