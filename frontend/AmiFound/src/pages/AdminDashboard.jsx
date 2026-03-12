@@ -480,6 +480,7 @@ const MultiMatchSummaryCard = React.memo(({ itemName, matchCount, matches }) => 
 const FoundItemCard = React.memo(
   ({ item, onMarkReturned, onUpdateStatus, onMarkCollectedOffline, isUpdating, onViewDetails, onViewOfflineDetails }) => {
     const statusLower = item.status.toLowerCase();
+    console.log("status",statusLower)
 
     return (
       <div className="item-card">
@@ -525,7 +526,7 @@ const FoundItemCard = React.memo(
           )}
 
           {/* ── Still active (found / unclaimed) ── */}
-          {statusLower !== "returned" && statusLower !== "collected" && (
+          {statusLower ==="found" && (
             <>
               <button
                 className="btn btn--sm btn--secondary"
