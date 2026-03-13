@@ -188,3 +188,84 @@ export const checkCurrentUser = async () => {
     return null;
   }
 };
+
+// ─── Add these 3 functions to your existing authService.js ───────────────────
+
+// Step 1: Request OTP
+export const forgotPassword = async (email) => {
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return response.json();
+};
+
+// Step 2: Verify OTP → returns resetToken
+export const verifyResetOTP = async (email, otp) => {
+  const response = await fetch(`${API_URL}/auth/verify-reset-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp }),
+  });
+  return response.json();
+};
+
+// Step 3: Set new password using resetToken
+export const resetPassword = async (
+  resetToken,
+  newPassword,
+  confirmPassword,
+) => {
+  const response = await fetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
+  });
+  return response.json();
+};
+
+
+// ── ADDED: Admin forgot password flow ────────────────────────────────────────
+
+export const adminForgotPassword = async (email) => {
+  try {
+    const response = await fetch(`${API_URL}/auth/admin/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Admin forgot password error:", error);
+    throw error;
+  }
+};
+
+export const adminVerifyResetOTP = async (email, otp) => {
+  try {
+    const response = await fetch(`${API_URL}/auth/admin/verify-reset-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Admin verify reset OTP error:", error);
+    throw error;
+  }
+};
+
+export const adminResetPassword = async (resetToken, newPassword, confirmPassword) => {
+  try {
+    const response = await fetch(`${API_URL}/auth/admin/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Admin reset password error:", error);
+    throw error;
+  }
+};
