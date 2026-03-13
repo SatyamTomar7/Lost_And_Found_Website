@@ -1,3 +1,5 @@
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { emailService } from "../services/email.service.js";
 import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -5,16 +7,49 @@ import { ApiError } from "../utils/ApiError.js";
 import { DEPARTMENTS, USER_ROLES } from "../constants.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
-export const register = asyncHandler(async (req, res) => {
+ const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
+  // ── UPSERT LOGIC ──────────────────────────────────────────────────────────
   // Check if user already exists
   const existingUser = await User.findOne({ email });
-  if (existingUser?.isEmailVerified) {
-    throw new ApiError(400, "User already exists with this email");
-  }
 
-  // Create new user
+  if (existingUser) {
+    // Already fully verified → block
+    if (existingUser.isEmailVerified) {
+      throw new ApiError(400, "User already exists with this email");
+    }
+
+    // Exists but unverified → update their details and resend OTP
+    existingUser.name = name;
+    existingUser.password = password; // pre-save hook will re-hash it
+    const otp = existingUser.generateEmailVerificationOTP();
+    await existingUser.save();
+
+    let emailSent = false;
+    try {
+      emailSent = await emailService.sendOTPVerification(email, name, otp);
+    } catch (error) {
+      console.error("Email sending failed", error);
+    }
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          email: existingUser.email,
+          name: existingUser.name,
+          otpSent: !!emailSent,
+        },
+        emailSent
+          ? "OTP resent. Please check your email for verification."
+          : "Account found but failed to send OTP email. Try again later."
+      )
+    );
+  }
+  // ── END UPSERT LOGIC ──────────────────────────────────────────────────────
+
+  // Fresh registration — user does not exist at all
   const user = await User.create({
     name,
     email,
@@ -22,23 +57,16 @@ export const register = asyncHandler(async (req, res) => {
     role: USER_ROLES.STUDENT,
   });
 
-  // Generate OTP for email verification
   const otp = user.generateEmailVerificationOTP();
   await user.save();
 
   let emailSent = false;
-
-  // Try sending email
   try {
     emailSent = await emailService.sendOTPVerification(email, name, otp);
   } catch (error) {
     console.error("Email sending failed", error);
   }
 
-  // Never return password
-  // user.password = undefined;
-
-  // Send response
   return res.status(201).json(
     new ApiResponse(
       201,
@@ -121,12 +149,35 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isActive) {
     throw new ApiError(403, "Account deactivated. Please contact support.");
   }
+
+  // ── STUCK STATE FIX ───────────────────────────────────────────────────────
+  // Credentials are correct but email was never verified.
+  // Auto-send a fresh OTP and return a specific message so the
+  // frontend can redirect the user straight to the OTP screen.
   if (!user.isEmailVerified) {
-    throw new ApiError(403, "Please verify your email before logging in");
+    const otp = user.generateEmailVerificationOTP();
+    await user.save();
+
+    try {
+      await emailService.sendOTPVerification(user.email, user.name, otp);
+    } catch (error) {
+      console.error("Email sending failed", error);
+    }
+
+    return res.status(403).json(
+      new ApiResponse(
+        403,
+        {
+          email: user.email,
+          name: user.name,
+        },
+        "ACCOUNT_NOT_VERIFIED"
+      )
+    );
   }
+  // ── END FIX ───────────────────────────────────────────────────────────────
 
   // 4. Update lastLogin in the background (Non-blocking)
-  // We use findByIdAndUpdate to avoid triggering pre-save middlewares
   const lastLoginDate = new Date();
   User.findByIdAndUpdate(user._id, {
     $set: { lastLogin: lastLoginDate },
@@ -274,5 +325,240 @@ export const resendOTP = asyncHandler(async (req, res) => {
         { email: user.email },
         "If the account exists and is unverified, a new OTP has been sent."
       )
+    );
+});
+// ── Step 1: Request Reset OTP ─────────────────────────────────────────────────
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError(400, "Email is required");
+  }
+
+  // Same response whether user exists or not — prevents email enumeration
+  const genericResponse = new ApiResponse(
+    200,
+    {},
+    "If this email exists in our system, an OTP has been sent."
+  );
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  if (!user) {
+    return res.status(200).json(genericResponse);
+  }
+
+  // Rate limit: block if OTP was sent less than 2 minutes ago
+  // if (
+  //   user.passwordResetOTPExpiry &&
+  //   user.passwordResetOTPExpiry > new Date(Date.now() - 8 * 60 * 1000)
+  // ) {
+  //   throw new ApiError(
+  //     429,
+  //     "Please wait 2 minutes before requesting a new OTP."
+  //   );
+  // }
+
+  // Generate + hash OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const hashedOTP = await bcrypt.hash(otp, 10);
+  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  await User.findByIdAndUpdate(user._id, {
+    passwordResetOTP: hashedOTP,
+    passwordResetOTPExpiry: otpExpiry,
+    passwordResetOTPUsed: false,
+  });
+
+  await emailService.sendPasswordResetOTP(user.email, user.name, otp);
+
+  return res.status(200).json(genericResponse);
+});
+
+// ── Step 2: Verify Reset OTP ──────────────────────────────────────────────────
+export const verifyResetOTP = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    throw new ApiError(400, "Email and OTP are required");
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+  if (!user || !user.passwordResetOTP) {
+    throw new ApiError(400, "Invalid or expired OTP");
+  }
+
+  if (user.passwordResetOTPExpiry < new Date()) {
+    throw new ApiError(400, "OTP has expired. Please request a new one.");
+  }
+
+  if (user.passwordResetOTPUsed) {
+    throw new ApiError(
+      400,
+      "OTP has already been used. Please request a new one."
+    );
+  }
+
+  const isOTPValid = await bcrypt.compare(otp, user.passwordResetOTP);
+  if (!isOTPValid) {
+    throw new ApiError(400, "Invalid OTP. Please check and try again.");
+  }
+
+  // Mark OTP used so it cannot be reused
+  await User.findByIdAndUpdate(user._id, {
+    passwordResetOTPUsed: true,
+  });
+
+  // Issue short-lived reset token (10 min window to set password)
+  const resetToken = jwt.sign(
+    { userId: user._id, purpose: "password_reset" },
+    process.env.JWT_SECRET,
+    { expiresIn: "10m" }
+  );
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { resetToken }, "OTP verified successfully"));
+});
+
+// ── Step 3: Reset Password ────────────────────────────────────────────────────
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { resetToken, newPassword, confirmPassword } = req.body;
+
+  if (!resetToken || !newPassword || !confirmPassword) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "Passwords do not match");
+  }
+
+  if (newPassword.length < 8) {
+    throw new ApiError(400, "Password must be at least 8 characters");
+  }
+
+  // Verify reset token
+  let decoded;
+  try {
+    decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+  } catch {
+    throw new ApiError(400, "Reset session expired. Please start again.");
+  }
+
+  if (decoded.purpose !== "password_reset") {
+    throw new ApiError(400, "Invalid reset token");
+  }
+
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  await User.findByIdAndUpdate(user._id, {
+    password: hashedPassword,
+    passwordResetOTP: null,
+    passwordResetOTPExpiry: null,
+    passwordResetOTPUsed: false,
+    passwordChangedAt: new Date(), // invalidates all existing JWTs
+  });
+
+  emailService
+    .sendPasswordResetConfirmation(user.email, user.name)
+    .catch((err) => console.error("Confirmation email error:", err));
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, {}, "Password reset successfully. Please log in.")
+    );
+});
+
+// ── ADDED: Admin forgot password flow ────────────────────────────────────────
+
+export const adminForgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  const admin = await User.findOne({ email });
+
+  // Always respond the same way to prevent email enumeration
+  if (!admin) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          {},
+          "If this admin email exists, an OTP has been sent."
+        )
+      );
+  }
+
+  const otp = admin.generatePasswordResetOTP(); // same method pattern as User model
+  await admin.save();
+
+  try {
+    await emailService.sendOTPVerification(
+      email,
+      admin.name || admin.username,
+      otp
+    );
+  } catch (error) {
+    console.error("Email sending failed:", error);
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        {},
+        "If this admin email exists, an OTP has been sent."
+      )
+    );
+});
+
+export const adminVerifyResetOTP = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  const admin = await User.findOne({ email });
+  if (!admin) throw new ApiError(400, "Invalid or expired OTP");
+
+  const isValid = admin.verifyPasswordResetOTP(otp); // same method pattern as User model
+  if (!isValid) throw new ApiError(400, "Invalid or expired OTP");
+
+  // Generate a short-lived reset token
+  const resetToken = admin.generatePasswordResetToken(); // signs a JWT or sets a field
+  await admin.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { resetToken }, "OTP verified successfully."));
+});
+
+export const adminResetPassword = asyncHandler(async (req, res) => {
+  const { resetToken, newPassword, confirmPassword } = req.body;
+
+  if (newPassword !== confirmPassword) {
+    throw new ApiError(400, "Passwords do not match");
+  }
+
+  // Verify and decode the reset token to find the admin
+  const admin = await User.findOne({
+    passwordResetToken: resetToken,
+    passwordResetTokenExpiry: { $gt: Date.now() }, // FIXED: was passwordResetExpiry
+  });
+  if (!admin) throw new ApiError(400, "Reset token is invalid or has expired");
+
+  admin.password = newPassword; // pre-save hook will hash it
+  admin.passwordResetToken = undefined;
+  admin.passwordResetTokenExpiry = undefined;
+  await admin.save();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, {}, "Password reset successfully. Please login.")
     );
 });

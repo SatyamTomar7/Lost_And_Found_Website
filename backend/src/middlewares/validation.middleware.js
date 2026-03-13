@@ -16,12 +16,10 @@ const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const formattedErrors = errors.array().map((err) => ({
-      field: err.path, // 'path' is the modern replacement for 'param'
+      field: err.path,
       message: err.msg,
       value: err.value,
     }));
-
-    // Throwing custom ApiError to be caught by global error middleware
     throw new ApiError(400, "Validation failed", formattedErrors);
   }
   next();
@@ -36,6 +34,7 @@ const validateUserRegistration = [
     .withMessage("Name must be between 2 and 50 characters"),
 
   body("email")
+    .trim()
     .isEmail()
     .withMessage("Please provide a valid email")
     .matches(/^[\w.-]+@s\.amity\.edu$/)
@@ -72,6 +71,46 @@ const validateAdminLogin = [
   body("department")
     .isIn(DEPARTMENTS)
     .withMessage(`Department must be one of: ${DEPARTMENTS.join(", ")}`),
+  handleValidationErrors,
+];
+
+// --- PASSWORD RESET VALIDATIONS ---
+
+const validateForgotPassword = [
+  body("email")
+    .isEmail()
+    .withMessage("Please provide a valid email")
+    .matches(/^[\w.-]+@s\.amity\.edu$/)
+    .withMessage("Email must be an Amity student email (@s.amity.edu)")
+    .normalizeEmail(),
+  handleValidationErrors,
+];
+
+const validateVerifyResetOTP = [
+  body("email").isEmail().normalizeEmail().withMessage("Valid email required"),
+  body("otp")
+    .isLength({ min: 6, max: 6 })
+    .isNumeric()
+    .withMessage("OTP must be a 6-digit number"),
+  handleValidationErrors,
+];
+
+const validateResetPassword = [
+  body("resetToken").notEmpty().withMessage("Reset token is required"),
+  body("newPassword")
+    .isLength({ min: 8, max: 100 })
+    .withMessage("Password must be at least 8 characters long")
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage("Password must include uppercase, lowercase, and a number"),
+  body("confirmPassword")
+    .notEmpty()
+    .withMessage("Please confirm your password")
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error("Passwords do not match");
+      }
+      return true;
+    }),
   handleValidationErrors,
 ];
 
@@ -182,6 +221,9 @@ export {
   validateOTPVerification,
   validateLogin,
   validateAdminLogin,
+  validateForgotPassword, // ← new
+  validateVerifyResetOTP, // ← new
+  validateResetPassword, // ← new
   validateLostItem,
   validateFoundItem,
   validateObjectId,
