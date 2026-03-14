@@ -7,7 +7,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { DEPARTMENTS, USER_ROLES } from "../constants.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
- const register = asyncHandler(async (req, res) => {
+export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
   // ── UPSERT LOGIC ──────────────────────────────────────────────────────────
