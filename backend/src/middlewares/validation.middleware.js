@@ -98,8 +98,8 @@ const validateVerifyResetOTP = [
 const validateResetPassword = [
   body("resetToken").notEmpty().withMessage("Reset token is required"),
   body("newPassword")
-    .isLength({ min: 8, max: 100 })
-    .withMessage("Password must be at least 8 characters long")
+    .isLength({ min: 6, max: 100 })
+    .withMessage("Password must be at least 6 characters long")
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
     .withMessage("Password must include uppercase, lowercase, and a number"),
   body("confirmPassword")
