@@ -17,7 +17,7 @@ const userSchema = new Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      // REPLACE WITH:
+      
       validate: {
         validator: function (v) {
           return (
@@ -85,7 +85,7 @@ const userSchema = new Schema(
   }
 );
 
-// Encrypt password before saving
+
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   try {
@@ -96,12 +96,12 @@ userSchema.pre("save", async function (next) {
   }
 });
 
-// Compare password method
+
 userSchema.methods.isPasswordCorrect = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Generate JWT token
+
 userSchema.methods.getJWTToken = function () {
   const payload = {
     id: this._id,
@@ -109,7 +109,7 @@ userSchema.methods.getJWTToken = function () {
     role: this.role,
   };
 
-  // Only include department if it exists (admins only)
+ 
   if (this.department) {
     payload.department = this.department;
   }
@@ -121,9 +121,9 @@ userSchema.methods.getJWTToken = function () {
 
 userSchema.methods.generateEmailVerificationOTP = async function () {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  this.emailVerificationOTP = await bcrypt.hash(otp, 10); // ← hashed
-  const expireMinutes = parseInt(process.env.OTP_EXPIRE) || 10; // issue #3 fix included
+  this.emailVerificationOTP = await bcrypt.hash(otp, 10); 
+  const expireMinutes = parseInt(process.env.OTP_EXPIRE) || 10; 
   this.emailVerificationExpire = Date.now() + expireMinutes * 60 * 1000;
-  return otp; // ← return plain OTP to send in email, store hash in DB
+  return otp;
 };
 export const User = mongoose.model("User", userSchema);

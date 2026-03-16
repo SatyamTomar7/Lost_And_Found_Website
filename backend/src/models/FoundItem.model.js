@@ -79,8 +79,6 @@ const foundItemSchema = new Schema(
       },
     ],
 
-    // Ye field pehle se hai, iska use 'Handover' ke waqt karein
-    // Isko hum change nahi karenge, ye final 1-to-1 match rahega
     matchedLostItemId: {
       type: Schema.Types.ObjectId,
       ref: "LostItem",
@@ -115,12 +113,10 @@ const foundItemSchema = new Schema(
   }
 );
 
-// Create search keywords before saving
 foundItemSchema.pre("save", function (next) {
   this.searchKeywords = [
     this.name,
     this.description,
-    this.category,
     this.color,
     this.brand,
     this.placeFound,
@@ -133,11 +129,9 @@ foundItemSchema.pre("save", function (next) {
   next();
 });
 
-// Index for text search
 foundItemSchema.index({
   name: "text",
   description: "text",
-  category: "text",
   color: "text",
   brand: "text",
   placeFound: "text",
@@ -146,7 +140,6 @@ foundItemSchema.index({
 
 foundItemSchema.index({ department: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
-foundItemSchema.index({ category: 1, color: 1 });
 foundItemSchema.index({ adminId: 1 });
-foundItemSchema.index({ matchedLostItemIds: 1 }); // Multi-key index for the array
+foundItemSchema.index({ matchedLostItemIds: 1 }); 
 export const FoundItem = mongoose.model("FoundItem", foundItemSchema);

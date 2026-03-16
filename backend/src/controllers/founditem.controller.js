@@ -21,7 +21,7 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     condition,
   } = req.body;
 
-  // 1. Prepare and create foundItem
+
   const foundItemData = {
     name,
     color,
@@ -31,19 +31,19 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     condition,
     adminId: req.user.id,
     department: req.user.department,
-    images: photoUrl ? [{ url: photoUrl, public: photoPublicId }] : [],
+    images: photoUrl ? [{ url: photoUrl, publicId: photoPublicId }] : [],
   };
 
   const foundItem = await FoundItem.create(foundItemData);
 
-  // 2. Immediate Match Check
+
   const matches = await matchingService.findMatchesForFoundItem(
     foundItem._id,
     70
   );
   const topMatches = matches.slice(0, 5);
 
-  // 3. Process Notifications and Emails in parallel (optimization)
+
   let matchNotifications = [];
   if (topMatches.length > 0) {
     const io = req.app.get("socketio");
@@ -64,7 +64,7 @@ export const addFoundItem = asyncHandler(async (req, res) => {
           priority: match.matchScore > 85 ? "high" : "medium",
         });
 
-        // Background tasks: Don't strictly need to await these for the HTTP response
+       
         emailService
           .sendMatchNotification(
             match.lostItem.userId.email,
@@ -86,7 +86,7 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     );
   }
 
-  // 4. Final Population for Response
+
   const populatedItem = await foundItem.populate("adminId", "name department");
   res.status(201).json(
     new ApiResponse(
@@ -104,28 +104,28 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 });
 
 export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
-  // 1. Parse and sanitize inputs
+
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 10);
   const { status } = req.query;
 
-  // 2. Build Query - Filtering by the admin's department
+
   const query = {
     department: req.user.department,
     isActive: true,
   };
   if (status) query.status = status;
 
-  // 3. Execute in Parallel (Major Performance Gain)
+
   const [foundItems, total] = await Promise.all([
     FoundItem.find(query)
       .populate("adminId", "name")
       .populate("claimedBy", "name email")
-      // UPDATED: Populate the array of potential lost item matches
+
       .populate({
         path: "matchedLostItemIds",
-        select: "name userId category status createdAt",
-        // Deep populate userId to see the name/email of the person who lost it
+        select: "name userId status createdAt",
+
         populate: { path: "userId", select: "name email" },
       })
       .sort({ createdAt: -1 })
@@ -135,7 +135,7 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
     FoundItem.countDocuments(query),
   ]);
 
-  // 4. Calculate Meta
+
   const totalPages = Math.ceil(total / limit);
 
   res.status(200).json(
@@ -161,27 +161,22 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
 export const getFoundItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // 1. Build a secure query
-  // Security check: Admins can only view items assigned to their specific department
   const query = { _id: id };
   if (req.user.role === "admin") {
     query.department = req.user.department;
   }
 
-  // 2. Execute query with Deep Population
   const foundItem = await FoundItem.findOne(query)
     .populate("adminId", "name department")
     .populate("claimedBy", "name email")
-    // UPDATED: Populate the array of potential matches
+
     .populate({
       path: "matchedLostItemIds",
       select: "name userId status  createdAt",
-      // Deep populate to see who lost each matching item
       populate: { path: "userId", select: "name email" },
     })
     .lean();
 
-  // 3. Simple error handling
   if (!foundItem) {
     throw new ApiError(
       404,
@@ -189,7 +184,7 @@ export const getFoundItem = asyncHandler(async (req, res) => {
     );
   }
 
-  // 4. Response
+
   res
     .status(200)
     .json(
@@ -203,26 +198,18 @@ export const getFoundItem = asyncHandler(async (req, res) => {
 export const updateFoundItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // 1. Destructure only the fields allowed to be updated
-  // Prevents users from overwriting adminId or department
-  const { name, color, condition, dateFound, placeFound, status, brand } =
-    req.body;
-  const updateData = {
-    name,
-    color,
-    condition,
-    dateFound,
-    placeFound,
-    status,
-    brand,
-  };
+  const { name, color, condition, dateFound, placeFound, brand } = req.body;
 
-  // 2. Perform Atomic Update
-  // We include department in the filter to ensure security in one step
+  const updateData = { name, color, condition, dateFound, placeFound, brand };
+
+  Object.keys(updateData).forEach(
+    (key) => updateData[key] === undefined && delete updateData[key]
+  );
+
   const foundItem = await FoundItem.findOneAndUpdate(
     {
       _id: id,
-      department: req.user.department, // Security: prevents updating other dept items
+      department: req.user.department,
     },
     { $set: updateData },
     {
@@ -231,9 +218,7 @@ export const updateFoundItem = asyncHandler(async (req, res) => {
     }
   ).populate("adminId", "name department");
 
-  // 3. Handle result
   if (!foundItem) {
-    // If null, either the ID is wrong OR it's not in the user's department
     throw new ApiError(
       404,
       "Found item not found or you lack permission to update it"
@@ -252,7 +237,7 @@ export const updateFoundItem = asyncHandler(async (req, res) => {
 });
 
 export const markAsReturned = asyncHandler(async (req, res) => {
-  const { id } = req.params; // FoundItem ID
+  const { id } = req.params;
   const { lostItemId, claimedByUserId } = req.body;
   if (!lostItemId || !claimedByUserId) {
     throw new ApiError(
@@ -265,17 +250,15 @@ export const markAsReturned = asyncHandler(async (req, res) => {
   session.startTransaction();
 
   try {
-    // 1. Update the FoundItem
-    // Array ko clear kar rahe hain aur final matched ID set kar rahe hain
     const foundItem = await FoundItem.findOneAndUpdate(
       { _id: id, department: req.user.department, status: ITEM_STATUS.FOUND },
       {
         $set: {
           status: ITEM_STATUS.RETURNED,
           claimedBy: claimedByUserId,
-          matchedLostItemId: lostItemId, // Ye final 1-to-1 link hai
+          matchedLostItemId: lostItemId,
           returnedAt: new Date(),
-          matchedLostItemIds: [], // Cleanup: Potential matches ab valid nahi rahe
+          matchedLostItemIds: [],
         },
       },
       { new: true, session, runValidators: true }
@@ -285,14 +268,13 @@ export const markAsReturned = asyncHandler(async (req, res) => {
       throw new ApiError(404, "Found item not found or access denied");
     }
 
-    // 2. Update the specific LostItem
     const lostUpdate = await LostItem.findOneAndUpdate(
       { _id: lostItemId, userId: claimedByUserId },
       {
         $set: {
-          status: ITEM_STATUS.COLLECTED, // Ya COLLECTED jo bhi aapka constant ho
-          matchedFoundItemId: foundItem._id, // Final 1-to-1 link
-          matchedFoundItemIds: [], // Cleanup potential matches for this specific item
+          status: ITEM_STATUS.COLLECTED,
+          matchedFoundItemId: foundItem._id,
+          matchedFoundItemIds: [],
         },
       },
       { session, new: true }
@@ -305,16 +287,12 @@ export const markAsReturned = asyncHandler(async (req, res) => {
       );
     }
 
-    // 3. GLOBAL CLEANUP (Many-to-Many Cleanup)
-    // Ye FoundItem ab system se bahar hai, isliye ise baaki sabhi LostItems ke
-    // "potential matches" array se nikal dena chahiye.
     await LostItem.updateMany(
       { matchedFoundItemIds: foundItem._id },
       { $pull: { matchedFoundItemIds: foundItem._id } },
       { session }
     );
 
-    // Same for FoundItems (Agar ye LostItem kisi aur FoundItem se match ho raha tha)
     await FoundItem.updateMany(
       { matchedLostItemIds: lostItemId },
       { $pull: { matchedLostItemIds: lostItemId } },
@@ -351,8 +329,6 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
   session.startTransaction();
 
   try {
-    // 1. Update the FoundItem
-    // Status change karein aur potential matches ke arrays ko clear kar dein
     const foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
@@ -362,13 +338,13 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
       {
         $set: {
           status: ITEM_STATUS.UNCLAIMED,
-          matchedLostItemIds: [], // Ab ye kisi se match nahi ho raha
+          matchedLostItemIds: [],
         },
         $unset: {
           claimedBy: "",
           claimedAt: "",
           returnedAt: "",
-          matchedLostItemId: "", // Final match field bhi clear karein agar thi toh
+          matchedLostItemId: "",
         },
       },
       {
@@ -385,9 +361,6 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
       );
     }
 
-    // 2. Global Cleanup in LostItem Collection
-    // Jitne bhi Lost Items is Found Item ko "Potential Match" dikha rahe the,
-    // wahan se iski ID remove ($pull) karein taaki user ka UI update ho jaye.
     await LostItem.updateMany(
       { matchedFoundItemIds: id },
       { $pull: { matchedFoundItemIds: id } },
@@ -418,12 +391,17 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
 });
 export const markAsCollectedOffline = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
+  // Declared outside try so accessible after session ends
+  let existingFoundItem;
+  let foundItem;
+
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // 1. Fetch foundItem BEFORE update to get matchedLostItemIds
-    const existingFoundItem = await FoundItem.findOne({
+    // Fetch before update to capture existing matched lost items for notification
+    existingFoundItem = await FoundItem.findOne({
       _id: id,
       department: req.user.department,
       status: ITEM_STATUS.FOUND,
@@ -434,86 +412,39 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     });
 
     if (!existingFoundItem) {
-      throw new ApiError(409, "Item has already been resolved and cannot be updated again.");
+      throw new ApiError(
+        409,
+        "Item has already been resolved and cannot be updated again."
+      );
     }
 
-    // 2. Now update the foundItem
-    const foundItem = await FoundItem.findOneAndUpdate(
-      {
-        _id: id,
-        department: req.user.department,
-        status: ITEM_STATUS.FOUND,
-      },
+    foundItem = await FoundItem.findOneAndUpdate(
+      { _id: id, department: req.user.department, status: ITEM_STATUS.FOUND },
       {
         $set: {
           status: ITEM_STATUS.OFFLINE_RETURNED,
           returnedAt: new Date(),
           matchedLostItemIds: [],
         },
-        $unset: {
-          claimedBy: "",
-          matchedLostItemId: "",
-        },
+        $unset: { claimedBy: "", matchedLostItemId: "" },
       },
       { new: true, session, runValidators: true }
     ).populate("adminId", "name department");
 
-    // 3. Clean up LostItems
+    if (!foundItem) {
+      throw new ApiError(
+        409,
+        "Item status changed during processing. Please retry."
+      );
+    }
+
     await LostItem.updateMany(
       { matchedFoundItemIds: id },
       { $pull: { matchedFoundItemIds: id } },
       { session }
     );
 
-    // 4. Notify all previously matched users
-    const io = req.app.get("socketio");
-    const previousMatches = existingFoundItem.matchedLostItemIds || [];
-
-    if (previousMatches.length > 0) {
-      await Promise.all(
-        previousMatches.map(async (lostItem) => {
-          if (!lostItem.userId) return;
-
-          // Create in-app notification
-          const notification = await Notification.create({
-            userId: lostItem.userId._id,
-            type: NOTIFICATION_TYPES.ITEM_UNAVAILABLE,
-            title: "Item No Longer Available",
-            message: `Sorry, the ${existingFoundItem.name} that matched your report has been collected by its owner in person. Please check if any other matches are found.`,
-            data: {
-              lostItemId: lostItem._id,
-              foundItemId: id,
-            },
-            priority: "medium",
-          });
-
-          // Real-time socket notification
-          if (io) {
-            io.sendNotificationToUser(lostItem.userId._id, {
-              ...notification.toObject(),
-            });
-          }
-
-          // Email notification
-          emailService.sendItemUnavailableNotification(
-            lostItem.userId.email,
-            lostItem.userId.name,
-            existingFoundItem.name,
-            req.user.department
-          ).catch((err) => console.error("Email Error:", err));
-        })
-      );
-    }
-
     await session.commitTransaction();
-
-    res.status(200).json(
-      new ApiResponse(
-        200,
-        { data: foundItem },
-        `Item marked as collected offline. ${previousMatches.length} user(s) notified.`
-      )
-    );
   } catch (error) {
     await session.abortTransaction();
     throw new ApiError(
@@ -523,7 +454,54 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
   } finally {
     session.endSession();
   }
+
+  // Notifications after commit — outside session so rollback doesn't affect them
+  const io = req.app.get("socketio");
+  const previousMatches = existingFoundItem.matchedLostItemIds || [];
+
+  if (previousMatches.length > 0) {
+    await Promise.all(
+      previousMatches.map(async (lostItem) => {
+        if (!lostItem.userId) return;
+
+        const notification = await Notification.create({
+          userId: lostItem.userId._id,
+          type: NOTIFICATION_TYPES.ITEM_UNAVAILABLE,
+          title: "Item No Longer Available",
+          message: `Sorry, the ${existingFoundItem.name} that matched your report has been collected by its owner in person.`,
+          data: { lostItemId: lostItem._id, foundItemId: id },
+          priority: "medium",
+        });
+
+        if (io) {
+          io.sendNotificationToUser(lostItem.userId._id, {
+            ...notification.toObject(),
+          });
+        }
+
+        emailService
+          .sendItemUnavailableNotification(
+            lostItem.userId.email,
+            lostItem.userId.name,
+            existingFoundItem.name,
+            req.user.department
+          )
+          .catch((err) => console.error("Email Error:", err));
+      })
+    );
+  }
+
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { data: foundItem },
+        `Item marked as collected offline. ${previousMatches.length} user(s) notified.`
+      )
+    );
 });
+
 export const getMatchedLostItemsForItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -554,10 +532,10 @@ export const getMatchedLostItemsForItem = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, { data: [] }, "No matched lost items found"));
   }
 
-  // Filter out already returned/resolved lost items
   const activeMatches = foundItem.matchedLostItemIds.filter(
     (lostItem) =>
-      lostItem.status !== "Returned" && lostItem.status !== "Collected"
+      lostItem.status !== ITEM_STATUS.RETURNED &&
+      lostItem.status !== ITEM_STATUS.COLLECTED
   );
 
   return res
@@ -570,75 +548,94 @@ export const getMatchedLostItemsForItem = asyncHandler(async (req, res) => {
       )
     );
 });
-
 export const deleteFoundItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // 1. Perform Atomic Soft Delete
-  // Filters by ID AND department to ensure the admin is authorized
-  const foundItem = await FoundItem.findOneAndUpdate(
-    {
-      _id: id,
-      department: req.user.department,
-      isActive: true, // Optimization: Don't try to delete if already deleted
-    },
-    {
-      $set: { isActive: false },
-    },
-    { new: true }
-  );
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  // 2. Direct check
-  if (!foundItem) {
-    throw new ApiError(
-      404,
-      "Found item not found or you lack permission to delete it"
+  try {
+    const foundItem = await FoundItem.findOneAndUpdate(
+      {
+        _id: id,
+        department: req.user.department,
+        isActive: true,
+      },
+      {
+        $set: { isActive: false },
+      },
+      { new: true, session }
     );
-  }
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, {}, "Found item deleted successfully"));
+    if (!foundItem) {
+      throw new ApiError(
+        404,
+        "Found item not found or you lack permission to delete it"
+      );
+    }
+
+    // Remove this found item from all lost items' potential match arrays
+    await LostItem.updateMany(
+      { matchedFoundItemIds: id },
+      { $pull: { matchedFoundItemIds: id } },
+      { session }
+    );
+
+    await session.commitTransaction();
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Found item deleted successfully"));
+  } catch (error) {
+    await session.abortTransaction();
+    throw new ApiError(
+      error.statusCode || 500,
+      error.message || "Failed to delete found item"
+    );
+  } finally {
+    session.endSession();
+  }
 });
 export const searchFoundItems = asyncHandler(async (req, res) => {
   const { q, color, department, dateFrom, dateTo } = req.query;
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
 
   let query = { isActive: true };
 
-  // If admin, filter by their department
+
   if (req.user.role === "admin") {
     query.department = req.user.department;
   } else if (department) {
     query.department = department;
   }
 
-  // Text search
+
   if (q) {
     query.$text = { $search: q };
   }
 
-  // Filter by color
+
   if (color) {
     query.color = color;
   }
 
-  // Date range filter
+
   if (dateFrom || dateTo) {
     query.dateFound = {};
     if (dateFrom) query.dateFound.$gte = new Date(dateFrom);
     if (dateTo) query.dateFound.$lte = new Date(dateTo);
   }
 
-  const foundItems = await FoundItem.find(query)
-    .populate("adminId", "name department")
-    .populate("claimedBy", "name email")
-    .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
-    .limit(limit * 1)
-    .skip((page - 1) * limit);
-
-  const total = await FoundItem.countDocuments(query);
+  const [foundItems, total] = await Promise.all([
+    FoundItem.find(query)
+      .populate("adminId", "name department")
+      .populate("claimedBy", "name email")
+      .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
+      .limit(limit)
+      .skip((page - 1) * limit),
+    FoundItem.countDocuments(query), 
+  ]);
   const totalPages = Math.ceil(total / limit);
   res.status(200).json(
     new ApiResponse(
