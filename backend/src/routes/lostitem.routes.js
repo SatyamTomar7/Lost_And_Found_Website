@@ -5,7 +5,6 @@ import {
   getMyLostItems,
   updateLostItem,
   deleteLostItem,
-  markAsCollected,
   searchLostItems,
 } from "../controllers/lostitem.controller.js";
 
@@ -23,5 +22,5 @@ router.put("/:id",protect,isStudent,validateObjectId,validateLostItem,updateLost
 router.delete("/:id",protect,isStudent,validateObjectId,deleteLostItem);
 
 //Admin routes
-router.put("/:id/collected",protect,isAdmin,validateObjectId,markAsCollected);
+// router.put("/:id/collected",protect,isAdmin,validateObjectId,markAsCollected);
 export default router;

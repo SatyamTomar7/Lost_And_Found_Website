@@ -1,9 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import {
-  COLORS,
-  ITEM_STATUS,
-  ITEM_CONDITIONS,
-} from "../constants.js";
+import { COLORS, ITEM_STATUS, ITEM_CONDITIONS } from "../constants.js";
 const lostItemSchema = new Schema(
   {
     userId: {
@@ -30,7 +26,7 @@ const lostItemSchema = new Schema(
     condition: {
       type: String,
       required: [true, "Condition is required"],
-      enum:ITEM_CONDITIONS,
+      enum: ITEM_CONDITIONS,
     },
     brand: {
       type: String,
@@ -61,7 +57,7 @@ const lostItemSchema = new Schema(
     ],
     status: {
       type: String,
-      enum: Object.values(ITEM_STATUS),
+      enum: [ITEM_STATUS.PENDING, ITEM_STATUS.COLLECTED],
       default: ITEM_STATUS.PENDING,
     },
 
@@ -69,11 +65,9 @@ const lostItemSchema = new Schema(
       {
         type: Schema.Types.ObjectId,
         ref: "FoundItem",
-        index: true, // Indexing zaroori hai fast lookup ke liye
       },
     ],
 
-    // Ek extra field "Final Match" ke liye (Optional but Recommended)
     matchedFoundItemId: {
       type: Schema.Types.ObjectId,
       ref: "FoundItem",
@@ -88,8 +82,8 @@ const lostItemSchema = new Schema(
       type: Boolean,
       default: true,
     },
-    tags: [String], // For search optimization
-    searchKeywords: String, // Combined searchable text
+    tags: [String],
+    searchKeywords: String,
   },
   {
     timestamps: true,
@@ -102,7 +96,6 @@ lostItemSchema.pre("save", function (next) {
   this.searchKeywords = [
     this.name,
     this.description,
-    this.category,
     this.color,
     this.brand,
     this.placeLost,
@@ -117,17 +110,14 @@ lostItemSchema.pre("save", function (next) {
 lostItemSchema.index({
   name: "text",
   description: "text",
-  category: "text",
   color: "text",
   brand: "text",
   placeLost: "text",
   searchKeywords: "text",
 });
-// lostItemSchema.index({ searchKeywords: "text" });
 
 lostItemSchema.index({ userId: 1, createdAt: -1 });
 lostItemSchema.index({ status: 1, dateLost: -1 });
-lostItemSchema.index({ category: 1, color: 1 });
-lostItemSchema.index({ matchedFoundItemIds: 1 }); // Array indexing
+lostItemSchema.index({ matchedFoundItemIds: 1 });
 
 export const LostItem = mongoose.model("LostItem", lostItemSchema);

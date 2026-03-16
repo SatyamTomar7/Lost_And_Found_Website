@@ -6,9 +6,9 @@ import { emailService } from "../services/email.service.js";
 import { Notification } from "../models/Notification.model.js";
 import { ITEM_STATUS, NOTIFICATION_TYPES } from "../constants.js";
 import { ApiError } from "../utils/ApiError.js";
-
+import mongoose from "mongoose";
+import { FoundItem } from "../models/FoundItem.model.js";
 export const submitLostItem = asyncHandler(async (req, res) => {
-  // 1. Prepare and Create
   const lostItemData = {
     ...req.body,
     userId: req.user.id,
@@ -18,11 +18,9 @@ export const submitLostItem = asyncHandler(async (req, res) => {
         : [],
   };
 
-  // Create and populate in memory to avoid a second findById call
   const lostItem = await LostItem.create(lostItemData);
   await lostItem.populate("userId", "name email");
 
-  // 2. Find Matches
   const matches = await matchingService.findMatchesForLostItem(
     lostItem._id,
     70
@@ -32,10 +30,8 @@ export const submitLostItem = asyncHandler(async (req, res) => {
   let matchNotifications = [];
 
   if (topMatches.length > 0) {
-    const io = req.app.get("socket.io");
+    const io = req.app.get("socketio");
 
-    // 3. Parallel Processing (The "Now" standard)
-    // We start all notifications and emails simultaneously
     matchNotifications = await Promise.all(
       topMatches.map(async (match) => {
         const notification = await Notification.create({
@@ -51,7 +47,6 @@ export const submitLostItem = asyncHandler(async (req, res) => {
           priority: match.matchScore > 85 ? "high" : "medium",
         });
 
-        // Background Task: Email
         emailService
           .sendMatchNotification(
             req.user.email,
@@ -62,7 +57,6 @@ export const submitLostItem = asyncHandler(async (req, res) => {
           )
           .catch((err) => console.error("Match Email Failed:", err));
 
-        // Background Task: Socket
         if (io) {
           io.sendNotificationToUser(req.user.id, {
             ...notification.toObject(),
@@ -75,7 +69,6 @@ export const submitLostItem = asyncHandler(async (req, res) => {
     );
   }
 
-  // 4. Response
   res.status(201).json(
     new ApiResponse(
       201,
@@ -92,22 +85,19 @@ export const submitLostItem = asyncHandler(async (req, res) => {
 });
 
 export const getMyLostItems = asyncHandler(async (req, res) => {
-  // 1. Sanitize Pagination
   const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.max(1, parseInt(req.query.limit) || 10);
+const limit = Math.min(parseInt(req.query.limit) || 10, 100);
   const { status } = req.query;
 
-  // 2. Build Query
   const query = {
     userId: req.user.id,
     isActive: true,
   };
   if (status) query.status = status;
 
-  // 3. Execute in Parallel (The "Now" standard)
   const [lostItems, total] = await Promise.all([
     LostItem.find(query)
-      // UPDATED: Populate the array of IDs and include nested admin details if needed
+
       .populate({
         path: "matchedFoundItemIds",
         select: "name department adminId status",
@@ -116,14 +106,12 @@ export const getMyLostItems = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(limit)
       .skip((page - 1) * limit)
-      .lean(), // lean() makes it a plain JS object, much faster for reading
+      .lean(),
     LostItem.countDocuments(query),
   ]);
 
-  // 4. Calculate Metadata
   const totalPages = Math.ceil(total / limit);
 
-  // 5. Response
   res.status(200).json(
     new ApiResponse(
       200,
@@ -146,31 +134,24 @@ export const getMyLostItems = asyncHandler(async (req, res) => {
 export const getLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // 1. Build an Authorized Query
   const query = { _id: id };
 
-  // Security check: Only the owner or an admin can view the details
   if (req.user.role !== "admin") {
     query.userId = req.user.id;
   }
 
-  // 2. Optimized Fetch with Deep Population
   const lostItem = await LostItem.findOne(query)
     .populate("userId", "name email")
-    // UPDATED: Changed to array field and added admin population for matches
     .populate({
       path: "matchedFoundItemIds",
       select: "name department adminId status createdAt",
       populate: { path: "adminId", select: "name department" },
     })
     .lean();
-
-  // 3. Simple Error Handling
   if (!lostItem) {
     throw new ApiError(404, "Lost item not found or access denied");
   }
 
-  // 4. Response
   res
     .status(200)
     .json(
@@ -183,8 +164,6 @@ export const getLostItem = asyncHandler(async (req, res) => {
 });
 export const updateLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
-  // 1. Destructure allowed fields only
   const { name, color, condition, dateLost, placeLost, description } = req.body;
   const updateData = {
     name,
@@ -195,8 +174,10 @@ export const updateLostItem = asyncHandler(async (req, res) => {
     description,
   };
 
-  // 2. Atomic Update with Security Filter
-  // We only update if the ID matches, the USER matches, and the status is PENDING
+  Object.keys(updateData).forEach(
+    (key) => updateData[key] === undefined && delete updateData[key]
+  );
+
   const lostItem = await LostItem.findOneAndUpdate(
     {
       _id: id,
@@ -210,7 +191,6 @@ export const updateLostItem = asyncHandler(async (req, res) => {
     }
   ).populate("userId", "name email");
 
-  // 3. Handle Unauthorized/Not Found/Invalid Status
   if (!lostItem) {
     throw new ApiError(
       400,
@@ -218,7 +198,6 @@ export const updateLostItem = asyncHandler(async (req, res) => {
     );
   }
 
-  // 4. Re-run matching with updated data
   const matches = await matchingService.findMatchesForLostItem(
     lostItem._id,
     70
@@ -239,108 +218,48 @@ export const updateLostItem = asyncHandler(async (req, res) => {
 export const deleteLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // 1. Atomic Soft Delete
-  // We only match the item if it belongs to the user AND is currently active
-  const lostItem = await LostItem.findOneAndUpdate(
-    {
-      _id: id,
-      userId: req.user.id,
-      isActive: true,
-    },
-    {
-      $set: { isActive: false },
-    },
-    { new: true }
-  );
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  // 2. Response Handling
-  // If no item was found matching those criteria, we throw a 404
-  if (!lostItem) {
-    throw new ApiError(404, "Lost item not found or already deleted");
-  }
-
-  res
-    .status(200)
-    .json(new ApiResponse(200, {}, "Lost item deleted successfully"));
-});
-export const markAsCollected = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  // 1. Atomic Update & Verification
-  // We only update if status is currently 'FOUND'
-  const lostItem = await LostItem.findOneAndUpdate(
-    {
-      _id: id,
-      status: ITEM_STATUS.FOUND,
-    },
-    {
-      $set: { status: ITEM_STATUS.COLLECTED },
-    },
-    { new: true }
-  ).populate("userId", "name email");
-
-  if (!lostItem) {
-    throw new ApiError(400, "Item not found or it's not in 'found' status");
-  }
-
-  // 2. Background Tasks (The "Now" standard)
-  // We create notifications and emails in the background
-  const triggerNotifications = async () => {
-    try {
-      // Create DB Notification
-      const notification = await Notification.create({
-        userId: lostItem.userId._id,
-        type: NOTIFICATION_TYPES.ITEM_RETURNED,
-        title: "Item Successfully Returned",
-        message: `Your ${lostItem.name} has been successfully returned to you.`,
-        data: { lostItemId: lostItem._id, adminId: req.user.id },
-        priority: "high",
-      });
-
-      // Send Email
-      emailService.sendItemReturnedConfirmation(
-        lostItem.userId.email,
-        lostItem.userId.name,
-        lostItem.name
-      );
-
-      // Real-time Socket
-      const io = req.app.get("socketio");
-      if (io) {
-        io.sendNotificationToUser(lostItem.userId._id, {
-          ...notification.toObject(),
-          timestamp: new Date(),
-        });
-      }
-    } catch (error) {
-      console.error("Background Notification Error:", error);
-    }
-  };
-
-  // Execute background tasks without 'await' to speed up the API response
-  triggerNotifications();
-
-  // 3. Guaranteed Immediate Response
-  res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { data: lostItem },
-        "Item marked as collected successfully"
-      )
+  try {
+    const lostItem = await LostItem.findOneAndUpdate(
+      { _id: id, userId: req.user.id, isActive: true },
+      { $set: { isActive: false } },
+      { new: true, session }
     );
-});
 
+    if (!lostItem) {
+      throw new ApiError(404, "Lost item not found or already deleted");
+    }
+
+    await FoundItem.updateMany(
+      { matchedLostItemIds: id },
+      { $pull: { matchedLostItemIds: id } },
+      { session }
+    );
+
+    await session.commitTransaction();
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Lost item deleted successfully"));
+  } catch (error) {
+    await session.abortTransaction();
+    throw new ApiError(
+      error.statusCode || 500,
+      error.message || "Failed to delete lost item"
+    );
+  } finally {
+    session.endSession();
+  }
+});
 export const searchLostItems = asyncHandler(async (req, res) => {
   const { q, color, dateFrom, dateTo } = req.query;
   const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.max(1, parseInt(req.query.limit) || 10);
+  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
 
-  // 1. Build Query Object
   const query = { isActive: true };
 
-  // Fuzzy Search (Partial matches for name or description)
   if (q) {
     query.$or = [
       { name: { $regex: q, $options: "i" } },
@@ -350,21 +269,19 @@ export const searchLostItems = asyncHandler(async (req, res) => {
 
   if (color) query.color = color;
 
-  // Date Range
   if (dateFrom || dateTo) {
     query.dateLost = {};
     if (dateFrom) query.dateLost.$gte = new Date(dateFrom);
     if (dateTo) query.dateLost.$lte = new Date(dateTo);
   }
 
-  // 2. Execute Parallel Queries (The "Now" standard)
   const [lostItems, total] = await Promise.all([
     LostItem.find(query)
       .populate("userId", "name email")
       .sort({ createdAt: -1 })
       .limit(limit)
       .skip((page - 1) * limit)
-      .lean(), // Performance boost for read-only lists
+      .lean(),
     LostItem.countDocuments(query),
   ]);
 
