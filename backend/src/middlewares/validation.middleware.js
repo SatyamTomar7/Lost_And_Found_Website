@@ -8,10 +8,7 @@ import {
   CAMPUS_LOCATIONS,
 } from "../constants.js";
 
-/**
- * Reusable middleware to handle validation results
- * Formats errors to be frontend-friendly
- */
+
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -51,7 +48,7 @@ const validateUserRegistration = [
 ];
 
 const validateOTPVerification = [
-  body("email").isEmail().normalizeEmail().withMessage("Valid email required"),
+  body("email").trim().isEmail().normalizeEmail().withMessage("Valid email required"),
   body("otp")
     .isLength({ min: 6, max: 6 })
     .isNumeric()
@@ -60,7 +57,11 @@ const validateOTPVerification = [
 ];
 
 const validateLogin = [
-  body("email").isEmail().normalizeEmail().withMessage("Valid email required"),
+  body("email")
+    .trim()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Valid email required"),
   body("password").notEmpty().withMessage("Password is required"),
   handleValidationErrors,
 ];
@@ -82,6 +83,15 @@ const validateForgotPassword = [
     .withMessage("Please provide a valid email")
     .matches(/^[\w.-]+@s\.amity\.edu$/)
     .withMessage("Email must be an Amity student email (@s.amity.edu)")
+    .normalizeEmail(),
+  handleValidationErrors,
+];
+const validateAdminForgotPassword = [
+  body("email")
+    .isEmail()
+    .withMessage("Please provide a valid email")
+    .matches(/^[\w.-]+@gwa\.amity\.edu$/)
+    .withMessage("Email must be an Amity admin email (@gwa.amity.edu)")
     .normalizeEmail(),
   handleValidationErrors,
 ];
@@ -221,11 +231,12 @@ export {
   validateOTPVerification,
   validateLogin,
   validateAdminLogin,
-  validateForgotPassword, // ← new
-  validateVerifyResetOTP, // ← new
-  validateResetPassword, // ← new
+  validateForgotPassword,
+  validateVerifyResetOTP,
+  validateResetPassword,
   validateLostItem,
   validateFoundItem,
   validateObjectId,
   validatePagination,
+  validateAdminForgotPassword,
 };
