@@ -1,8 +1,15 @@
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
-import { now } from "mongoose";
+import { USER_ROLES } from "../constants.js";
 
+// NOTE: connectedUsers is in-memory only.
+// This works for single-server deployment but will NOT sync across
+// multiple instances. If horizontal scaling is needed, migrate to Redis adapter.
 const connectedUsers = new Map();
+
+const normalizeDepartment = (department) =>
+  department.replace(/ /g, "_").toLowerCase();
+
 export const socketHandler = (io) => {
   io.use(async (socket, next) => {
     try {
@@ -29,15 +36,24 @@ export const socketHandler = (io) => {
       socketId: socket.id,
       user: socket.user,
     });
+
+    // Each user auto-joins their own private room
     socket.join(`user_${socket.user._id}`);
 
-    if (socket.user.role == "admin" && socket.user.department) {
-      socket.join(
-        `dept_${socket.user.department.replace(" ", "_").toLowerCase()}`
-      );
+    // Admins auto-join their department room
+    if (socket.user.role === USER_ROLES.ADMIN && socket.user.department) {
+      socket.join(`dept_${normalizeDepartment(socket.user.department)}`);
     }
 
+    // Only allow joining own user room — prevents room hijacking
     socket.on("join_room", (room) => {
+      const allowedRooms = [`user_${socket.user._id}`];
+      if (!allowedRooms.includes(room)) {
+        console.warn(
+          `User ${socket.user.name} attempted to join unauthorized room: ${room}`
+        );
+        return;
+      }
       socket.join(room);
       console.log(`User ${socket.user.name} joined room: ${room}`);
     });
@@ -54,25 +70,28 @@ export const socketHandler = (io) => {
     });
 
     socket.on("typing_start", (data) => {
+      if (!data || typeof data.room !== "string") return;
       socket.to(data.room).emit("user_typing", {
         userId: socket.user._id,
         userName: socket.user.name,
       });
     });
+
     socket.on("typing_stop", (data) => {
+      if (!data || typeof data.room !== "string") return;
       socket.to(data.room).emit("user_stopped_typing", {
         userId: socket.user._id,
       });
     });
-    socket.on("update_status", (status) => {
-      const userconnection = connectedUsers.get(socket.user._id.toString());
-      if (userconnection) {
-        userconnection.status = status;
 
+    socket.on("update_status", (status) => {
+      const userConnection = connectedUsers.get(socket.user._id.toString());
+      if (userConnection) {
+        userConnection.status = status;
         socket.broadcast.emit("user_status_update", {
           userId: socket.user._id,
           userName: socket.user.name,
-          status: status,
+          status,
         });
       }
     });
@@ -80,7 +99,6 @@ export const socketHandler = (io) => {
     socket.on("disconnect", () => {
       console.log(`User ${socket.user.name} disconnected`);
       connectedUsers.delete(socket.user._id.toString());
-
       socket.broadcast.emit("user_status_update", {
         userId: socket.user._id,
         userName: socket.user.name,
@@ -98,7 +116,7 @@ export const socketHandler = (io) => {
   };
 
   io.sendNotificationToDepartment = (department, notification) => {
-    const roomName = `dept_${department.replace(" ", "_").toLowerCase()}`;
+    const roomName = `dept_${normalizeDepartment(department)}`;
     io.to(roomName).emit("department_notification", notification);
   };
 
@@ -119,8 +137,10 @@ export const socketHandler = (io) => {
       status: conn.status || "online",
     }));
   };
+
   io.isUserOnline = (userId) => {
     return connectedUsers.has(userId.toString());
   };
+
   console.log("🔌 Socket.io handler initialized");
 };
