@@ -1,8 +1,8 @@
 import express from "express";
 import {
   uploadMultipleImages,
-  uploadSingleimage,
-  DeleteImage,
+  uploadSingleImage,
+  deleteUploadedImage,
 } from "../controllers/upload.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 
@@ -10,8 +10,8 @@ const router = express.Router();
 
 router.use(protect);
 
-router.post("/single", uploadSingleimage);
+router.post("/single", uploadSingleImage);
 router.post("/multiple", uploadMultipleImages);
-router.delete("/:publicId", DeleteImage);
+router.delete("/:publicId", deleteUploadedImage);
 
 export default router;
