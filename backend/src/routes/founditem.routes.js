@@ -28,7 +28,7 @@ router.put("/:id/returned", validateObjectId, markAsReturned);
 
 router.put("/:id/collected-offline", validateObjectId, markAsCollectedOffline);
 router.put("/:id/unclaimed", validateObjectId, markAsUnclaimed);
-router.get("/:id/matched-lost-items", getMatchedLostItemsForItem);
+router.get("/:id/matched-lost-items", validateObjectId,getMatchedLostItemsForItem);
 
 router.delete("/:id", validateObjectId, deleteFoundItem);
 export default router;
