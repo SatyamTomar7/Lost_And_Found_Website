@@ -11,9 +11,9 @@ import { Server } from "socket.io";
 import authRoutes from "./routes/auth.routes.js";
 import lostItemRoutes from "./routes/lostitem.routes.js";
 import foundItemRoutes from "./routes/founditem.routes.js";
-import matchRoutes from "./routes/matches.routes.js"
-import notificationRoutes from "./routes/notification.routes.js"
-import uploadRoutes from "./routes/upload.routes.js"
+import matchRoutes from "./routes/matches.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -21,7 +21,7 @@ const httpServer = createServer(app);
 // 1. SOCKET.IO SETUP
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173", // Updated to default Vite port
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -39,7 +39,7 @@ app.use(
   })
 );
 
-// 3. HELMET - Updated CSP to allow your Backend and Sockets
+// 3. HELMET - CSP is environment-aware to avoid exposing dev ports in production
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -49,12 +49,15 @@ app.use(
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
         scriptSrc: ["'self'"],
-        // This 'connectSrc' fix is critical for CORS/Socket.io to work with Helmet
         connectSrc: [
-          "'self'", 
-          "http://localhost:5000", 
-          "ws://localhost:5000", 
-          "http://localhost:5173"
+          "'self'",
+          ...(process.env.NODE_ENV === "development"
+            ? [
+                "http://localhost:5000",
+                "ws://localhost:5000",
+                "http://localhost:5173",
+              ]
+            : [process.env.CLIENT_URL]),
         ],
       },
     },
@@ -63,7 +66,7 @@ app.use(
 
 // 4. RATE LIMITER
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) * 60 * 1000 || 15 * 60 * 1000,
+  windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
@@ -84,7 +87,6 @@ app.use("/api/matches", matchRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/upload", uploadRoutes);
 
-// Fixed: Added (req, res) parameters
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -94,7 +96,12 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// 7. ERROR HANDLING (Always last)
+// 7. 404 HANDLER - Must be after all routes
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
+
+// 8. ERROR HANDLING - Always last
 app.use(errorHandler);
 
-export default httpServer; // Changed to export httpServer for socket support
+export default httpServer;
