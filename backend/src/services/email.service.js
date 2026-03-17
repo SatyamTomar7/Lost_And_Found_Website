@@ -1,11 +1,17 @@
 import nodemailer from "nodemailer";
 
+const sanitize = (str) =>
+  String(str).replace(
+    /[<>&"]/g,
+    (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c])
+  );
+
 class EmailService {
   constructor() {
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      secure: false,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: process.env.SMTP_PORT == 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -14,11 +20,19 @@ class EmailService {
         rejectUnauthorized: false,
       },
     });
+
+    this.transporter.verify((error) => {
+      if (error) console.error("SMTP connection failed:", error);
+      else console.log("SMTP server ready");
+    });
   }
 
   // ─── OTP Verification Email ───────────────────────────────────────────────
   async sendOTPVerification(email, name, otp) {
     try {
+      const safeName = sanitize(name);
+      const safeOtp = sanitize(otp);
+
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: email,
@@ -32,13 +46,13 @@ class EmailService {
 
             <div style="padding: 30px; background: #f8fafc;">
               <h2 style="color: #1e40af;">Email Verification Required</h2>
-              <p>Hello <strong>${name}</strong>,</p>
+              <p>Hello <strong>${safeName}</strong>,</p>
 
               <p>Thank you for registering with the Amity Lost & Found System. To complete your registration, please verify your email address using the OTP below:</p>
 
               <div style="text-align: center; margin: 30px 0;">
                 <div style="background: #1e40af; color: white; font-size: 24px; font-weight: bold; padding: 20px; border-radius: 8px; letter-spacing: 3px;">
-                  ${otp}
+                  ${safeOtp}
                 </div>
               </div>
 
@@ -78,6 +92,15 @@ class EmailService {
   // ─── Match Notification Email ─────────────────────────────────────────────
   async sendMatchNotification(userEmail, userName, lostItem, foundItem, department) {
     try {
+      const safeUserName = sanitize(userName);
+      const safeDepartment = sanitize(department);
+      const safeLostName = sanitize(lostItem.name);
+      const safeLostColor = sanitize(lostItem.color);
+      const safeLostPlace = sanitize(lostItem.placeLost);
+      const safeFoundName = sanitize(foundItem.name);
+      const safeFoundColor = sanitize(foundItem.color);
+      const safeFoundPlace = sanitize(foundItem.placeFound);
+
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: userEmail,
@@ -91,38 +114,38 @@ class EmailService {
 
             <div style="padding: 30px; background: #f8fafc;">
               <h2 style="color: #059669;">Item Match Found!</h2>
-              <p>Hello <strong>${userName}</strong>,</p>
+              <p>Hello <strong>${safeUserName}</strong>,</p>
 
               <p>We have found a potential match for your lost item. Here are the details:</p>
 
               <div style="background: white; border: 2px solid #059669; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <h3 style="color: #1e40af; margin-top: 0;">Your Lost Item</h3>
-                <p><strong>Name:</strong> ${lostItem.name}</p>
-                <p><strong>Color:</strong> ${lostItem.color}</p>
+                <p><strong>Name:</strong> ${safeLostName}</p>
+                <p><strong>Color:</strong> ${safeLostColor}</p>
                 <p><strong>Date Lost:</strong> ${new Date(lostItem.dateLost).toLocaleDateString()}</p>
-                <p><strong>Place Lost:</strong> ${lostItem.placeLost}</p>
+                <p><strong>Place Lost:</strong> ${safeLostPlace}</p>
               </div>
 
               <div style="background: white; border: 2px solid #fbbf24; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <h3 style="color: #1e40af; margin-top: 0;">Found Item Match</h3>
-                <p><strong>Name:</strong> ${foundItem.name}</p>
-                <p><strong>Color:</strong> ${foundItem.color}</p>
+                <p><strong>Name:</strong> ${safeFoundName}</p>
+                <p><strong>Color:</strong> ${safeFoundColor}</p>
                 <p><strong>Date Found:</strong> ${new Date(foundItem.dateFound).toLocaleDateString()}</p>
-                <p><strong>Place Found:</strong> ${foundItem.placeFound}</p>
-                <p><strong>Department:</strong> ${department}</p>
+                <p><strong>Place Found:</strong> ${safeFoundPlace}</p>
+                <p><strong>Department:</strong> ${safeDepartment}</p>
               </div>
 
               <div style="text-align: center; margin: 30px 0;">
                 <p style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #fbbf24;">
                   <strong>Next Steps:</strong><br>
-                  Please visit the ${department} Lost & Found office to verify and collect your item.
+                  Please visit the ${safeDepartment} Lost &amp; Found office to verify and collect your item.
                   Bring a valid ID and be prepared to provide additional details about the item.
                 </p>
               </div>
 
               <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
               <p style="color: #6b7280; font-size: 12px;">
-                This notification was sent automatically by the Amity Lost & Found System.
+                This notification was sent automatically by the Amity Lost &amp; Found System.
                 If this is not your item, please ignore this email.
               </p>
             </div>
@@ -140,8 +163,11 @@ class EmailService {
   }
 
   // ─── Item Returned Confirmation Email ────────────────────────────────────
-  async sendItemReturnedConfirmation(userEmail, userName, itemName) {
+  async sendItemReturnedConfirmation(userEmail, userName, itemName, returnedAt) {
     try {
+      const safeUserName = sanitize(userName);
+      const safeItemName = sanitize(itemName);
+
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: userEmail,
@@ -150,22 +176,22 @@ class EmailService {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #059669, #10b981); padding: 30px; text-align: center;">
               <h1 style="color: white; margin: 0;">Item Returned!</h1>
-              <p style="color: white; margin: 5px 0;">Successfully collected from Lost & Found</p>
+              <p style="color: white; margin: 5px 0;">Successfully collected from Lost &amp; Found</p>
             </div>
 
             <div style="padding: 30px; background: #f8fafc;">
               <h2 style="color: #059669;">Confirmation</h2>
-              <p>Hello <strong>${userName}</strong>,</p>
+              <p>Hello <strong>${safeUserName}</strong>,</p>
 
               <p>This email confirms that you have successfully collected your item:</p>
 
               <div style="background: white; border: 2px solid #059669; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
-                <h3 style="color: #1e40af; margin-top: 0;">${itemName}</h3>
+                <h3 style="color: #1e40af; margin-top: 0;">${safeItemName}</h3>
                 <p style="color: #059669; font-weight: bold;">Status: RETURNED</p>
-                <p>Collected on: ${new Date().toLocaleDateString()}</p>
+                <p>Collected on: ${new Date(returnedAt).toLocaleDateString()}</p>
               </div>
 
-              <p>Thank you for using the Amity Lost & Found System. We're glad we could help you recover your item!</p>
+              <p>Thank you for using the Amity Lost &amp; Found System. We're glad we could help you recover your item!</p>
 
               <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
               <p style="color: #6b7280; font-size: 12px;">
@@ -188,10 +214,14 @@ class EmailService {
   // ─── Item Unavailable Notification Email ─────────────────────────────────
   async sendItemUnavailableNotification(email, userName, itemName, department) {
     try {
+      const safeUserName = sanitize(userName);
+      const safeItemName = sanitize(itemName);
+      const safeDepartment = sanitize(department);
+
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: email,
-        subject: `Update: ${itemName} No Longer Available - Amity Lost & Found`,
+        subject: `Update: ${safeItemName} No Longer Available - Amity Lost & Found`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #b45309, #f59e0b); padding: 30px; text-align: center;">
@@ -201,10 +231,10 @@ class EmailService {
 
             <div style="padding: 30px; background: #f8fafc;">
               <h2 style="color: #b45309;">Item No Longer Available</h2>
-              <p>Hello <strong>${userName}</strong>,</p>
+              <p>Hello <strong>${safeUserName}</strong>,</p>
 
-              <p>We wanted to inform you that the <strong>${itemName}</strong> found in
-              <strong>${department}</strong> that previously matched your lost item report
+              <p>We wanted to inform you that the <strong>${safeItemName}</strong> found in
+              <strong>${safeDepartment}</strong> that previously matched your lost item report
               has been collected in person by its owner.</p>
 
               <div style="background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
@@ -221,7 +251,7 @@ class EmailService {
                 <h3 style="color: #1e40af; margin-top: 0;">What you can do</h3>
                 <ul style="color: #374151; line-height: 1.8;">
                   <li>Keep your lost item report active — we are still looking</li>
-                  <li>Visit the ${department} office if you have additional information</li>
+                  <li>Visit the ${safeDepartment} office if you have additional information</li>
                   <li>Check the portal regularly for new matches</li>
                 </ul>
               </div>
@@ -230,7 +260,7 @@ class EmailService {
 
               <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
               <p style="color: #6b7280; font-size: 12px;">
-                This notification was sent automatically by the Amity Lost & Found System.
+                This notification was sent automatically by the Amity Lost &amp; Found System.
                 Please do not reply to this email.
               </p>
             </div>
@@ -250,6 +280,9 @@ class EmailService {
   // ─── Password Reset OTP Email ─────────────────────────────────────────────
   async sendPasswordResetOTP(email, name, otp) {
     try {
+      const safeName = sanitize(name);
+      const safeOtp = sanitize(otp);
+
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: email,
@@ -258,19 +291,19 @@ class EmailService {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #1e40af, #3b82f6); padding: 30px; text-align: center;">
               <h1 style="color: white; margin: 0;">Password Reset</h1>
-              <p style="color: white; margin: 5px 0;">Amity Lost & Found</p>
+              <p style="color: white; margin: 5px 0;">Amity Lost &amp; Found</p>
             </div>
 
             <div style="padding: 30px; background: #f8fafc;">
               <h2 style="color: #1e40af;">Reset Your Password</h2>
-              <p>Hello <strong>${name}</strong>,</p>
+              <p>Hello <strong>${safeName}</strong>,</p>
 
               <p>We received a request to reset your password. Use the OTP below to proceed:</p>
 
               <div style="text-align: center; margin: 30px 0;">
                 <div style="background: #1e40af; color: white; font-size: 32px; font-weight: bold;
                             padding: 20px; border-radius: 8px; letter-spacing: 8px;">
-                  ${otp}
+                  ${safeOtp}
                 </div>
               </div>
 
@@ -283,14 +316,14 @@ class EmailService {
 
               <div style="background: #fef3c7; border-left: 4px solid #fbbf24; border-radius: 8px; padding: 15px; margin: 20px 0;">
                 <p style="margin: 0; font-size: 13px;">
-                  <strong>Security tip:</strong> Amity Lost & Found staff will never ask for your OTP.
+                  <strong>Security tip:</strong> Amity Lost &amp; Found staff will never ask for your OTP.
                   Never share it with anyone.
                 </p>
               </div>
 
               <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
               <p style="color: #6b7280; font-size: 12px;">
-                Amity University Lost & Found Management System.
+                Amity University Lost &amp; Found Management System.
                 If you have any questions, please contact the IT department.
               </p>
             </div>
@@ -310,6 +343,8 @@ class EmailService {
   // ─── Password Reset Confirmation Email ───────────────────────────────────
   async sendPasswordResetConfirmation(email, name) {
     try {
+      const safeName = sanitize(name);
+
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: email,
@@ -323,7 +358,7 @@ class EmailService {
 
             <div style="padding: 30px; background: #f8fafc;">
               <h2 style="color: #059669;">Password Updated Successfully</h2>
-              <p>Hello <strong>${name}</strong>,</p>
+              <p>Hello <strong>${safeName}</strong>,</p>
 
               <p>Your password has been successfully changed. You can now log in with your new password.</p>
 
@@ -351,7 +386,7 @@ class EmailService {
 
               <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
               <p style="color: #6b7280; font-size: 12px;">
-                Amity University Lost & Found Management System.
+                Amity University Lost &amp; Found Management System.
               </p>
             </div>
           </div>

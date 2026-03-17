@@ -2,9 +2,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import multer from "multer";
 import { FILE_UPLOAD } from "../constants.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -51,35 +49,40 @@ const uploadToCloudinary = multer({
 export const uploadSingle = uploadToCloudinary.single("image");
 export const uploadMultiple = uploadToCloudinary.array("images", 5);
 
-export const deleteImage = asyncHandler(async (publicid) => {
-  const result = await cloudinary.uploader.destroy(publicid);
-  return result;
-});
-
-export const getImageDetails = asyncHandler(async (publicid) => {
-  const result = await cloudinary.api.resource(publicid);
-  return result;
-});
-
-export const getOptimizedImagesUrl = asyncHandler(
-  async (publicid, options = {}) => {
-    const defaultOptions = {
-      width: 400,
-      height: 300,
-      crop: "fill",
-      quality: "auto",
-      format: "auto",
-    };
-    const finalOptions = { ...defaultOptions, ...options };
-    return cloudinary.url(publicid, finalOptions);
+export const deleteImage = async (publicId) => {
+  const result = await cloudinary.uploader.destroy(publicId);
+  if (result.result !== "ok") {
+    throw new ApiError(400, `Failed to delete image: ${result.result}`);
   }
-);
+  return result;
+};
 
-export const getThumbnailUrl = asyncHandler(async (publicid) => {
-  return getOptimizedImagesUrl(publicid, {
+export const getImageDetails = async (publicId) => {
+  try {
+    const result = await cloudinary.api.resource(publicId);
+    return result;
+  } catch (error) {
+    throw new ApiError(404, `Image not found: ${publicId}`);
+  }
+};
+
+export const getOptimizedImagesUrl = (publicId, options = {}) => {
+  const defaultOptions = {
+    width: 400,
+    height: 300,
+    crop: "fill",
+    quality: "auto",
+    format: "auto",
+  };
+  const finalOptions = { ...defaultOptions, ...options };
+  return cloudinary.url(publicId, finalOptions);
+};
+
+export const getThumbnailUrl = (publicId) => {
+  return getOptimizedImagesUrl(publicId, {
     width: 150,
     height: 150,
     crop: "thumb",
     gravity: "center",
   });
-});
+};
