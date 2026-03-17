@@ -13,15 +13,12 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
     Math.max(0, parseInt(req.query.threshold) || 60)
   );
 
-  // 1. Authorized Fetch
-  // We use .lean() because we don't need Mongoose methods (save, etc.)
   const lostItem = await LostItem.findById(id).lean();
 
   if (!lostItem) {
     throw new ApiError(404, "Lost item not found");
   }
 
-  // 2. Strict Authorization
   const isOwner = lostItem.userId.toString() === req.user.id;
   const isAdmin = req.user.role === "admin";
 
@@ -32,11 +29,8 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
     );
   }
 
-  // 3. Find Matches
   const matches = await matchingService.findMatchesForLostItem(id, threshold);
 
-  // 4. Structured Response
-  // Note: I corrected a small bug in your original code where you mapped match.foundItem.name to the 'id' field
   res.status(200).json(
     new ApiResponse(
       200,
@@ -66,20 +60,15 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
 });
 export const checkFoundItemMatches = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
-  // 1. Sanitize Threshold
   const threshold = Math.min(
     100,
     Math.max(0, parseInt(req.query.threshold) || 60)
   );
 
-  // 2. Optimized Fetch with Security
-  // We fetch only the fields needed to verify ownership/department
   const foundItem = await FoundItem.findById(id).lean();
 
   if (!foundItem) throw new ApiError(404, "Found item not found");
 
-  // Admin Security: Ensure admin only sees matches for their own department
   if (
     req.user.role === "admin" &&
     foundItem.department !== req.user.department
@@ -90,14 +79,11 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
     );
   }
 
-  // 3. Find Matches
-  // We assume the service populates 'userId' for the lost items
   const matches = await matchingService.findMatchesForFoundItem(id, threshold);
 
-  // 4. Safe Mapping Logic
   const mappedMatches = matches.map((match) => {
     const lostItem = match.lostItem || {};
-    const owner = lostItem.userId || {}; // Handle case where user might be deleted
+    const owner = lostItem.userId || {};
 
     return {
       lostItem: {
@@ -137,87 +123,92 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
 export const getMatchingStats = asyncHandler(async (req, res) => {
   const department = req.user.role === "admin" ? req.user.department : null;
 
-  // 1. Basic Stats with Department Filtering
-  const totalLostItems = await LostItem.countDocuments({
-    isActive: true,
-    ...(department && { placeLost: new RegExp(department, "i") }),
-  });
-
-  const totalFoundItems = await FoundItem.countDocuments({
-    isActive: true,
-    ...(department && { department }),
-  });
-
-  const matchedItems = await LostItem.countDocuments({
-    matchedFoundItemId: { $ne: null },
-    ...(department && { placeLost: new RegExp(department, "i") }),
-  });
-
-  const returnedItem = await FoundItem.countDocuments({
-    status: ITEM_STATUS.RETURNED,
-    ...(department && { department }),
-  });
+  // Run all independent DB queries in parallel
+  const [
+    totalLostItems,
+    totalFoundItems,
+    matchedItems,
+    returnedItem,
+    itemStats,
+    foundItems,
+    lostItems,
+  ] = await Promise.all([
+    LostItem.countDocuments({
+      isActive: true,
+      ...(department && { placeLost: new RegExp(department, "i") }),
+    }),
+    FoundItem.countDocuments({
+      isActive: true,
+      ...(department && { department }),
+    }),
+    LostItem.countDocuments({
+      matchedFoundItemId: { $ne: null },
+      ...(department && { placeLost: new RegExp(department, "i") }),
+    }),
+    FoundItem.countDocuments({
+      status: ITEM_STATUS.RETURNED,
+      ...(department && { department }),
+    }),
+    LostItem.aggregate([
+      {
+        $match: {
+          isActive: true,
+          ...(department && { placeLost: new RegExp(department, "i") }),
+        },
+      },
+      {
+        $group: {
+          _id: "$name",
+          total: { $sum: 1 },
+          matched: {
+            $sum: { $cond: [{ $ne: ["$matchedFoundItemId", null] }, 1, 0] },
+          },
+        },
+      },
+      {
+        $project: {
+          itemName: "$_id",
+          total: 1,
+          matched: 1,
+          matchRate: {
+            $cond: [
+              { $eq: ["$total", 0] },
+              0,
+              { $multiply: [{ $divide: ["$matched", "$total"] }, 100] },
+            ],
+          },
+        },
+      },
+      { $sort: { total: -1 } },
+    ]),
+    FoundItem.find({
+      isActive: true,
+      status: ITEM_STATUS.FOUND,
+      ...(department && { department }),
+    }),
+    LostItem.find({
+      isActive: true,
+      status: ITEM_STATUS.PENDING,
+    }),
+  ]);
 
   const matchRate =
-    totalLostItems > 0 ? ((matchedItems / totalLostItems) * 100).toFixed(2) : 0;
+    totalLostItems > 0
+      ? ((matchedItems / totalLostItems) * 100).toFixed(2)
+      : 0;
   const returnRate =
     totalFoundItems > 0
       ? ((returnedItem / totalFoundItems) * 100).toFixed(2)
       : 0;
 
-  // 2. Statistics by Item Name
-  const itemStats = await LostItem.aggregate([
-    {
-      $match: {
-        isActive: true,
-        ...(department && { placeLost: new RegExp(department, "i") }),
-      },
-    },
-    {
-      $group: {
-        _id: "$name",
-        total: { $sum: 1 },
-        matched: {
-          $sum: { $cond: [{ $ne: ["$matchedFoundItemId", null] }, 1, 0] },
-        },
-      },
-    },
-    {
-      $project: {
-        itemName: "$_id",
-        total: 1,
-        matched: 1,
-        matchRate: {
-          $cond: [
-            { $eq: ["$total", 0] },
-            0,
-            { $multiply: [{ $divide: ["$matched", "$total"] }, 100] },
-          ],
-        },
-      },
-    },
-    { $sort: { total: -1 } },
-  ]);
-
-  // 3. Fetch data for live matching — only truly active items on both sides
-  const foundItems = await FoundItem.find({
-    isActive: true,
-    status: ITEM_STATUS.FOUND, // ← FIXED: only "found" status, excludes returned/unclaimed/offline_returned
-    ...(department && { department }),
-  });
-
-  const lostItems = await LostItem.find({
-    isActive: true,
-    status: ITEM_STATUS.PENDING, // ← only pending lost items
-  });
-
-  // 4. Build Matches
-  const matches = [];
-
+  // Batch fetch users for all lost items in one query
   const userIds = [...new Set(lostItems.map((l) => l.userId.toString()))];
   const users = await User.find({ _id: { $in: userIds } }).select("name email");
   const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
+  // O(n*m) loop — acceptable for small datasets
+  // Consider moving to background job if item counts grow large
+  const matches = [];
   for (const foundItem of foundItems) {
     for (const lostItem of lostItems) {
       const matchScore = matchingService.calculateMatchScore(lostItem, foundItem);
