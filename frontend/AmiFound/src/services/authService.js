@@ -154,9 +154,7 @@ export const logout = async () => {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
-
     localStorage.removeItem("authToken");
-
     return data;
   } catch (error) {
     console.error("Logout error:", error);
@@ -180,7 +178,6 @@ export const checkCurrentUser = async () => {
       headers: getAuthHeaders(),
     });
     const result = await response.json();
-
     return result.data || null;
   } catch (error) {
     console.error("Check current user error:", error);
@@ -189,45 +186,56 @@ export const checkCurrentUser = async () => {
   }
 };
 
-// ─── Add these 3 functions to your existing authService.js ───────────────────
+// ==================== STUDENT PASSWORD RESET ====================
 
 // Step 1: Request OTP
 export const forgotPassword = async (email) => {
-  const response = await fetch(`${API_URL}/auth/forgot-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  return response.json();
+  try {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    throw error;
+  }
 };
 
 // Step 2: Verify OTP → returns resetToken
 export const verifyResetOTP = async (email, otp) => {
-  const response = await fetch(`${API_URL}/auth/verify-reset-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
-  });
-  return response.json();
+  try {
+    const response = await fetch(`${API_URL}/auth/verify-reset-otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Verify reset OTP error:", error);
+    throw error;
+  }
 };
 
 // Step 3: Set new password using resetToken
-export const resetPassword = async (
-  resetToken,
-  newPassword,
-  confirmPassword,
-) => {
-  const response = await fetch(`${API_URL}/auth/reset-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
-  });
-  return response.json();
+export const resetPassword = async (resetToken, newPassword, confirmPassword) => {
+  try {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Reset password error:", error);
+    throw error;
+  }
 };
 
+// ==================== ADMIN PASSWORD RESET ====================
 
-// ── ADDED: Admin forgot password flow ────────────────────────────────────────
-
+// Step 1: Request OTP
 export const adminForgotPassword = async (email) => {
   try {
     const response = await fetch(`${API_URL}/auth/admin/forgot-password`, {
@@ -242,6 +250,7 @@ export const adminForgotPassword = async (email) => {
   }
 };
 
+// Step 2: Verify OTP → returns resetToken
 export const adminVerifyResetOTP = async (email, otp) => {
   try {
     const response = await fetch(`${API_URL}/auth/admin/verify-reset-otp`, {
@@ -256,6 +265,7 @@ export const adminVerifyResetOTP = async (email, otp) => {
   }
 };
 
+// Step 3: Set new password using resetToken
 export const adminResetPassword = async (resetToken, newPassword, confirmPassword) => {
   try {
     const response = await fetch(`${API_URL}/auth/admin/reset-password`, {
