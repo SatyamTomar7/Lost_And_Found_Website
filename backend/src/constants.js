@@ -95,6 +95,7 @@ const ITEM_CONDITIONS = {
   NEW: "New",
   USED: "Used",
 };
+const ITEM_CONDITIONS_VALUES = Object.values(ITEM_CONDITIONS); 
 const CAMPUS_LOCATIONS = [
   // --- Block A ---
   "Block A - Classrooms",
@@ -166,4 +167,5 @@ export {
   FILE_UPLOAD,
   ITEM_NAME,
   ITEM_CONDITIONS,
+  ITEM_CONDITIONS_VALUES
 };

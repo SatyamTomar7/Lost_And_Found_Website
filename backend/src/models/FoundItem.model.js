@@ -3,7 +3,7 @@ import {
   COLORS,
   DEPARTMENTS,
   ITEM_STATUS,
-  ITEM_CONDITIONS,
+ ITEM_CONDITIONS_VALUES
 } from "../constants.js";
 const foundItemSchema = new Schema(
   {
@@ -36,7 +36,7 @@ const foundItemSchema = new Schema(
     condition: {
       type: String,
       required: [true, "Condition is required"],
-      enum: ITEM_CONDITIONS,
+      enum: ITEM_CONDITIONS_VALUES,
     },
     brand: {
       type: String,

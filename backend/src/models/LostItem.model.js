@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-import { COLORS, ITEM_STATUS, ITEM_CONDITIONS } from "../constants.js";
+import { COLORS, ITEM_STATUS, ITEM_CONDITIONS_VALUES } from "../constants.js";
 const lostItemSchema = new Schema(
   {
     userId: {
@@ -26,7 +26,7 @@ const lostItemSchema = new Schema(
     condition: {
       type: String,
       required: [true, "Condition is required"],
-      enum: ITEM_CONDITIONS,
+      enum: ITEM_CONDITIONS_VALUES,
     },
     brand: {
       type: String,
