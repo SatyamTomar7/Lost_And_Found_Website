@@ -19,7 +19,6 @@ const adminLoginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const getAdminLoginSchema = () => adminLoginSchema;
 
 // ── ADDED: Extra schemas for forgot password flow ─────────────────────────────
 const forgotPasswordSchema = z.object({
@@ -290,8 +289,6 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
     else if (formType === "new-password") resetPasswordMutation.mutate(data);           // ADDED
   };
 
-  const isDisabled = isSubmitting || loginMutation.isPending;
-
   // ── ADDED ──
   const isAnyPending =
     loginMutation.isPending ||
@@ -329,7 +326,7 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                 <select
                   id="admin-department"
                   className={`form-control ${errors.department ? "is-invalid" : ""}`}
-                  disabled={isDisabled}
+                  disabled={isAnyPending}
                   {...register("department")}
                   aria-invalid={errors.department ? "true" : "false"}
                 >
@@ -357,7 +354,7 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                   className={`form-control ${errors.username ? "is-invalid" : ""}`}
                   placeholder="admin_a"
                   autoComplete="username"
-                  disabled={isDisabled}
+                  disabled={isAnyPending}
                   {...register("username")}
                   aria-invalid={errors.username ? "true" : "false"}
                 />
@@ -378,7 +375,7 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                     type="button"
                     className="forgot-password-link"
                     onClick={() => switchForm("forgot-password")}
-                    disabled={isDisabled}
+                   disabled={isAnyPending}
                   >
                     Forgot password?
                   </button>
@@ -389,7 +386,7 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                   className={`form-control ${errors.password ? "is-invalid" : ""}`}
                   placeholder="Enter admin password"
                   autoComplete="current-password"
-                  disabled={isDisabled}
+                  disabled={isAnyPending}
                   {...register("password")}
                   aria-invalid={errors.password ? "true" : "false"}
                 />
@@ -403,7 +400,7 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
               <button
                 type="submit"
                 className="btn btn--primary btn--full-width"
-                disabled={isDisabled}
+                disabled={isAnyPending}
                 aria-busy={loginMutation.isPending}
               >
                 <FaSignInAlt aria-hidden="true" style={{ marginRight: "8px" }} />
