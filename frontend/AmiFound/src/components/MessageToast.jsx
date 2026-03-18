@@ -22,9 +22,7 @@ const MessageToast = ({ message, onClose }) => {
     <div
       className={`message-toast ${message.type} ${message.show ? "show" : ""}`}
     >
-      <div
-        className="toast-content"
-      >
+      <div className="toast-content">
         <IconComponent className="toast-icon" />
         <span className="toast-text">{message.text}</span>
         {onClose && (
@@ -43,7 +41,7 @@ const MessageToast = ({ message, onClose }) => {
             }}
             aria-label="Close notification"
           >
-            <FaTimes />
+            <FaTimes aria-hidden="true" />
           </button>
         )}
       </div>

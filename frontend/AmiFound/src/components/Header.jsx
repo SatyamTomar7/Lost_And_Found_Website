@@ -22,7 +22,7 @@ const Header = ({ currentUser, currentAdmin, onLogout }) => {
             style={{ cursor: "pointer" }}
             role="button"
             tabIndex={0}
-            onKeyPress={(e) => e.key === "Enter" && navigate("/")}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/")}
           >
             <FaUniversity aria-hidden="true" />
             <span>Amity Lost &amp; Found</span>
@@ -43,21 +43,24 @@ const Header = ({ currentUser, currentAdmin, onLogout }) => {
               >
                 {currentUser ? (
                   <>
-                    <FaUserGraduate style={{ marginRight: "8px" }} aria-hidden="true" />
+                    <FaUserGraduate
+                      style={{ marginRight: "8px" }}
+                      aria-hidden="true"
+                    />
                     {currentUser.name}
                   </>
                 ) : (
                   <>
-                    <FaUserShield style={{ marginRight: "8px" }} aria-hidden="true" />
+                    <FaUserShield
+                      style={{ marginRight: "8px" }}
+                      aria-hidden="true"
+                    />
                     {currentAdmin.department}
                   </>
                 )}
               </span>
 
-              <button
-                onClick={onLogout}
-                className="btn btn--outline"
-              >
+              <button onClick={onLogout} className="btn btn--outline">
                 <FaSignOutAlt aria-hidden="true" />
                 Logout
               </button>
