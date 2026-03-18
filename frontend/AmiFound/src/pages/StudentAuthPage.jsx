@@ -67,7 +67,7 @@ const resetOTPSchema = z.object({
 
 const newPasswordSchema = z
   .object({
-    newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    newPassword: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -243,46 +243,6 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
-  // const loginMutation = useMutation({
-  //   mutationFn: ({ email, password }) => login(email, password),
-  //   onMutate: () => setLoading(true),
-  //   onSuccess: (result) => {
-  //     // ── STUCK STATE FIX (Login) ───────────────────────────────────────
-  //     // Backend returns 403 + "ACCOUNT_NOT_VERIFIED" when credentials are
-  //     // correct but the user never finished OTP verification.
-  //     // We redirect them to the OTP screen; backend auto-sends a fresh code.
-  //     if (
-  //       result.status === 403 &&
-  //       result.message === "ACCOUNT_NOT_VERIFIED"
-  //     ) {
-  //       setPendingRegistration({
-  //         email: result.data?.email ?? "",
-  //         name:  result.data?.name  ?? "",
-  //         password: "",
-  //       });
-  //       registrationTimer.startTimer();
-  //       setFormType("otp");
-  //       reset();
-  //       showMessage(
-  //         "Your email isn't verified yet — a new code has been sent.",
-  //         "info"
-  //       );
-  //       return;
-  //     }
-  //     // ── END FIX ───────────────────────────────────────────────────────
-
-  //     if (result.success && result.data) {
-  //       setCurrentUser(result.data.user);
-  //       localStorage.setItem("authToken", result.data.token);
-  //       showMessage("Login successful!", "success");
-  //       setTimeout(() => navigate("/student-dashboard", { replace: true }), 1000);
-  //     } else {
-  //       showMessage(result.message || "Invalid email or password", "error");
-  //     }
-  //   },
-  //   onError: () => showMessage("Error connecting to server", "error"),
-  //   onSettled: () => setLoading(false),
-  // });
   const loginMutation = useMutation({
     mutationFn: ({ email, password }) => login(email, password),
     onMutate: () => setLoading(true),
@@ -326,12 +286,7 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
       registerUser(name, email, password),
     onMutate: () => setLoading(true),
     onSuccess: (result, variables) => {
-      // ── STUCK STATE FIX (Registration — Upsert) ──────────────────────
-      // Backend returns 200/201 with "ACCOUNT_NOT_VERIFIED" when the email
-      // already exists but was never verified. The backend has upserted the
-      // record (updated name + password) and sent a fresh OTP.
-      // We silently continue to the OTP screen — the user feels like they
-      // are just continuing their registration, not being blocked.
+
       if (result.message === "ACCOUNT_NOT_VERIFIED") {
         setPendingRegistration({
           email: result.data?.email ?? variables.email,
@@ -493,14 +448,16 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
     [reset],
   );
 
-  const isAnyPending =
-    loginMutation.isPending ||
-    registerMutation.isPending ||
-    otpMutation.isPending ||
-    forgotPasswordMutation.isPending ||
-    verifyResetOTPMutation.isPending ||
-    resetPasswordMutation.isPending ||
-    isSubmitting;
+const isAnyPending =
+  loginMutation.isPending ||
+  registerMutation.isPending ||
+  otpMutation.isPending ||
+  resendMutation.isPending ||
+  forgotPasswordMutation.isPending ||
+  resendResetOTPMutation.isPending ||
+  verifyResetOTPMutation.isPending ||
+  resetPasswordMutation.isPending ||
+  isSubmitting;
 
   const headerMap = {
     login: {

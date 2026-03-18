@@ -52,7 +52,7 @@ const lostItemSchema = z.object({
   placeLost: z.string().min(1, "Please select a location"),
   description: z
     .string()
-    .max(100, "Description cannot exceed 500 characters")
+    .max(100, "Description cannot exceed 100 characters")
     .optional()
     .or(z.literal("")),
 
@@ -121,7 +121,7 @@ LostItemCard.displayName = "LostItemCard";
 const NotificationItem = React.memo(({ notification, onClick }) => (
   <div
     className={`notification-item ${notification.isRead ? "" : "unread"}`}
-    onClick={() => onClick(notification.id)}
+    onClick={() => onClick(notification._id)}
   >
     <div className="notification-content">
       <div className="notification-icon">
