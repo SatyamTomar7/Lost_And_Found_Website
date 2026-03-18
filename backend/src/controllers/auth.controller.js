@@ -418,7 +418,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
 
   await User.findByIdAndUpdate(user._id, {
     password: hashedPassword,
@@ -442,7 +442,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
 export const adminForgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
-  const admin = await User.findOne({ email });
+const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
 
   // Always respond the same way to prevent email enumeration
   if (!admin) {
@@ -494,7 +494,7 @@ export const adminForgotPassword = asyncHandler(async (req, res) => {
 export const adminVerifyResetOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
 
-  const admin = await User.findOne({ email });
+const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
   if (!admin) throw new ApiError(400, "Invalid or expired OTP");
 
   if (!admin.passwordResetOTP) {
@@ -552,8 +552,9 @@ export const adminResetPassword = asyncHandler(async (req, res) => {
 
   const admin = await User.findById(decoded.userId);
   if (!admin) throw new ApiError(404, "Admin not found");
+  if (admin.role !== USER_ROLES.ADMIN) throw new ApiError(403, "Unauthorized");
 
-  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
 
   await User.findByIdAndUpdate(admin._id, {
     password: hashedPassword,
