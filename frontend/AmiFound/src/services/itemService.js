@@ -184,3 +184,25 @@ export const markItemCollectedOffline = async (itemId) => {
     throw error;
   }
 };
+
+export const selfResolveLostItem = async (itemId) => {
+  try {
+    const response = await fetch(
+      `${API_URL}/lostitems/${itemId}/self-resolve`,
+      {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to resolve item");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Self resolve lost item error:", error);
+    throw error;
+  }
+};

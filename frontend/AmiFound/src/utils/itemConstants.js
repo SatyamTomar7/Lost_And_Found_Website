@@ -64,39 +64,6 @@ export const ITEM_CONDITIONS = {
 };
 
 
-export const ITEM_CATEGORIES = [
-  // Electronics (Specific)
-  "Mobile Phone - iOS",
-  "Mobile Phone - Android",
-  "Laptop - MacBook",
-  "Laptop - Windows/Linux",
-  "Tablet/iPad",
-  "Smartwatch/Apple Watch", // <--- Added Watch here
-  "Analog Watch", // <--- Separated from Smartwatches
-  "Earbuds/AirPods",
-  "Headphones",
-  "Power Bank/Charger",
-
-  // Personal Items
-  "Wallet/Purse",
-  "Keys/Keychains",
-  "Water Bottle",
-  "Glasses/Sunglasses",
-  "Umbrella",
-
-  // Academic
-  "ID Card/Library Card",
-  "Notebook/Textbook",
-  "Calculator",
-  "Stationery Pouch",
-
-  // Others
-  "Bag/Backpack",
-  "Clothing/Hoodie",
-  "Sports Equipment",
-  "Other",
-];
-
 export const CAMPUS_LOCATIONS = [
   // --- Block A ---
   "Block A - Classrooms",

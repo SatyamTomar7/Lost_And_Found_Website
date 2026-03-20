@@ -1,7 +1,8 @@
 import {
   COLORS,
   ITEM_CONDITIONS,
-  CAMPUS_LOCATIONS,ITEM_NAME
+  CAMPUS_LOCATIONS,
+  ITEM_NAME,
 } from "../utils/itemConstants";
 import React, { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
@@ -29,6 +30,9 @@ import {
   FaExchangeAlt,
   FaInfoCircle,
   FaWalking,
+  FaExclamationTriangle,
+  FaEdit,
+  FaCheckCircle,
 } from "react-icons/fa";
 
 import {
@@ -37,7 +41,7 @@ import {
   updateFoundItemStatus,
   getMatchStats,
   getMatchedLostItemsForFoundItem,
-  markItemCollectedOffline,          // ← NEW import
+  markItemCollectedOffline,
 } from "../services/itemService";
 
 // ─── Zod Schema ───────────────────────────────────────────────────────────────
@@ -63,6 +67,114 @@ const QUERY_KEYS = {
   foundItems: ["foundItems"],
   matches: ["matches"],
 };
+
+// ─── Submit Confirm Modal ─────────────────────────────────────────────────────
+const SubmitConfirmModal = React.memo(
+  ({ formData, onConfirm, onEdit, isLoading }) => (
+    <div className="return-modal-overlay" role="presentation">
+      <div
+        className="return-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-submit-title"
+      >
+        {/* Header */}
+        <div className="return-modal__header">
+          <div className="return-modal__title-group">
+            <FaExclamationTriangle className="return-modal__icon return-modal__icon--warning" />
+            <h3 id="confirm-submit-title">Confirm Item Details</h3>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="return-details__body">
+          {/* Warning */}
+          <div className="submit-confirm-modal__warning" role="alert">
+            <FaExclamationTriangle />
+            <p>
+              <strong>Once submitted, details cannot be edited.</strong> If
+              wrong info is entered, you'll need to mark it unclaimed and
+              re-enter. Please verify carefully.
+            </p>
+          </div>
+
+          {/* Details */}
+          <div className="submit-confirm-modal__details">
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Item Name</span>
+              <span className="submit-confirm-modal__value">
+                {formData.name}
+              </span>
+            </div>
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Color</span>
+              <span className="submit-confirm-modal__value">
+                {formData.color}
+              </span>
+            </div>
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Condition</span>
+              <span className="submit-confirm-modal__value">
+                {formData.condition}
+              </span>
+            </div>
+            {formData.brand && (
+              <div className="submit-confirm-modal__row">
+                <span className="submit-confirm-modal__label">Brand</span>
+                <span className="submit-confirm-modal__value">
+                  {formData.brand}
+                </span>
+              </div>
+            )}
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Place Found</span>
+              <span className="submit-confirm-modal__value">
+                {formData.placeFound}
+              </span>
+            </div>
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Date Found</span>
+              <span className="submit-confirm-modal__value">
+                {new Date(formData.dateFound).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="return-modal__footer">
+          <button
+            className="btn btn--outline"
+            onClick={onEdit}
+            disabled={isLoading}
+          >
+            <FaEdit /> Go Back & Edit
+          </button>
+          <button
+            className="btn btn--primary"
+            onClick={onConfirm}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <FaSpinner className="spin-icon" /> Adding…
+              </>
+            ) : (
+              <>
+                <FaCheckCircle /> Confirm & Add
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  ),
+);
+SubmitConfirmModal.displayName = "SubmitConfirmModal";
 
 // ─── Return Details Modal ─────────────────────────────────────────────────────
 const ReturnDetailsModal = ({ item, onClose }) => {
@@ -95,9 +207,16 @@ const ReturnDetailsModal = ({ item, onClose }) => {
             <div className="return-details__item-card">
               <div className="return-details__item-name">{item.name}</div>
               <div className="item-meta">
-                <span><FaPalette /> {item.color}</span>
-                <span><FaMapMarkerAlt /> {item.placeFound}</span>
-                <span><FaCalendarAlt /> {new Date(item.dateFound).toLocaleDateString()}</span>
+                <span>
+                  <FaPalette /> {item.color}
+                </span>
+                <span>
+                  <FaMapMarkerAlt /> {item.placeFound}
+                </span>
+                <span>
+                  <FaCalendarAlt />{" "}
+                  {new Date(item.dateFound).toLocaleDateString()}
+                </span>
               </div>
             </div>
           </div>
@@ -105,7 +224,9 @@ const ReturnDetailsModal = ({ item, onClose }) => {
           <div className="return-details__section">
             <p className="return-details__section-label">Claimed By</p>
             <div className="return-details__claimant-card">
-              <div className="return-details__avatar"><FaUser /></div>
+              <div className="return-details__avatar">
+                <FaUser />
+              </div>
               <div className="return-details__claimant-info">
                 <div className="return-details__claimant-name">
                   {item.claimedBy?.name || "N/A"}
@@ -135,7 +256,9 @@ const ReturnDetailsModal = ({ item, onClose }) => {
         </div>
 
         <div className="return-modal__footer">
-          <button className="btn btn--primary" onClick={onClose}>Close</button>
+          <button className="btn btn--primary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -173,9 +296,16 @@ const OfflineCollectedDetailsModal = ({ item, onClose }) => {
             <div className="return-details__item-card">
               <div className="return-details__item-name">{item.name}</div>
               <div className="item-meta">
-                <span><FaPalette /> {item.color}</span>
-                <span><FaMapMarkerAlt /> {item.placeFound}</span>
-                <span><FaCalendarAlt /> {new Date(item.dateFound).toLocaleDateString()}</span>
+                <span>
+                  <FaPalette /> {item.color}
+                </span>
+                <span>
+                  <FaMapMarkerAlt /> {item.placeFound}
+                </span>
+                <span>
+                  <FaCalendarAlt />{" "}
+                  {new Date(item.dateFound).toLocaleDateString()}
+                </span>
               </div>
             </div>
           </div>
@@ -183,7 +313,13 @@ const OfflineCollectedDetailsModal = ({ item, onClose }) => {
           <div className="return-details__section">
             <p className="return-details__section-label">Collection Note</p>
             <div className="return-details__item-card">
-              <p style={{ margin: 0, fontSize: "14px", color: "var(--text-secondary, #666)" }}>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  color: "var(--text-secondary, #666)",
+                }}
+              >
                 This item was collected in person by the owner without using the
                 system. No digital claimant record is available.
               </p>
@@ -208,7 +344,9 @@ const OfflineCollectedDetailsModal = ({ item, onClose }) => {
         </div>
 
         <div className="return-modal__footer">
-          <button className="btn btn--primary" onClick={onClose}>Close</button>
+          <button className="btn btn--primary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -309,8 +447,12 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
                       {lostItem.name}
                     </div>
                     <div className="return-modal__list-item-meta">
-                      <span><FaPalette /> {lostItem.color}</span>
-                      <span><FaMapMarkerAlt /> {lostItem.placeLost}</span>
+                      <span>
+                        <FaPalette /> {lostItem.color}
+                      </span>
+                      <span>
+                        <FaMapMarkerAlt /> {lostItem.placeLost}
+                      </span>
                       <span>
                         <FaCalendarAlt />{" "}
                         {new Date(lostItem.dateLost).toLocaleDateString()}
@@ -320,7 +462,10 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
                       <div className="return-modal__list-item-user">
                         <FaUser /> {lostItem.userId.name}
                         {lostItem.userId.email && (
-                          <span> · <FaEnvelope /> {lostItem.userId.email}</span>
+                          <span>
+                            {" "}
+                            · <FaEnvelope /> {lostItem.userId.email}
+                          </span>
                         )}
                       </div>
                     )}
@@ -345,9 +490,13 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
             disabled={!selectedLostItem || isLoading || loadingMatches}
           >
             {isLoading ? (
-              <><FaSpinner className="spin-icon" /> Processing…</>
+              <>
+                <FaSpinner className="spin-icon" /> Processing…
+              </>
             ) : (
-              <><FaCheck /> Confirm Return</>
+              <>
+                <FaCheck /> Confirm Return
+              </>
             )}
           </button>
         </div>
@@ -364,7 +513,8 @@ const SingleMatchCard = React.memo(({ match }) => (
         <FaLink /> 1 Match Found
       </span>
       <span className="match-card__similarity">
-        <FaPercentage /> {match.similarity.toFixed(0)}% match
+        <FaPercentage />
+        {(match.similarity ?? 0).toFixed(0)}% match
       </span>
     </div>
 
@@ -373,8 +523,12 @@ const SingleMatchCard = React.memo(({ match }) => (
         <p className="match-card__side-label">Found Item</p>
         <h4 className="match-card__item-name">{match.foundItem.name}</h4>
         <div className="item-meta">
-          <span><FaPalette /> {match.foundItem.color}</span>
-          <span><FaMapMarkerAlt /> {match.foundItem.placeFound}</span>
+          <span>
+            <FaPalette /> {match.foundItem.color}
+          </span>
+          <span>
+            <FaMapMarkerAlt /> {match.foundItem.placeFound}
+          </span>
           <span>
             <FaCalendarAlt />{" "}
             {new Date(match.foundItem.dateFound).toLocaleDateString()}
@@ -382,14 +536,20 @@ const SingleMatchCard = React.memo(({ match }) => (
         </div>
       </div>
 
-      <div className="match-card__connector"><FaExchangeAlt /></div>
+      <div className="match-card__connector">
+        <FaExchangeAlt />
+      </div>
 
       <div className="match-card__side match-card__side--lost">
         <p className="match-card__side-label">Lost Item</p>
         <h4 className="match-card__item-name">{match.lostItem.name}</h4>
         <div className="item-meta">
-          <span><FaPalette /> {match.lostItem.color}</span>
-          <span><FaMapMarkerAlt /> {match.lostItem.placeLost}</span>
+          <span>
+            <FaPalette /> {match.lostItem.color}
+          </span>
+          <span>
+            <FaMapMarkerAlt /> {match.lostItem.placeLost}
+          </span>
           <span>
             <FaCalendarAlt />{" "}
             {new Date(match.lostItem.dateLost).toLocaleDateString()}
@@ -408,77 +568,96 @@ const SingleMatchCard = React.memo(({ match }) => (
   </div>
 ));
 
-const MultiMatchSummaryCard = React.memo(({ itemName, matchCount, matches }) => {
-  const [expanded, setExpanded] = useState(false);
+const MultiMatchSummaryCard = React.memo(
+  ({ itemName, matchCount, matches }) => {
+    const [expanded, setExpanded] = useState(false);
 
-  return (
-    <div className="item-card match-card--multi">
-      <div className="match-card__header">
-        <div className="match-card__title-group">
-          <FaBox className="match-card__item-icon" />
-          <span className="match-card__item-title">{itemName}</span>
+    return (
+      <div className="item-card match-card--multi">
+        <div className="match-card__header">
+          <div className="match-card__title-group">
+            <FaBox className="match-card__item-icon" />
+            <span className="match-card__item-title">{itemName}</span>
+          </div>
+          <span className="match-card__badge match-card__badge--multi">
+            <FaLink /> {matchCount} Matches
+          </span>
         </div>
-        <span className="match-card__badge match-card__badge--multi">
-          <FaLink /> {matchCount} Matches
-        </span>
+
+        <div className="match-card__meta-row">
+          <span className="match-card__dept">
+            <FaMapMarkerAlt /> {matches[0]?.foundItem?.department}
+          </span>
+          <span className="match-card__avg-sim">
+            Avg similarity:{" "}
+            <strong>
+              {(
+                matches.reduce((sum, m) => sum + (m.similarity ?? 0), 0) /
+                matchCount
+              ).toFixed(0)}
+              %
+            </strong>
+          </span>
+        </div>
+
+        <button
+          className="match-card__toggle"
+          onClick={() => setExpanded((p) => !p)}
+          aria-expanded={expanded}
+        >
+          {expanded ? "Hide details" : "Show all matches"}
+          <span
+            className={`match-card__chevron ${expanded ? "match-card__chevron--up" : ""}`}
+          >
+            ▾
+          </span>
+        </button>
+
+        {expanded && (
+          <ul className="match-card__expanded-list">
+            {matches.map((match, idx) => (
+              <li key={match.lostItem.id} className="match-card__expanded-item">
+                <div className="match-card__expanded-rank">#{idx + 1}</div>
+                <div className="match-card__expanded-info">
+                  <div className="match-card__expanded-name">
+                    {match.lostItem.name}
+                    <span className="match-card__expanded-sim">
+                      {(match.similarity ?? 0).toFixed(0)}% match
+                    </span>
+                  </div>
+                  <div className="item-meta">
+                    <span>
+                      <FaPalette /> {match.lostItem.color}
+                    </span>
+                    <span>
+                      <FaMapMarkerAlt /> {match.lostItem.placeLost}
+                    </span>
+                  </div>
+                  <div className="match-card__expanded-user">
+                    <FaUser /> {match.user?.name ?? "Unknown"} ·
+                    <FaEnvelope /> {match.user?.email ?? "No Email"}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-
-      <div className="match-card__meta-row">
-        <span className="match-card__dept">
-          <FaMapMarkerAlt /> {matches[0]?.foundItem?.department}
-        </span>
-        <span className="match-card__avg-sim">
-          Avg similarity:{" "}
-          <strong>
-            {(
-              matches.reduce((sum, m) => sum + m.similarity, 0) / matchCount
-            ).toFixed(0)}%
-          </strong>
-        </span>
-      </div>
-
-      <button
-        className="match-card__toggle"
-        onClick={() => setExpanded((p) => !p)}
-        aria-expanded={expanded}
-      >
-        {expanded ? "Hide details" : "Show all matches"}
-        <span className={`match-card__chevron ${expanded ? "match-card__chevron--up" : ""}`}>
-          ▾
-        </span>
-      </button>
-
-      {expanded && (
-        <ul className="match-card__expanded-list">
-          {matches.map((match, idx) => (
-            <li key={match.lostItem.id} className="match-card__expanded-item">
-              <div className="match-card__expanded-rank">#{idx + 1}</div>
-              <div className="match-card__expanded-info">
-                <div className="match-card__expanded-name">
-                  {match.lostItem.name}
-                  <span className="match-card__expanded-sim">
-                    {match.similarity.toFixed(0)}%
-                  </span>
-                </div>
-                <div className="item-meta">
-                  <span><FaPalette /> {match.lostItem.color}</span>
-                  <span><FaMapMarkerAlt /> {match.lostItem.placeLost}</span>
-                </div>
-                <div className="match-card__expanded-user">
-                  <FaUser /> {match.user.name} · <FaEnvelope /> {match.user.email}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-});
+    );
+  },
+);
 
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 const FoundItemCard = React.memo(
-  ({ item, onMarkReturned, onUpdateStatus, onMarkCollectedOffline, isUpdating, onViewDetails, onViewOfflineDetails }) => {
+  ({
+    item,
+    onMarkReturned,
+    onUpdateStatus,
+    onMarkCollectedOffline,
+    isUpdating,
+    onViewDetails,
+    onViewOfflineDetails,
+  }) => {
     const statusLower = item.status.toLowerCase();
 
     return (
@@ -487,24 +666,29 @@ const FoundItemCard = React.memo(
           <div className="item-info">
             <h4>{item.name}</h4>
             <div className="item-meta">
-              <span><FaPalette /> {item.color}</span>
-              <span><FaCalendarAlt /> {new Date(item.dateFound).toLocaleDateString()}</span>
-              <span><FaMapMarkerAlt /> {item.placeFound}</span>
+              <span>
+                <FaPalette /> {item.color}
+              </span>
+              <span>
+                <FaCalendarAlt />{" "}
+                {new Date(item.dateFound).toLocaleDateString()}
+              </span>
+              <span>
+                <FaMapMarkerAlt /> {item.placeFound}
+              </span>
             </div>
-            {item.matchedLostItemIds?.length > 0 && (
-              <div className="item-match-badge">
-                <FaLink /> {item.matchedLostItemIds.length} match
-                {item.matchedLostItemIds.length > 1 ? "es" : ""} found
-              </div>
-            )}
+            {(statusLower === "found" || statusLower === "matched") &&
+              item.matchedLostItemIds?.length > 0 && (
+                <div className="item-match-badge">
+                  <FaLink /> {item.matchedLostItemIds.length} match
+                  {item.matchedLostItemIds.length > 1 ? "es" : ""} found
+                </div>
+              )}
           </div>
-          <span className={`status status--${statusLower}`}>
-            {item.status}
-          </span>
+          <span className={`status status--${statusLower}`}>{item.status}</span>
         </div>
 
         <div className="item-actions">
-          {/* ── Returned via system ── */}
           {statusLower === "returned" && (
             <button
               className="btn btn--sm btn--info"
@@ -514,7 +698,6 @@ const FoundItemCard = React.memo(
             </button>
           )}
 
-          {/* ── Collected offline ── */}
           {statusLower === "collected" && (
             <button
               className="btn btn--sm btn--info"
@@ -524,8 +707,7 @@ const FoundItemCard = React.memo(
             </button>
           )}
 
-          {/* ── Still active (found / unclaimed) ── */}
-          {statusLower ==="found" && (
+          {(statusLower === "found" || statusLower === "matched") && (
             <>
               <button
                 className="btn btn--sm btn--secondary"
@@ -541,7 +723,6 @@ const FoundItemCard = React.memo(
               >
                 <FaClock /> Mark as Unclaimed
               </button>
-              {/* ── NEW: Collected Offline button ── */}
               <button
                 className="btn btn--sm btn--collected-offline"
                 onClick={() => onMarkCollectedOffline(item._id)}
@@ -575,7 +756,8 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
   const [activeTab, setActiveTab] = useState("add-found");
   const [returnModalItem, setReturnModalItem] = useState(null);
   const [detailsModalItem, setDetailsModalItem] = useState(null);
-  const [offlineDetailsModalItem, setOfflineDetailsModalItem] = useState(null); // ← NEW
+  const [offlineDetailsModalItem, setOfflineDetailsModalItem] = useState(null);
+  const [pendingFormData, setPendingFormData] = useState(null); // ← NEW
   const queryClient = useQueryClient();
 
   const {
@@ -631,10 +813,18 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
       if (result.success) {
         showMessage("Found item added successfully.", "success");
         reset();
+        setPendingFormData(null);
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.foundItems });
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.matches });
         setActiveTab("matches");
+      } else {
+        setPendingFormData(null);
+        showMessage(result.message || "Failed to add found item.", "error");
       }
+    },
+    onError: () => {
+      setPendingFormData(null);
+      showMessage("Failed to add found item.", "error");
     },
     onSettled: () => setLoading(false),
   });
@@ -644,7 +834,9 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
       updateFoundItemStatus(itemId, newStatus, lostItemId, claimedByUserId),
     onMutate: async ({ itemId, newStatus }) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.foundItems });
-      const previousFoundItems = queryClient.getQueryData(QUERY_KEYS.foundItems);
+      const previousFoundItems = queryClient.getQueryData(
+        QUERY_KEYS.foundItems,
+      );
       queryClient.setQueryData(QUERY_KEYS.foundItems, (old = []) =>
         old.map((item) =>
           item._id === itemId ? { ...item, status: newStatus } : item,
@@ -661,23 +853,28 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     },
     onError: (err, variables, context) => {
       if (context?.previousFoundItems) {
-        queryClient.setQueryData(QUERY_KEYS.foundItems, context.previousFoundItems);
+        queryClient.setQueryData(
+          QUERY_KEYS.foundItems,
+          context.previousFoundItems,
+        );
       }
       showMessage("Failed to update item status.", "error");
     },
     onSettled: () => setLoading(false),
   });
 
-  // ── NEW: Collected Offline Mutation ──────────────────────────────────────
   const collectedOfflineMutation = useMutation({
     mutationFn: (itemId) => markItemCollectedOffline(itemId),
     onMutate: async (itemId) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.foundItems });
-      const previousFoundItems = queryClient.getQueryData(QUERY_KEYS.foundItems);
-      // Optimistically update status to "collected"
+      const previousFoundItems = queryClient.getQueryData(
+        QUERY_KEYS.foundItems,
+      );
       queryClient.setQueryData(QUERY_KEYS.foundItems, (old = []) =>
         old.map((item) =>
-          item._id === itemId ? { ...item, status: "offline returned" } : item,
+          item._id === itemId
+            ? { ...item, status: "offline returned", matchedLostItemIds: [] }
+            : item,
         ),
       );
       setLoading(true);
@@ -690,14 +887,33 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     },
     onError: (err, itemId, context) => {
       if (context?.previousFoundItems) {
-        queryClient.setQueryData(QUERY_KEYS.foundItems, context.previousFoundItems);
+        queryClient.setQueryData(
+          QUERY_KEYS.foundItems,
+          context.previousFoundItems,
+        );
       }
       showMessage("Failed to mark item as collected offline.", "error");
     },
     onSettled: () => setLoading(false),
   });
 
-  const onSubmit = (data) => submitMutation.mutate(data);
+  // ── Callbacks ─────────────────────────────────────────────────────────────
+
+  // ── NEW: intercept form — show confirm modal ──
+  const handleFormSubmit = useCallback((data) => {
+    setPendingFormData(data);
+  }, []);
+
+  // ── NEW: user confirmed — actual submit ──
+  const handleConfirmSubmit = useCallback(() => {
+    if (!pendingFormData) return;
+    submitMutation.mutate(pendingFormData);
+  }, [pendingFormData, submitMutation]);
+
+  // ── NEW: user wants to edit — close modal, form stays filled ──
+  const handleEditBack = useCallback(() => {
+    setPendingFormData(null);
+  }, []);
 
   const handleUpdateStatus = useCallback(
     (itemId, newStatus) => updateStatusMutation.mutate({ itemId, newStatus }),
@@ -725,7 +941,6 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     setDetailsModalItem(item);
   }, []);
 
-  // ── NEW handlers ──────────────────────────────────────────────────────────
   const handleMarkCollectedOffline = useCallback(
     (itemId) => collectedOfflineMutation.mutate(itemId),
     [collectedOfflineMutation],
@@ -751,6 +966,7 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
   const isTabLoading =
     (activeTab === "found-items" && foundItemsLoading) ||
     (activeTab === "matches" && matchesLoading);
+
   const isFormDisabled = isSubmitting || submitMutation.isPending;
 
   return (
@@ -759,7 +975,9 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
         {/* Header */}
         <header className="dashboard-header">
           <div className="user-info">
-            <div className="user-avatar"><FaUserShield /></div>
+            <div className="user-avatar">
+              <FaUserShield />
+            </div>
             <div className="user-details">
               <h3>{currentAdmin?.department || "Block A"} Admin</h3>
               <p>{currentAdmin?.department || "Block A"}</p>
@@ -787,11 +1005,20 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
           {activeTab === "add-found" && (
             <section className="dashboard-tab active" role="tabpanel">
               <div className="tab-content">
-                <h2><FaPlusCircle /> Add Found Item</h2>
-                <form onSubmit={handleSubmit(onSubmit)} className="dashboard-form">
+                <h2>
+                  <FaPlusCircle /> Add Found Item
+                </h2>
+
+                {/* ── onSubmit now intercepts via handleFormSubmit ── */}
+                <form
+                  onSubmit={handleSubmit(handleFormSubmit)}
+                  className="dashboard-form"
+                >
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="itemname" className="form-label">Item Name *</label>
+                      <label htmlFor="itemname" className="form-label">
+                        Item Name *
+                      </label>
                       <select
                         id="itemname"
                         {...register("name")}
@@ -800,15 +1027,21 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                       >
                         <option value="">Select Name</option>
                         {ITEM_NAME.map((item) => (
-                          <option key={item} value={item}>{item}</option>
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
                         ))}
                       </select>
                       {errors.name && (
-                        <div className="error-message">{errors.name.message}</div>
+                        <div className="error-message">
+                          {errors.name.message}
+                        </div>
                       )}
                     </div>
                     <div className="form-group">
-                      <label htmlFor="itemColor" className="form-label">Color *</label>
+                      <label htmlFor="itemColor" className="form-label">
+                        Color *
+                      </label>
                       <select
                         id="itemColor"
                         {...register("color")}
@@ -818,11 +1051,15 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                       >
                         <option value="">Select a color</option>
                         {COLORS.map((color) => (
-                          <option key={color} value={color}>{color}</option>
+                          <option key={color} value={color}>
+                            {color}
+                          </option>
                         ))}
                       </select>
                       {errors.color && (
-                        <div className="error-message" role="alert">{errors.color.message}</div>
+                        <div className="error-message" role="alert">
+                          {errors.color.message}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -830,8 +1067,23 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                   <div className="form-row">
                     <div className="form-group">
                       <label className="form-label">Item Condition *</label>
-                      <div style={{ display: "flex", gap: "20px", marginTop: "10px", alignItems: "center" }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "20px",
+                          marginTop: "10px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                          }}
+                        >
                           <input
                             type="radio"
                             value={ITEM_CONDITIONS.NEW}
@@ -841,7 +1093,15 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                           />
                           New
                         </label>
-                        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px" }}>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                          }}
+                        >
                           <input
                             type="radio"
                             value={ITEM_CONDITIONS.USED}
@@ -853,14 +1113,19 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                         </label>
                       </div>
                       {errors.condition && (
-                        <div className="error-message" style={{ marginTop: "5px" }}>
+                        <div
+                          className="error-message"
+                          style={{ marginTop: "5px" }}
+                        >
                           {errors.condition.message}
                         </div>
                       )}
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor="brand" className="form-label">Brand (optional)</label>
+                      <label htmlFor="brand" className="form-label">
+                        Brand (optional)
+                      </label>
                       <input
                         id="brand"
                         {...register("brand")}
@@ -872,7 +1137,9 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="placeFound" className="form-label">Place Found *</label>
+                      <label htmlFor="placeFound" className="form-label">
+                        Place Found *
+                      </label>
                       <select
                         id="placeFound"
                         {...register("placeFound")}
@@ -881,15 +1148,21 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                       >
                         <option value="">Select Location</option>
                         {CAMPUS_LOCATIONS.map((location) => (
-                          <option key={location} value={location}>{location}</option>
+                          <option key={location} value={location}>
+                            {location}
+                          </option>
                         ))}
                       </select>
                       {errors.placeFound && (
-                        <div className="error-message">{errors.placeFound.message}</div>
+                        <div className="error-message">
+                          {errors.placeFound.message}
+                        </div>
                       )}
                     </div>
                     <div className="form-group">
-                      <label htmlFor="dateFound" className="form-label">Date Found *</label>
+                      <label htmlFor="dateFound" className="form-label">
+                        Date Found *
+                      </label>
                       <input
                         id="dateFound"
                         type="date"
@@ -899,7 +1172,9 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                         disabled={isFormDisabled}
                       />
                       {errors.dateFound && (
-                        <div className="error-message">{errors.dateFound.message}</div>
+                        <div className="error-message">
+                          {errors.dateFound.message}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -921,12 +1196,23 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
           {activeTab === "found-items" && (
             <section className="dashboard-tab active" role="tabpanel">
               <div className="tab-content">
-                <h2><FaBox /> Department Found Items</h2>
+                <h2>
+                  <FaBox /> Department Found Items
+                </h2>
                 <div className="items-list">
                   {isTabLoading ? (
-                    <EmptyState icon={FaSpinner} title="" description="Loading..." isSpinning />
+                    <EmptyState
+                      icon={FaSpinner}
+                      title=""
+                      description="Loading..."
+                      isSpinning
+                    />
                   ) : foundItems.length === 0 ? (
-                    <EmptyState icon={FaInbox} title="No Found Items" description="No items found yet." />
+                    <EmptyState
+                      icon={FaInbox}
+                      title="No Found Items"
+                      description="No items found yet."
+                    />
                   ) : (
                     foundItems.map((item) => (
                       <FoundItemCard
@@ -934,10 +1220,10 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                         item={item}
                         onMarkReturned={handleMarkReturned}
                         onUpdateStatus={handleUpdateStatus}
-                        onMarkCollectedOffline={handleMarkCollectedOffline}  // ← NEW
+                        onMarkCollectedOffline={handleMarkCollectedOffline}
                         isUpdating={isAnyUpdating}
                         onViewDetails={handleViewDetails}
-                        onViewOfflineDetails={handleViewOfflineDetails}      // ← NEW
+                        onViewOfflineDetails={handleViewOfflineDetails}
                       />
                     ))
                   )}
@@ -950,17 +1236,31 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
           {activeTab === "matches" && (
             <section className="dashboard-tab active" role="tabpanel">
               <div className="tab-content">
-                <h2><FaLink /> Matched Items</h2>
+                <h2>
+                  <FaLink /> Matched Items
+                </h2>
                 <div className="items-list">
                   {isTabLoading ? (
-                    <EmptyState icon={FaSpinner} title="" description="Loading..." isSpinning />
+                    <EmptyState
+                      icon={FaSpinner}
+                      title=""
+                      description="Loading..."
+                      isSpinning
+                    />
                   ) : matches.length === 0 ? (
-                    <EmptyState icon={FaLink} title="No Matches Found" description="No matches yet." />
+                    <EmptyState
+                      icon={FaLink}
+                      title="No Matches Found"
+                      description="No matches yet."
+                    />
                   ) : (
                     Object.entries(groupedMatches).map(
                       ([foundItemId, itemMatches]) =>
                         itemMatches.length === 1 ? (
-                          <SingleMatchCard key={foundItemId} match={itemMatches[0]} />
+                          <SingleMatchCard
+                            key={foundItemId}
+                            match={itemMatches[0]}
+                          />
                         ) : (
                           <MultiMatchSummaryCard
                             key={foundItemId}
@@ -1001,6 +1301,16 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
         <OfflineCollectedDetailsModal
           item={offlineDetailsModalItem}
           onClose={() => setOfflineDetailsModalItem(null)}
+        />
+      )}
+
+      {/* ─── Submit Confirm Modal ─── */}
+      {pendingFormData && (
+        <SubmitConfirmModal
+          formData={pendingFormData}
+          onConfirm={handleConfirmSubmit}
+          onEdit={handleEditBack}
+          isLoading={submitMutation.isPending}
         />
       )}
     </div>

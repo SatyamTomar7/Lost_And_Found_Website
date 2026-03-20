@@ -19,6 +19,10 @@ import {
   FaTimes,
   FaPaperPlane,
   FaSpinner,
+  FaHome,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaEdit,
 } from "react-icons/fa";
 import {
   COLORS,
@@ -26,21 +30,23 @@ import {
   ITEM_CONDITIONS,
   CAMPUS_LOCATIONS,
 } from "../utils/itemConstants";
-import { submitLostItem, getMyLostItems } from "../services/itemService";
+import {
+  submitLostItem,
+  getMyLostItems,
+  selfResolveLostItem,
+} from "../services/itemService";
 import {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationAsRead,
 } from "../services/notificationService";
 
-// ─── Zod Schema (module-level, stable) ───────────────────────────────────────
+// ─── Zod Schema ───────────────────────────────────────────────────────────────
 const today = new Date().toISOString().split("T")[0];
 
 const lostItemSchema = z.object({
   name: z.string().min(1, "Please select a name"),
-
   color: z.string().min(1, "Please select a color"),
-
   brand: z.string().max(20, "Brand name too long").optional().or(z.literal("")),
   condition: z.enum(["New", "Used"], {
     required_error: "Please select condition",
@@ -55,7 +61,6 @@ const lostItemSchema = z.object({
     .max(100, "Description cannot exceed 100 characters")
     .optional()
     .or(z.literal("")),
-
   photo: z
     .any()
     .refine(
@@ -79,6 +84,7 @@ const QUERY_KEYS = {
   notifications: ["notifications"],
 };
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatTimestamp = (timestamp) => {
   const date = new Date(timestamp);
   const now = new Date();
@@ -88,36 +94,236 @@ const formatTimestamp = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-// ─── Sub-Components (Memoized) ────────────────────────────────────────────────
+const canSelfResolve = (status) => {
+  const s = status?.toLowerCase();
+  return s === "pending" || s === "matched";
+};
 
-const LostItemCard = React.memo(({ item }) => (
+// ─── Submit Confirm Modal ─────────────────────────────────────────────────────
+const SubmitConfirmModal = React.memo(
+  ({ formData, onConfirm, onEdit, isLoading }) => (
+    <div className="return-modal-overlay" role="presentation">
+      <div
+        className="return-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-submit-title"
+      >
+        {/* Header */}
+        <div className="return-modal__header">
+          <div className="return-modal__title-group">
+            <FaExclamationTriangle className="return-modal__icon return-modal__icon--warning" />
+            <h3 id="confirm-submit-title">Confirm Your Details</h3>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="return-details__body">
+          {/* Warning message */}
+          <div
+            className="submit-confirm-modal__warning"
+            role="alert"
+          >
+            <FaExclamationTriangle />
+            <p>
+              <strong>Once submitted, details cannot be edited.</strong> Please
+              verify everything is correct before confirming.
+            </p>
+          </div>
+
+          {/* Info rows */}
+          <div className="submit-confirm-modal__details">
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Item Name</span>
+              <span className="submit-confirm-modal__value">{formData.name}</span>
+            </div>
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Color</span>
+              <span className="submit-confirm-modal__value">{formData.color}</span>
+            </div>
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Condition</span>
+              <span className="submit-confirm-modal__value">{formData.condition}</span>
+            </div>
+            {formData.brand && (
+              <div className="submit-confirm-modal__row">
+                <span className="submit-confirm-modal__label">Brand</span>
+                <span className="submit-confirm-modal__value">{formData.brand}</span>
+              </div>
+            )}
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Place Lost</span>
+              <span className="submit-confirm-modal__value">{formData.placeLost}</span>
+            </div>
+            <div className="submit-confirm-modal__row">
+              <span className="submit-confirm-modal__label">Date Lost</span>
+              <span className="submit-confirm-modal__value">
+                {new Date(formData.dateLost).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </span>
+            </div>
+            {formData.description && (
+              <div className="submit-confirm-modal__row">
+                <span className="submit-confirm-modal__label">Description</span>
+                <span className="submit-confirm-modal__value">{formData.description}</span>
+              </div>
+            )}
+            {formData.photo?.[0] && (
+              <div className="submit-confirm-modal__row">
+                <span className="submit-confirm-modal__label">Photo</span>
+                <span className="submit-confirm-modal__value">
+                  {formData.photo[0].name}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="return-modal__footer">
+          <button
+            className="btn btn--outline"
+            onClick={onEdit}
+            disabled={isLoading}
+          >
+            <FaEdit /> Go Back & Edit
+          </button>
+          <button
+            className="btn btn--primary"
+            onClick={onConfirm}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <FaSpinner className="spin-icon" /> Submitting…
+              </>
+            ) : (
+              <>
+                <FaCheckCircle /> Confirm & Submit
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  ),
+);
+SubmitConfirmModal.displayName = "SubmitConfirmModal";
+
+// ─── SelfResolve Confirmation Modal ──────────────────────────────────────────
+const SelfResolveModal = React.memo(
+  ({ item, onConfirm, onClose, isLoading }) => (
+    <div className="return-modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="return-modal self-resolve-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="self-resolve-title"
+      >
+        <div className="return-modal__header">
+          <div className="return-modal__title-group">
+            <FaHome className="return-modal__icon return-modal__icon--resolve" />
+            <h3 id="self-resolve-title">Found it Myself</h3>
+          </div>
+          <button
+            className="return-modal__close"
+            onClick={onClose}
+            aria-label="Close modal"
+            disabled={isLoading}
+          >
+            <FaTimes />
+          </button>
+        </div>
+
+        <div className="return-details__body">
+          <div className="self-resolve-modal__item-preview">
+            <div className="self-resolve-modal__item-name">{item.name}</div>
+            <div className="item-meta">
+              <span><FaPalette /> {item.color}</span>
+              <span><FaCalendarAlt /> {new Date(item.dateLost).toLocaleDateString()}</span>
+              <span><FaMapMarkerAlt /> {item.placeLost}</span>
+            </div>
+          </div>
+          <div className="self-resolve-modal__message">
+            <p>
+              Glad you found it! This will{" "}
+              <strong>close your lost report</strong> and remove it from the
+              matching queue.
+            </p>
+            <p className="self-resolve-modal__warning">
+              This action cannot be undone.
+            </p>
+          </div>
+        </div>
+
+        <div className="return-modal__footer">
+          <button
+            className="btn btn--outline"
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button
+            className="btn btn--self-resolve-confirm"
+            onClick={onConfirm}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <><FaSpinner className="spin-icon" /> Closing…</>
+            ) : (
+              <><FaCheckCircle /> Yes, I Found It</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  ),
+);
+SelfResolveModal.displayName = "SelfResolveModal";
+
+// ─── LostItemCard ─────────────────────────────────────────────────────────────
+const LostItemCard = React.memo(({ item, onSelfResolve, isResolving }) => (
   <div className="item-card">
     <div className="item-header">
       <div className="item-info">
         <h4>{item.name}</h4>
         <div className="item-meta">
-          <span>
-            <FaPalette /> {item.color}
-          </span>
-          <span>
-            <FaCalendarAlt /> {new Date(item.dateLost).toLocaleDateString()}
-          </span>
-          <span>
-            <FaMapMarkerAlt /> {item.placeLost}
-          </span>
+          <span><FaPalette /> {item.color}</span>
+          <span><FaCalendarAlt /> {new Date(item.dateLost).toLocaleDateString()}</span>
+          <span><FaMapMarkerAlt /> {item.placeLost}</span>
         </div>
       </div>
-      <span className={`status status--${item.status.toLowerCase()}`}>
-        {item.status}
+      <span
+        className={`status status--${item.status.toLowerCase().replace(/_/g, "-")}`}
+      >
+        {item.status === "self_resolved" ? "Self Resolved" : item.status}
       </span>
     </div>
     {item.description && (
       <div className="item-description">{item.description}</div>
     )}
+    {canSelfResolve(item.status) && (
+      <div className="item-actions">
+        <button
+          className="btn btn--sm btn--self-resolve"
+          onClick={() => onSelfResolve(item)}
+          disabled={isResolving}
+          title="Found it at home? Close this report."
+        >
+          <FaHome /> Found it Myself
+        </button>
+      </div>
+    )}
   </div>
 ));
 LostItemCard.displayName = "LostItemCard";
 
+// ─── Unchanged sub-components ─────────────────────────────────────────────────
 const NotificationItem = React.memo(({ notification, onClick }) => (
   <div
     className={`notification-item ${notification.isRead ? "" : "unread"}`}
@@ -164,6 +370,8 @@ ProfileField.displayName = "ProfileField";
 const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
   const [activeTab, setActiveTab] = useState("report-lost");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [selfResolveModalItem, setSelfResolveModalItem] = useState(null);
+  const [pendingFormData, setPendingFormData] = useState(null); // ← NEW: holds data for confirm modal
   const queryClient = useQueryClient();
 
   const {
@@ -185,9 +393,6 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
   });
 
   // ── Queries ───────────────────────────────────────────────────────────────
-
-  // 1. My Lost Items: Poll every 5s so status updates (e.g. Pending → Collected)
-  //    appear quickly without the student needing to manually refresh.
   const { data: lostItems = [], isLoading: lostItemsLoading } = useQuery({
     queryKey: QUERY_KEYS.lostItems,
     queryFn: async () => {
@@ -195,14 +400,13 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
       return result.data.data || [];
     },
     enabled: activeTab === "my-items",
-    staleTime: 0, // Always treat as stale so refetch fires reliably
-    gcTime: 1000 * 60 * 5, // Keep in cache 5 min
-    refetchInterval: 5000, // Poll every 5 seconds while tab is active
-    refetchIntervalInBackground: false, // Pause polling when window is hidden
-    refetchOnWindowFocus: true, // Immediately refetch when user returns to tab
+    staleTime: 0,
+    gcTime: 1000 * 60 * 5,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 
-  // 2. Notifications: Poll every 3s for near-instant status change alerts
   const { data: notificationData = { notifications: [], unreadCount: 0 } } =
     useQuery({
       queryKey: QUERY_KEYS.notifications,
@@ -214,7 +418,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
         };
       },
       staleTime: 0,
-      refetchInterval: 3000, // Reduced from 10s → 3s for near-instant updates
+      refetchInterval: 3000,
       refetchIntervalInBackground: false,
       refetchOnWindowFocus: true,
     });
@@ -227,12 +431,15 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
     onMutate: () => setLoading(true),
     onSuccess: () => {
       reset();
+      setPendingFormData(null);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.lostItems });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
       showMessage("Lost Item reported successfully!", "success");
     },
-    onError: (err) =>
-      showMessage(err.message || "Something went wrong", "error"),
+    onError: (err) => {
+      setPendingFormData(null);
+      showMessage(err.message || "Something went wrong", "error");
+    },
     onSettled: () => setLoading(false),
   });
 
@@ -248,11 +455,41 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications }),
   });
 
+  const selfResolveMutation = useMutation({
+    mutationFn: (itemId) => selfResolveLostItem(itemId),
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.lostItems });
+      const previousLostItems = queryClient.getQueryData(QUERY_KEYS.lostItems);
+      queryClient.setQueryData(QUERY_KEYS.lostItems, (old = []) =>
+        old.map((item) =>
+          item._id === itemId
+            ? { ...item, status: "self_resolved", isActive: false }
+            : item,
+        ),
+      );
+      setLoading(true);
+      return { previousLostItems };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.lostItems });
+      setSelfResolveModalItem(null);
+      showMessage("Great! Your lost report has been closed.", "success");
+    },
+    onError: (err, _itemId, context) => {
+      if (context?.previousLostItems) {
+        queryClient.setQueryData(QUERY_KEYS.lostItems, context.previousLostItems);
+      }
+      showMessage(
+        err.message || "Failed to resolve the item. Please try again.",
+        "error",
+      );
+    },
+    onSettled: () => setLoading(false),
+  });
+
   // ── Callbacks ─────────────────────────────────────────────────────────────
   const handleNotificationClick = useCallback(
-    (notificationId) => {
-      markReadMutation.mutate(notificationId);
-    },
+    (notificationId) => markReadMutation.mutate(notificationId),
     [markReadMutation],
   );
 
@@ -260,6 +497,31 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
     setShowNotifications(false);
     markAllReadMutation.mutate();
   }, [markAllReadMutation]);
+
+  const handleSelfResolveClick = useCallback((item) => {
+    setSelfResolveModalItem(item);
+  }, []);
+
+  const handleSelfResolveConfirm = useCallback(() => {
+    if (!selfResolveModalItem) return;
+    selfResolveMutation.mutate(selfResolveModalItem._id);
+  }, [selfResolveModalItem, selfResolveMutation]);
+
+  // ── NEW: Form intercept — show confirm modal instead of direct submit ──
+  const handleFormSubmit = useCallback((data) => {
+    setPendingFormData(data); // open confirm modal with captured data
+  }, []);
+
+  // ── NEW: User confirmed — now actually submit ──
+  const handleConfirmSubmit = useCallback(() => {
+    if (!pendingFormData) return;
+    submitLostItemMutation.mutate(pendingFormData);
+  }, [pendingFormData, submitLostItemMutation]);
+
+  // ── NEW: User wants to go back and edit ──
+  const handleEditBack = useCallback(() => {
+    setPendingFormData(null); // close modal, form stays filled
+  }, []);
 
   const isFormDisabled = isSubmitting || submitLostItemMutation.isPending;
 
@@ -318,6 +580,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
 
         {/* Main */}
         <main className="dashboard-content-area">
+          {/* ── Report Lost Tab ── */}
           {activeTab === "report-lost" && (
             <div
               className="dashboard-tab active"
@@ -330,10 +593,9 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                   <FaPlusCircle /> Report Lost Item
                 </h2>
 
+                {/* ── form onSubmit now calls handleFormSubmit (interceptor) ── */}
                 <form
-                  onSubmit={handleSubmit((data) =>
-                    submitLostItemMutation.mutate(data),
-                  )}
+                  onSubmit={handleSubmit(handleFormSubmit)}
                   className="dashboard-form"
                 >
                   <div className="form-row">
@@ -349,15 +611,11 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       >
                         <option value="">Select Name</option>
                         {ITEM_NAME.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
+                          <option key={item} value={item}>{item}</option>
                         ))}
                       </select>
                       {errors.name && (
-                        <div className="error-message">
-                          {errors.name.message}
-                        </div>
+                        <div className="error-message">{errors.name.message}</div>
                       )}
                     </div>
 
@@ -374,9 +632,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       >
                         <option value="">Select a color</option>
                         {COLORS.map((color) => (
-                          <option key={color} value={color}>
-                            {color}
-                          </option>
+                          <option key={color} value={color}>{color}</option>
                         ))}
                       </select>
                       {errors.color && (
@@ -436,10 +692,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                         </label>
                       </div>
                       {errors.condition && (
-                        <div
-                          className="error-message"
-                          style={{ marginTop: "5px" }}
-                        >
+                        <div className="error-message" style={{ marginTop: "5px" }}>
                           {errors.condition.message}
                         </div>
                       )}
@@ -470,15 +723,11 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       >
                         <option value="">Select Location</option>
                         {CAMPUS_LOCATIONS.map((location) => (
-                          <option key={location} value={location}>
-                            {location}
-                          </option>
+                          <option key={location} value={location}>{location}</option>
                         ))}
                       </select>
                       {errors.placeLost && (
-                        <div className="error-message">
-                          {errors.placeLost.message}
-                        </div>
+                        <div className="error-message">{errors.placeLost.message}</div>
                       )}
                     </div>
                     <div className="form-group">
@@ -494,9 +743,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                         disabled={isFormDisabled}
                       />
                       {errors.dateLost && (
-                        <div className="error-message">
-                          {errors.dateLost.message}
-                        </div>
+                        <div className="error-message">{errors.dateLost.message}</div>
                       )}
                     </div>
                   </div>
@@ -543,6 +790,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
             </div>
           )}
 
+          {/* ── My Items Tab ── */}
           {activeTab === "my-items" && (
             <div
               className="dashboard-tab active"
@@ -569,13 +817,19 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                   />
                 ) : (
                   lostItems.map((item) => (
-                    <LostItemCard key={item._id} item={item} />
+                    <LostItemCard
+                      key={item._id}
+                      item={item}
+                      onSelfResolve={handleSelfResolveClick}
+                      isResolving={selfResolveMutation.isPending}
+                    />
                   ))
                 )}
               </div>
             </div>
           )}
 
+          {/* ── Profile Tab ── */}
           {activeTab === "profile" && (
             <div
               className="dashboard-tab active"
@@ -598,6 +852,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
         </main>
       </div>
 
+      {/* Notifications panel */}
       <aside
         className={`notifications-panel ${showNotifications ? "open" : ""}`}
         aria-label="Notifications panel"
@@ -616,7 +871,6 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
             <FaTimes />
           </button>
         </div>
-
         <div className="notifications-list">
           {notifications.length === 0 ? (
             <EmptyState
@@ -635,6 +889,26 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
           )}
         </div>
       </aside>
+
+      {/* ── Submit Confirm Modal ── */}
+      {pendingFormData && (
+        <SubmitConfirmModal
+          formData={pendingFormData}
+          onConfirm={handleConfirmSubmit}
+          onEdit={handleEditBack}
+          isLoading={submitLostItemMutation.isPending}
+        />
+      )}
+
+      {/* ── Self-Resolve Confirmation Modal ── */}
+      {selfResolveModalItem && (
+        <SelfResolveModal
+          item={selfResolveModalItem}
+          onConfirm={handleSelfResolveConfirm}
+          onClose={() => setSelfResolveModalItem(null)}
+          isLoading={selfResolveMutation.isPending}
+        />
+      )}
     </div>
   );
 };

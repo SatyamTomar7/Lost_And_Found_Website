@@ -286,7 +286,6 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
       registerUser(name, email, password),
     onMutate: () => setLoading(true),
     onSuccess: (result, variables) => {
-
       if (result.message === "ACCOUNT_NOT_VERIFIED") {
         setPendingRegistration({
           email: result.data?.email ?? variables.email,
@@ -351,6 +350,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
       if (result.success) {
         registrationTimer.startTimer();
         showMessage("OTP resent to your email address", "success");
+      } else {
+        showMessage(result.message || "Failed to resend OTP", "error");
       }
     },
     onError: () => showMessage("Error connecting to server", "error"),
@@ -448,16 +449,16 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
     [reset],
   );
 
-const isAnyPending =
-  loginMutation.isPending ||
-  registerMutation.isPending ||
-  otpMutation.isPending ||
-  resendMutation.isPending ||
-  forgotPasswordMutation.isPending ||
-  resendResetOTPMutation.isPending ||
-  verifyResetOTPMutation.isPending ||
-  resetPasswordMutation.isPending ||
-  isSubmitting;
+  const isAnyPending =
+    loginMutation.isPending ||
+    registerMutation.isPending ||
+    otpMutation.isPending ||
+    resendMutation.isPending ||
+    forgotPasswordMutation.isPending ||
+    resendResetOTPMutation.isPending ||
+    verifyResetOTPMutation.isPending ||
+    resetPasswordMutation.isPending ||
+    isSubmitting;
 
   const headerMap = {
     login: {
