@@ -8,7 +8,7 @@ router.use(protect);
 router.get("/",validatePagination,getNotifications);
 router.get("/stats",getNotificationStats);
 router.put("/read-all",markAllAsRead);
-router.put("/:id/read",validateObjectId,markAsRead);
+router.put("/:id/read",markAsRead);
 router.delete("/:id",validateObjectId,deleteNotification)
 
 export default router;

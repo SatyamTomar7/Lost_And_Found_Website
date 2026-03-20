@@ -21,7 +21,6 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     condition,
   } = req.body;
 
-
   const foundItemData = {
     name,
     color,
@@ -36,13 +35,11 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 
   const foundItem = await FoundItem.create(foundItemData);
 
-
   const matches = await matchingService.findMatchesForFoundItem(
     foundItem._id,
     70
   );
   const topMatches = matches.slice(0, 5);
-
 
   let matchNotifications = [];
   if (topMatches.length > 0) {
@@ -64,7 +61,6 @@ export const addFoundItem = asyncHandler(async (req, res) => {
           priority: match.matchScore > 85 ? "high" : "medium",
         });
 
-       
         emailService
           .sendMatchNotification(
             match.lostItem.userId.email,
@@ -86,7 +82,6 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     );
   }
 
-
   const populatedItem = await foundItem.populate("adminId", "name department");
   res.status(201).json(
     new ApiResponse(
@@ -104,18 +99,15 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 });
 
 export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
-
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 10);
   const { status } = req.query;
-
 
   const query = {
     department: req.user.department,
     isActive: true,
   };
   if (status) query.status = status;
-
 
   const [foundItems, total] = await Promise.all([
     FoundItem.find(query)
@@ -134,7 +126,6 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
       .lean(),
     FoundItem.countDocuments(query),
   ]);
-
 
   const totalPages = Math.ceil(total / limit);
 
@@ -183,7 +174,6 @@ export const getFoundItem = asyncHandler(async (req, res) => {
       "Found item not found or access denied for your department"
     );
   }
-
 
   res
     .status(200)
@@ -251,7 +241,11 @@ export const markAsReturned = asyncHandler(async (req, res) => {
 
   try {
     const foundItem = await FoundItem.findOneAndUpdate(
-      { _id: id, department: req.user.department, status: ITEM_STATUS.FOUND },
+      {
+        _id: id,
+        department: req.user.department,
+        status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+      },
       {
         $set: {
           status: ITEM_STATUS.RETURNED,
@@ -321,19 +315,37 @@ export const markAsReturned = asyncHandler(async (req, res) => {
     session.endSession();
   }
 });
-
 export const markAsUnclaimed = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  // Fetch before update — notifications ke liye matched users capture karo
+  const existingFoundItem = await FoundItem.findOne({
+    _id: id,
+    department: req.user.department,
+    status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+  }).populate({
+    path: "matchedLostItemIds",
+    select: "userId name",
+    populate: { path: "userId", select: "name email" },
+  });
+
+  if (!existingFoundItem) {
+    throw new ApiError(
+      404,
+      "Found item not found or you lack permission for this department"
+    );
+  }
+
+  let foundItem;
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const foundItem = await FoundItem.findOneAndUpdate(
+    foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
         department: req.user.department,
-        status: ITEM_STATUS.FOUND,
+        status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
       },
       {
         $set: {
@@ -356,8 +368,8 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
 
     if (!foundItem) {
       throw new ApiError(
-        404,
-        "Found item not found or you lack permission for this department"
+        409,
+        "Item status changed during processing. Please retry."
       );
     }
 
@@ -367,17 +379,19 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
       { session }
     );
 
-    await session.commitTransaction();
+    // Revert matched lost items status back to PENDING
+    await LostItem.updateMany(
+      {
+        _id: {
+          $in: existingFoundItem.matchedLostItemIds.map((l) => l._id),
+        },
+        status: ITEM_STATUS.MATCHED,
+      },
+      { $set: { status: ITEM_STATUS.PENDING } },
+      { session }
+    );
 
-    res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          { data: foundItem },
-          "Item marked as unclaimed and all potential links removed"
-        )
-      );
+    await session.commitTransaction();
   } catch (error) {
     await session.abortTransaction();
     console.error("Unclaimed Status Error:", error);
@@ -388,7 +402,54 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
   } finally {
     session.endSession();
   }
+
+  // Notifications after commit — outside session
+  const io = req.app.get("socketio");
+  const previousMatches = existingFoundItem.matchedLostItemIds || [];
+
+  if (previousMatches.length > 0) {
+    await Promise.all(
+      previousMatches.map(async (lostItem) => {
+        if (!lostItem.userId) return;
+
+        const notification = await Notification.create({
+          userId: lostItem.userId._id,
+          type: NOTIFICATION_TYPES.ITEM_UNAVAILABLE,
+          title: "Item No Longer Available",
+          message: `The ${existingFoundItem.name} that matched your report is no longer available. It may have been re-entered with corrected details — please check again soon.`,
+          data: { lostItemId: lostItem._id, foundItemId: id },
+          priority: "medium",
+        });
+
+        if (io) {
+          io.sendNotificationToUser(lostItem.userId._id, {
+            ...notification.toObject(),
+          });
+        }
+
+        emailService
+          .sendItemUnavailableNotification(
+            lostItem.userId.email,
+            lostItem.userId.name,
+            existingFoundItem.name,
+            req.user.department
+          )
+          .catch((err) => console.error("Email Error:", err));
+      })
+    );
+  }
+
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { data: foundItem },
+        `Item marked as unclaimed. ${previousMatches.length} user(s) notified.`
+      )
+    );
 });
+
 export const markAsCollectedOffline = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -404,7 +465,7 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     existingFoundItem = await FoundItem.findOne({
       _id: id,
       department: req.user.department,
-      status: ITEM_STATUS.FOUND,
+      status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
     }).populate({
       path: "matchedLostItemIds",
       select: "userId name",
@@ -419,7 +480,11 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     }
 
     foundItem = await FoundItem.findOneAndUpdate(
-      { _id: id, department: req.user.department, status: ITEM_STATUS.FOUND },
+      {
+        _id: id,
+        department: req.user.department,
+        status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+      },
       {
         $set: {
           status: ITEM_STATUS.OFFLINE_RETURNED,
@@ -603,23 +668,19 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
 
   let query = { isActive: true };
 
-
   if (req.user.role === "admin") {
     query.department = req.user.department;
   } else if (department) {
     query.department = department;
   }
 
-
   if (q) {
     query.$text = { $search: q };
   }
 
-
   if (color) {
     query.color = color;
   }
-
 
   if (dateFrom || dateTo) {
     query.dateFound = {};
@@ -634,7 +695,7 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
       .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
       .limit(limit)
       .skip((page - 1) * limit),
-    FoundItem.countDocuments(query), 
+    FoundItem.countDocuments(query),
   ]);
   const totalPages = Math.ceil(total / limit);
   res.status(200).json(

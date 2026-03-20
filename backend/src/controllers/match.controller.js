@@ -1,3 +1,5 @@
+/* The above code is a JavaScript module that defines several functions related to matching lost and
+found items. Here is a summary of what each function does: */
 import { FoundItem } from "../models/FoundItem.model.js";
 import { LostItem } from "../models/LostItem.model.js";
 import matchingService from "../services/matching.service.js";
@@ -123,37 +125,42 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
 export const getMatchingStats = asyncHandler(async (req, res) => {
   const department = req.user.role === "admin" ? req.user.department : null;
 
-  // Run all independent DB queries in parallel
   const [
     totalLostItems,
     totalFoundItems,
-    matchedItems,
-    returnedItem,
+    matchedLostCount,
+    returnedCount,
     itemStats,
     foundItems,
     lostItems,
   ] = await Promise.all([
+    // Total active lost items
     LostItem.countDocuments({
-      isActive: true,
-      ...(department && { placeLost: new RegExp(department, "i") }),
+      isActive: true
     }),
+
+    // Total active found items
     FoundItem.countDocuments({
       isActive: true,
       ...(department && { department }),
     }),
+
+    // Matched lost items count — status based
     LostItem.countDocuments({
-      matchedFoundItemId: { $ne: null },
-      ...(department && { placeLost: new RegExp(department, "i") }),
+      status: ITEM_STATUS.MATCHED
     }),
+
+    // Returned found items count
     FoundItem.countDocuments({
       status: ITEM_STATUS.RETURNED,
       ...(department && { department }),
     }),
+
+    // Per-item breakdown
     LostItem.aggregate([
       {
         $match: {
-          isActive: true,
-          ...(department && { placeLost: new RegExp(department, "i") }),
+          isActive: true
         },
       },
       {
@@ -161,7 +168,9 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           _id: "$name",
           total: { $sum: 1 },
           matched: {
-            $sum: { $cond: [{ $ne: ["$matchedFoundItemId", null] }, 1, 0] },
+            $sum: {
+              $cond: [{ $eq: ["$status", ITEM_STATUS.MATCHED] }, 1, 0],
+            },
           },
         },
       },
@@ -181,73 +190,87 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
       },
       { $sort: { total: -1 } },
     ]),
+
+    // Active found items available for matching display
     FoundItem.find({
       isActive: true,
-      status: ITEM_STATUS.FOUND,
+      status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
       ...(department && { department }),
     }),
+
+    // Active lost items — both PENDING and MATCHED included for stats display
     LostItem.find({
       isActive: true,
-      status: ITEM_STATUS.PENDING,
+      status: { $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED] }
     }),
   ]);
 
   const matchRate =
     totalLostItems > 0
-      ? ((matchedItems / totalLostItems) * 100).toFixed(2)
-      : 0;
-  const returnRate =
-    totalFoundItems > 0
-      ? ((returnedItem / totalFoundItems) * 100).toFixed(2)
+      ? ((matchedLostCount / totalLostItems) * 100).toFixed(2)
       : 0;
 
-  // Batch fetch users for all lost items in one query
+  const returnRate =
+    totalFoundItems > 0
+      ? ((returnedCount / totalFoundItems) * 100).toFixed(2)
+      : 0;
+
+  // Batch fetch users for all lost items in one query — avoids N+1
   const userIds = [...new Set(lostItems.map((l) => l.userId.toString()))];
   const users = await User.find({ _id: { $in: userIds } }).select("name email");
   const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
-  // O(n*m) loop — acceptable for small datasets
-  // Consider moving to background job if item counts grow large
+  // Build matches display list using already-stored matchedFoundItemIds
+  // Avoids O(n*m) loop — only crosses pairs that are actually matched
   const matches = [];
-  for (const foundItem of foundItems) {
-    for (const lostItem of lostItems) {
-      const matchScore = matchingService.calculateMatchScore(lostItem, foundItem);
 
-      if (matchScore > 60) {
-        const user = userMap[lostItem.userId.toString()];
-        matches.push({
-          foundItem: {
-            id: foundItem._id,
-            name: foundItem.name,
-            color: foundItem.color,
-            department: foundItem.department,
-            dateFound: foundItem.dateFound,
-            placeFound: foundItem.placeFound,
-          },
-          lostItem: {
-            id: lostItem._id,
-            name: lostItem.name,
-            color: lostItem.color,
-            dateLost: lostItem.dateLost,
-            placeLost: lostItem.placeLost,
-            description: lostItem.description,
-          },
-          similarity: matchScore,
-          user: user || null,
-        });
-      }
+  const foundItemMap = new Map(foundItems.map((f) => [f._id.toString(), f]));
+  for (const lostItem of lostItems) {
+    if (
+      !lostItem.matchedFoundItemIds ||
+      lostItem.matchedFoundItemIds.length === 0
+    )
+      continue;
+
+    const user = userMap[lostItem.userId.toString()] || null;
+    for (const foundItemRef of lostItem.matchedFoundItemIds) {
+      // foundItems array se match karo — avoids extra DB call
+      const foundItem = foundItemMap.get(foundItemRef.toString());
+
+      if (!foundItem) continue; // already returned/collected — skip
+
+      matches.push({
+        foundItem: {
+          id: foundItem._id,
+          name: foundItem.name,
+          color: foundItem.color,
+          department: foundItem.department,
+          dateFound: foundItem.dateFound,
+          placeFound: foundItem.placeFound,
+        },
+        lostItem: {
+          id: lostItem._id,
+          name: lostItem.name,
+          color: lostItem.color,
+          dateLost: lostItem.dateLost,
+          placeLost: lostItem.placeLost,
+          description: lostItem.description,
+        },
+        user,
+        similarity: matchingService.calculateMatchScore(lostItem, foundItem),
+      });
     }
   }
 
-  res.status(200).json(
+  return res.status(200).json(
     new ApiResponse(
       200,
       {
         overview: {
           totalLostItems,
           totalFoundItems,
-          matchedItems,
-          returnedItem,
+          matchedItems: matchedLostCount,
+          returnedItems: returnedCount,
           matchRate: parseFloat(matchRate),
           returnRate: parseFloat(returnRate),
         },
@@ -255,7 +278,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
         itemBreakdown: itemStats,
         department: department || "All Departments",
       },
-      "Matching Status fetched Successfully"
+      "Matching stats fetched successfully"
     )
   );
 });

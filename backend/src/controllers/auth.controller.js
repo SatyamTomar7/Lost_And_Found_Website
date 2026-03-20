@@ -269,7 +269,7 @@ export const resendOTP = asyncHandler(async (req, res) => {
   }
   if (
     user.emailVerificationExpire &&
-    user.emailVerificationExpire > new Date(Date.now() + 8 * 60 * 1000)
+    user.emailVerificationExpire > new Date(Date.now() + 2 * 60 * 1000)
   ) {
     throw new ApiError(
       429,
@@ -314,7 +314,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   // Rate limit: block if OTP was sent less than 2 minutes ago
   if (
     user.passwordResetOTPExpiry &&
-    user.passwordResetOTPExpiry > new Date(Date.now() + 8 * 60 * 1000)
+    user.passwordResetOTPExpiry > new Date(Date.now() + 2 * 60 * 1000)
   ) {
     throw new ApiError(
       429,
@@ -459,7 +459,7 @@ const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
 
   if (
     admin.passwordResetOTPExpiry &&
-    admin.passwordResetOTPExpiry > new Date(Date.now() + 8 * 60 * 1000)
+    admin.passwordResetOTPExpiry > new Date(Date.now() + 2 * 60 * 1000)
   ) {
     throw new ApiError(
       429,

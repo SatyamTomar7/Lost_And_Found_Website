@@ -86,7 +86,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
 
 export const getMyLostItems = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
-const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
   const { status } = req.query;
 
   const query = {
@@ -261,10 +261,7 @@ export const searchLostItems = asyncHandler(async (req, res) => {
   const query = { isActive: true };
 
   if (q) {
-    query.$or = [
-      { name: { $regex: q, $options: "i" } },
-      { description: { $regex: q, $options: "i" } },
-    ];
+    query.$text = { $search: q };
   }
 
   if (color) query.color = color;
@@ -296,6 +293,63 @@ export const searchLostItems = asyncHandler(async (req, res) => {
         data: lostItems,
       },
       "Items searched successfully"
+    )
+  );
+});
+export const selfResolveLostItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const lostItem = await LostItem.findById(id);
+
+  if (!lostItem) throw new ApiError(404, "Lost item not found");
+
+  if (lostItem.userId.toString() !== req.user.id) {
+    throw new ApiError(
+      403,
+      "Access denied. You can only resolve your own lost item reports."
+    );
+  }
+
+  const resolvableStatuses = [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED];
+  if (!resolvableStatuses.includes(lostItem.status)) {
+    throw new ApiError(
+      400,
+      `Cannot self-resolve an item with status "${lostItem.status}".`
+    );
+  }
+
+  // Pull this lost item from ALL matched found items' arrays
+  const matchedFoundItemIds = lostItem.matchedFoundItemIds || [];
+
+  if (matchedFoundItemIds.length > 0) {
+    await FoundItem.updateMany(
+      { _id: { $in: matchedFoundItemIds } },
+      { $pull: { matchedLostItemIds: lostItem._id } }
+    );
+
+    // Jinke matchedLostItemIds ab empty ho gaye — unhe FOUND pe revert karo
+    await FoundItem.updateMany(
+      { _id: { $in: matchedFoundItemIds }, matchedLostItemIds: { $size: 0 } },
+      { $set: { status: ITEM_STATUS.FOUND } }
+    );
+  }
+
+  lostItem.status = ITEM_STATUS.SELF_RESOLVED;
+  lostItem.selfResolvedAt = new Date();
+  lostItem.matchedFoundItemId = null;
+  lostItem.matchedFoundItemIds = []; // ← plural array bhi clear karo
+
+  await lostItem.save();
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        id: lostItem._id,
+        status: lostItem.status,
+        selfResolvedAt: lostItem.selfResolvedAt,
+      },
+      "Your lost item report has been closed. Glad you found it!"
     )
   );
 });

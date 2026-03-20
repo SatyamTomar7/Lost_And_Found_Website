@@ -51,9 +51,6 @@ export const uploadMultiple = uploadToCloudinary.array("images", 5);
 
 export const deleteImage = async (publicId) => {
   const result = await cloudinary.uploader.destroy(publicId);
-  if (result.result !== "ok") {
-    throw new ApiError(400, `Failed to delete image: ${result.result}`);
-  }
   return result;
 };
 

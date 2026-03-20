@@ -57,7 +57,7 @@ const lostItemSchema = new Schema(
     ],
     status: {
       type: String,
-      enum: [ITEM_STATUS.PENDING, ITEM_STATUS.COLLECTED],
+      enum: [ITEM_STATUS.PENDING, ITEM_STATUS.COLLECTED,ITEM_STATUS.SELF_RESOLVED,ITEM_STATUS.MATCHED],
       default: ITEM_STATUS.PENDING,
     },
 

@@ -9,17 +9,16 @@ import mongoose from "mongoose";
  * boosters (Place, Brand, Condition) are applied.
  */
 const WEIGHTS = Object.freeze({
-  name:  0.45, // GATE + highest weight (fixed dropdown = reliable)
-  color: 0.30, // GATE + second highest (fixed dropdown = reliable)
-  date:  0.10, // GATE + booster (±3 days window)
-  place: 0.10, // booster only
+  name: 0.45, // GATE + highest weight (fixed dropdown = reliable)
+  color: 0.3, // GATE + second highest (fixed dropdown = reliable)
+  date: 0.1, // GATE + booster (±3 days window)
+  place: 0.1, // booster only
   brand: 0.05, // booster only (optional field)
 });
 
 const CONDITION_BONUS_POINTS = 3; // Flat points added to final 0-100 score
 
 class MatchingService {
-
   // ---------------------------------------------------------------------------
   // NAME SIMILARITY
   // Fixed ITEM_NAME list → exact match is the norm, fuzzy only for "Other"
@@ -33,8 +32,8 @@ class MatchingService {
     if (n1 === n2) return 1; // Exact match (standard case from dropdown)
 
     // Fuzzy only for "Other" free-text or minor typos
-    const levenScore  = this.levenshteinSimilarity(n1, n2);
-    const tokenScore  = this.tokenOverlapScore(n1, n2);
+    const levenScore = this.levenshteinSimilarity(n1, n2);
+    const tokenScore = this.tokenOverlapScore(n1, n2);
     const substrScore = n1.includes(n2) || n2.includes(n1) ? 0.9 : 0;
 
     return Math.max(levenScore, tokenScore, substrScore);
@@ -123,34 +122,46 @@ class MatchingService {
   calculateMatchScore(lostItem, foundItem) {
     try {
       // ── GATE 1: Name ──
-      const nameSim = this.calculateNameSimilarity(lostItem.name, foundItem.name);
+      const nameSim = this.calculateNameSimilarity(
+        lostItem.name,
+        foundItem.name
+      );
       if (nameSim < 0.85) return 0;
 
       // ── GATE 2: Color ──
-      const colorSim = this.calculateColorSimilarity(lostItem.color, foundItem.color);
+      const colorSim = this.calculateColorSimilarity(
+        lostItem.color,
+        foundItem.color
+      );
       if (colorSim < 0.85) return 0;
 
       // ── GATE 3: Date ±3 days ──
-      const dateScore = this.checkDateProximity(lostItem.dateLost, foundItem.dateFound);
+      const dateScore = this.checkDateProximity(
+        lostItem.dateLost,
+        foundItem.dateFound
+      );
       if (dateScore === 0) return 0;
 
       // ── All gates passed → calculate weighted score ──
-      let totalScore  = 0;
+      let totalScore = 0;
       let totalWeight = 0;
 
       const addMetric = (score, weight) => {
-        totalScore  += score * weight;
+        totalScore += score * weight;
         totalWeight += weight;
       };
 
-      addMetric(nameSim,   WEIGHTS.name);
-      addMetric(colorSim,  WEIGHTS.color);
+      addMetric(nameSim, WEIGHTS.name);
+      addMetric(colorSim, WEIGHTS.color);
       addMetric(dateScore, WEIGHTS.date);
 
       // Place (10%) — only when both sides provided
       if (lostItem.placeLost && foundItem.placeFound) {
         addMetric(
-          this.calculatePlaceSimilarity(lostItem.placeLost, foundItem.placeFound),
+          this.calculatePlaceSimilarity(
+            lostItem.placeLost,
+            foundItem.placeFound
+          ),
           WEIGHTS.place
         );
       }
@@ -182,28 +193,34 @@ class MatchingService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // FIND MATCHES FOR A LOST ITEM
-  // ---------------------------------------------------------------------------
+
   async findMatchesForLostItem(lostItemId, threshold = 60) {
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
 
       const lostItem = await LostItem.findById(lostItemId).session(session);
-      if (!lostItem || !lostItem.isActive) throw new Error("Lost item not found or inactive");
+      if (
+        !lostItem ||
+        !lostItem.isActive ||
+        lostItem.status !== ITEM_STATUS.PENDING
+      )
+        throw new Error(
+          "Lost item not found, inactive, or not in pending state"
+        );
 
       // DB-level pre-filter: exact name + color + active status
+      // FOUND and MATCHED found items both eligible for matching
       const foundItems = await FoundItem.find({
         isActive: true,
-        status: ITEM_STATUS.FOUND,
-        name:  lostItem.name,
+        status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+        name: lostItem.name,
         color: lostItem.color,
       })
         .populate("adminId", "name department")
         .session(session);
 
-      const matches    = [];
+      const matches = [];
       const matchedIds = [];
 
       for (const foundItem of foundItems) {
@@ -221,12 +238,18 @@ class MatchingService {
       if (matchedIds.length > 0) {
         await LostItem.findByIdAndUpdate(
           lostItemId,
-          { $addToSet: { matchedFoundItemIds: { $each: matchedIds } } },
+          {
+            $addToSet: { matchedFoundItemIds: { $each: matchedIds } },
+            $set: { status: ITEM_STATUS.MATCHED },
+          },
           { session }
         );
         await FoundItem.updateMany(
           { _id: { $in: matchedIds } },
-          { $addToSet: { matchedLostItemIds: lostItemId } },
+          {
+            $addToSet: { matchedLostItemIds: lostItemId },
+            $set: { status: ITEM_STATUS.MATCHED },
+          },
           { session }
         );
       }
@@ -235,7 +258,10 @@ class MatchingService {
       return matches.sort((a, b) => b.matchScore - a.matchScore);
     } catch (error) {
       await session.abortTransaction();
-      console.error("Transaction Aborted in findMatchesForLostItem:", error.message);
+      console.error(
+        "Transaction Aborted in findMatchesForLostItem:",
+        error.message
+      );
       throw error;
     } finally {
       session.endSession();
@@ -251,19 +277,27 @@ class MatchingService {
       session.startTransaction();
 
       const foundItem = await FoundItem.findById(foundItemId).session(session);
-      if (!foundItem || !foundItem.isActive) throw new Error("Found item not found or inactive");
+      if (
+        !foundItem ||
+        !foundItem.isActive ||
+        ![ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED].includes(foundItem.status)
+      )
+        throw new Error(
+          "Found item not found, inactive, or not available for matching"
+        );
 
       // DB-level pre-filter: exact name + color
+      // PENDING and MATCHED lost items both eligible for matching
       const lostItems = await LostItem.find({
         isActive: true,
-        status: ITEM_STATUS.PENDING,
-        name:  foundItem.name,
+        status: { $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED] },
+        name: foundItem.name,
         color: foundItem.color,
       })
         .populate("userId", "name email")
         .session(session);
 
-      const matches    = [];
+      const matches = [];
       const matchedIds = [];
 
       for (const lostItem of lostItems) {
@@ -281,12 +315,18 @@ class MatchingService {
       if (matchedIds.length > 0) {
         await FoundItem.findByIdAndUpdate(
           foundItemId,
-          { $addToSet: { matchedLostItemIds: { $each: matchedIds } } },
+          {
+            $addToSet: { matchedLostItemIds: { $each: matchedIds } },
+            $set: { status: ITEM_STATUS.MATCHED },
+          },
           { session }
         );
         await LostItem.updateMany(
           { _id: { $in: matchedIds } },
-          { $addToSet: { matchedFoundItemIds: foundItemId } },
+          {
+            $addToSet: { matchedFoundItemIds: foundItemId },
+            $set: { status: ITEM_STATUS.MATCHED },
+          },
           { session }
         );
       }
@@ -295,7 +335,10 @@ class MatchingService {
       return matches.sort((a, b) => b.matchScore - a.matchScore);
     } catch (error) {
       await session.abortTransaction();
-      console.error("Transaction Aborted in findMatchesForFoundItem:", error.message);
+      console.error(
+        "Transaction Aborted in findMatchesForFoundItem:",
+        error.message
+      );
       throw error;
     } finally {
       session.endSession();
@@ -306,49 +349,62 @@ class MatchingService {
   // MATCH DETAILS (for UI breakdown display)
   // ---------------------------------------------------------------------------
   getMatchDetails(lostItem, foundItem) {
-    const dateScore = this.checkDateProximity(lostItem.dateLost, foundItem.dateFound);
-    const diffDays  = this.getDayDiff(lostItem.dateLost, foundItem.dateFound);
+    const dateScore = this.checkDateProximity(
+      lostItem.dateLost,
+      foundItem.dateFound
+    );
+    const diffDays = this.getDayDiff(lostItem.dateLost, foundItem.dateFound);
 
     return {
       nameMatch: {
-        score:      Math.round(this.calculateNameSimilarity(lostItem.name, foundItem.name) * 100),
-        lostValue:  lostItem.name,
+        score: Math.round(
+          this.calculateNameSimilarity(lostItem.name, foundItem.name) * 100
+        ),
+        lostValue: lostItem.name,
         foundValue: foundItem.name,
-        isExact:    lostItem.name === foundItem.name,
+        isExact: lostItem.name === foundItem.name,
       },
       colorMatch: {
-        score:      Math.round(this.calculateColorSimilarity(lostItem.color, foundItem.color) * 100),
-        lostValue:  lostItem.color,
+        score: Math.round(
+          this.calculateColorSimilarity(lostItem.color, foundItem.color) * 100
+        ),
+        lostValue: lostItem.color,
         foundValue: foundItem.color,
-        isExact:    lostItem.color === foundItem.color,
+        isExact: lostItem.color === foundItem.color,
       },
       dateMatch: {
-        score:        Math.round(dateScore * 100),
-        dateLost:     lostItem.dateLost,
-        dateFound:    foundItem.dateFound,
+        score: Math.round(dateScore * 100),
+        dateLost: lostItem.dateLost,
+        dateFound: foundItem.dateFound,
         diffDays,
         withinWindow: diffDays <= 3,
       },
       placeMatch: {
-        score:      Math.round(
-          this.calculatePlaceSimilarity(lostItem.placeLost, foundItem.placeFound) * 100
+        score: Math.round(
+          this.calculatePlaceSimilarity(
+            lostItem.placeLost,
+            foundItem.placeFound
+          ) * 100
         ),
-        lostValue:  lostItem.placeLost,
+        lostValue: lostItem.placeLost,
         foundValue: foundItem.placeFound,
       },
       brandMatch:
         lostItem.brand && foundItem.brand
           ? {
-              score:      Math.round(this.calculateBrandSimilarity(lostItem.brand, foundItem.brand) * 100),
-              lostValue:  lostItem.brand,
+              score: Math.round(
+                this.calculateBrandSimilarity(lostItem.brand, foundItem.brand) *
+                  100
+              ),
+              lostValue: lostItem.brand,
               foundValue: foundItem.brand,
             }
           : null,
       conditionMatch: {
-        lostValue:  lostItem.condition,
+        lostValue: lostItem.condition,
         foundValue: foundItem.condition,
-        matched:    lostItem.condition === foundItem.condition,
-        bonus:      lostItem.condition === foundItem.condition ? "+3 pts" : "0",
+        matched: lostItem.condition === foundItem.condition,
+        bonus: lostItem.condition === foundItem.condition ? "+3 pts" : "0",
       },
     };
   }
@@ -359,7 +415,9 @@ class MatchingService {
   levenshteinSimilarity(str1, str2) {
     const longer = str1.length > str2.length ? str1 : str2;
     if (longer.length === 0) return 1;
-    return (longer.length - this.levenshteinDistance(str1, str2)) / longer.length;
+    return (
+      (longer.length - this.levenshteinDistance(str1, str2)) / longer.length
+    );
   }
 
   tokenOverlapScore(str1, str2) {

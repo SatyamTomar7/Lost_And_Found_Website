@@ -13,6 +13,6 @@ router.use(protect);
 
 router.post("/single", uploadSingleImage);
 router.post("/multiple", uploadMultipleImages);
-router.delete("/:publicId",validateObjectId, deleteUploadedImage);
+router.delete("/:publicId", deleteUploadedImage);
 
 export default router;
