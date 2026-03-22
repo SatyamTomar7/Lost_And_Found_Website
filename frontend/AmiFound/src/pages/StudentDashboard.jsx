@@ -437,6 +437,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.lostItems });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notifications });
       showMessage("Lost Item reported successfully!", "success");
+      setActiveTab("my-items");
     },
     onError: (err) => {
       setPendingFormData(null);

@@ -44,13 +44,22 @@ const amityEmailRule = z
 
 const loginSchema = z.object({
   email: amityEmailRule,
-  password: z.string().min(1, "Password is required"),
+password: z.string()
+  .min(6, "Password must be at least 6 characters")
+  .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 
+    "Password must include uppercase, lowercase, and a number"),
 });
 
 const registerSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: amityEmailRule,
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      "Password must include uppercase, lowercase, and a number",
+    ),
 });
 
 const otpSchema = z.object({

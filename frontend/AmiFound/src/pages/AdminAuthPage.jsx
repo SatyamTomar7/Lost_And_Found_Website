@@ -4,7 +4,7 @@ import React, {
   useState,
   useCallback,
   useRef,
-} from "react"; 
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,9 +33,14 @@ import {
 const adminLoginSchema = z.object({
   department: z.string().min(1, "Please select a department"),
   username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      "Password must include uppercase, lowercase, and a number",
+    ),
 });
-
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, "Email is required").email("Must be a valid email"),
@@ -62,8 +67,6 @@ const schemaMap = {
   "new-password": newPasswordSchema,
 };
 
-
-
 const OTP_COOLDOWN = 120;
 
 const useOTPTimer = () => {
@@ -71,11 +74,9 @@ const useOTPTimer = () => {
   const intervalRef = useRef(null);
 
   const startTimer = useCallback(() => {
-    
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     setSecondsLeft(OTP_COOLDOWN);
-
 
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
@@ -95,12 +96,11 @@ const useOTPTimer = () => {
     setSecondsLeft(0);
   }, []);
 
-  
   useEffect(() => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []); 
+  }, []);
 
   const minutes = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const seconds = String(secondsLeft % 60).padStart(2, "0");
@@ -113,7 +113,6 @@ const useOTPTimer = () => {
     resetTimer,
   };
 };
-
 
 const PasswordInput = ({
   id,
@@ -179,7 +178,6 @@ const ResendButton = ({
     )}
   </button>
 );
-
 
 const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
   const navigate = useNavigate();
