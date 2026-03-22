@@ -143,12 +143,13 @@ export const login = asyncHandler(async (req, res) => {
       .sendOTPVerification(user.email, user.name, otp)
       .catch((err) => console.error("Email sending failed:", err));
 
-    return res.status(403).json(
+    return res.status(200).json(
       new ApiResponse(
-        403,
+        200,
         {
           email: user.email,
           name: user.name,
+           role: user.role
         },
         "ACCOUNT_NOT_VERIFIED"
       )

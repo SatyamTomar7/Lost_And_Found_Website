@@ -13,7 +13,6 @@ import lostItemRoutes from "./routes/lostitem.routes.js";
 import foundItemRoutes from "./routes/founditem.routes.js";
 import matchRoutes from "./routes/matches.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
-import uploadRoutes from "./routes/upload.routes.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -47,7 +46,8 @@ app.use(
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+        imgSrc: ["'self'", "data:"],
+
         scriptSrc: ["'self'"],
         connectSrc: [
           "'self'",
@@ -57,35 +57,43 @@ app.use(
                 "ws://localhost:5000",
                 "http://localhost:5173",
               ]
-            : [process.env.CLIENT_URL]),
+            : [
+                process.env.CLIENT_URL,
+                `wss://${process.env.CLIENT_URL?.replace("https://", "")}`,
+              ]),
         ],
       },
     },
   })
 );
 
-// 4. RATE LIMITER
-const limiter = rateLimit({
-  windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
-  message: "Too many requests from this IP, please try again later.",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use("/api/", limiter);
-
 // 5. BODY PARSERS
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 
-// 6. ROUTES
-app.use("/api/auth", authRoutes);
-app.use("/api/lostitems", lostItemRoutes);
-app.use("/api/founditems", foundItemRoutes);
-app.use("/api/matches", matchRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/upload", uploadRoutes);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // strict for auth endpoints
+  message: {
+    success: false,
+    message: "Too many requests, please try again later.",
+  },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500, // relaxed for regular API usage
+  message: {
+    success: false,
+    message: "Too many requests, please try again later.",
+  },
+});
+app.use("/api/auth", authLimiter, authRoutes);  
+app.use("/api/lostitems", apiLimiter, lostItemRoutes);
+app.use("/api/founditems", apiLimiter, foundItemRoutes);
+app.use("/api/matches", apiLimiter, matchRoutes);
+app.use("/api/notifications", apiLimiter, notificationRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({

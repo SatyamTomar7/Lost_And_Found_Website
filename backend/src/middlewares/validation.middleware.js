@@ -8,7 +8,6 @@ import {
   CAMPUS_LOCATIONS,
 } from "../constants.js";
 
-
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -48,7 +47,11 @@ const validateUserRegistration = [
 ];
 
 const validateOTPVerification = [
-  body("email").trim().isEmail().normalizeEmail().withMessage("Valid email required"),
+  body("email")
+    .trim()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Valid email required"),
   body("otp")
     .isLength({ min: 6, max: 6 })
     .isNumeric()
@@ -134,8 +137,8 @@ const validateLostItem = [
   body("description")
     .optional({ checkFalsy: true })
     .trim()
-    .isLength({ min: 10, max: 500 })
-    .withMessage("Description should be between 10 and 500 characters"),
+    .isLength({ max: 100 })
+    .withMessage("Description cannot exceed 100 characters"),
 
   body("color")
     .isIn(COLORS)
@@ -177,8 +180,8 @@ const validateFoundItem = [
   body("description")
     .optional({ checkFalsy: true })
     .trim()
-    .isLength({ max: 500 })
-    .withMessage("Description cannot exceed 500 characters"),
+    .isLength({ max: 100 })
+    .withMessage("Description cannot exceed 100 characters"),
 
   body("condition")
     .isIn(Object.values(ITEM_CONDITIONS))

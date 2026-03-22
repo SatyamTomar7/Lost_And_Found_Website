@@ -86,12 +86,6 @@ const NOTIFICATION_TYPES = {
     ITEM_UNAVAILABLE: "item_unavailable"
 };
 
-// File upload
-const FILE_UPLOAD = {
-  MAX_SIZE: 5 * 1024 * 1024, // 5MB
-  ALLOWED_TYPES: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
-  UPLOAD_PATH: "uploads/items/",
-};
 const ITEM_CONDITIONS = {
   NEW: "New",
   USED: "Used",
@@ -165,7 +159,6 @@ export {
   COLORS,
   ITEM_STATUS,
   NOTIFICATION_TYPES,
-  FILE_UPLOAD,
   ITEM_NAME,
   ITEM_CONDITIONS,
   ITEM_CONDITIONS_VALUES

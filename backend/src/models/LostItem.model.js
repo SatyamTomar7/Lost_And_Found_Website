@@ -16,7 +16,7 @@ const lostItemSchema = new Schema(
     description: {
       type: String,
       trim: true,
-      maxlength: [500, "Description can not exceed 500 characters"],
+      maxlength: [100, "Description can not exceed 100 characters"],
     },
     color: {
       type: String,
@@ -49,12 +49,6 @@ const lostItemSchema = new Schema(
       trim: true,
       maxlength: [100, "Place lost can not exceed 100 characters"],
     },
-    images: [
-      {
-        url: String,
-        publicId: String,
-      },
-    ],
     status: {
       type: String,
       enum: [ITEM_STATUS.PENDING, ITEM_STATUS.COLLECTED,ITEM_STATUS.SELF_RESOLVED,ITEM_STATUS.MATCHED],

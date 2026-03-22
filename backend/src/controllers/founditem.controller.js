@@ -10,16 +10,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { Notification } from "../models/Notification.model.js";
 
 export const addFoundItem = asyncHandler(async (req, res) => {
-  const {
-    name,
-    color,
-    dateFound,
-    placeFound,
-    photoUrl,
-    photoPublicId,
-    brand,
-    condition,
-  } = req.body;
+  const { name, color, dateFound, placeFound, brand, condition } = req.body;
 
   const foundItemData = {
     name,
@@ -30,7 +21,6 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     condition,
     adminId: req.user.id,
     department: req.user.department,
-    images: photoUrl ? [{ url: photoUrl, publicId: photoPublicId }] : [],
   };
 
   const foundItem = await FoundItem.create(foundItemData);
@@ -112,8 +102,6 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
   const [foundItems, total] = await Promise.all([
     FoundItem.find(query)
       .populate("adminId", "name")
-      .populate("claimedBy", "name email")
-
       .populate({
         path: "matchedLostItemIds",
         select: "name userId status createdAt",
@@ -387,7 +375,10 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
         },
         status: ITEM_STATUS.MATCHED,
       },
-      { $set: { status: ITEM_STATUS.PENDING } },
+      {
+        $set: { status: ITEM_STATUS.PENDING },
+        $pull: { matchedFoundItemIds: mongoose.Types.ObjectId(id) },
+      },
       { session }
     );
 
@@ -452,6 +443,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
 
 export const markAsCollectedOffline = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const { collectorName, collectorContact } = req.body; // ✅ extract collector info
 
   // Declared outside try so accessible after session ends
   let existingFoundItem;
@@ -490,8 +482,13 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
           status: ITEM_STATUS.OFFLINE_RETURNED,
           returnedAt: new Date(),
           matchedLostItemIds: [],
+          claimedBy: {
+            // ✅ save collector info
+            name: collectorName || "Unknown",
+            contact: collectorContact || "N/A",
+          },
         },
-        $unset: { claimedBy: "", matchedLostItemId: "" },
+        $unset: { matchedLostItemId: "" }, // ✅ removed claimedBy from $unset
       },
       { new: true, session, runValidators: true }
     ).populate("adminId", "name department");

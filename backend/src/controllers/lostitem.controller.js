@@ -12,10 +12,6 @@ export const submitLostItem = asyncHandler(async (req, res) => {
   const lostItemData = {
     ...req.body,
     userId: req.user.id,
-    images:
-      req.body.photoUrl && req.body.photoPublicId
-        ? [{ url: req.body.photoUrl, publicId: req.body.photoPublicId }]
-        : [],
   };
 
   const lostItem = await LostItem.create(lostItemData);

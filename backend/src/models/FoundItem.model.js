@@ -3,7 +3,7 @@ import {
   COLORS,
   DEPARTMENTS,
   ITEM_STATUS,
- ITEM_CONDITIONS_VALUES
+  ITEM_CONDITIONS_VALUES,
 } from "../constants.js";
 const foundItemSchema = new Schema(
   {
@@ -26,7 +26,7 @@ const foundItemSchema = new Schema(
     description: {
       type: String,
       trim: true,
-      maxlength: [500, "Description can not exceed 500 characters"],
+      maxlength: [100, "Description can not exceed 100 characters"],
     },
     color: {
       type: String,
@@ -59,16 +59,15 @@ const foundItemSchema = new Schema(
       trim: true,
       maxlength: [100, "Place found can not exceed 100 characters"],
     },
-
-    images: [
-      {
-        url: String,
-        publicId: String,
-      },
-    ],
     status: {
       type: String,
-      enum: [ITEM_STATUS.FOUND, ITEM_STATUS.RETURNED, ITEM_STATUS.UNCLAIMED,ITEM_STATUS.OFFLINE_RETURNED,ITEM_STATUS.MATCHED],
+      enum: [
+        ITEM_STATUS.FOUND,
+        ITEM_STATUS.RETURNED,
+        ITEM_STATUS.UNCLAIMED,
+        ITEM_STATUS.OFFLINE_RETURNED,
+        ITEM_STATUS.MATCHED,
+      ],
       default: ITEM_STATUS.FOUND,
     },
 
@@ -86,9 +85,9 @@ const foundItemSchema = new Schema(
     },
 
     claimedBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
+      name: { type: String },
+      email: { type: String }, // used by online return
+      contact: { type: String }, // used by offline return
     },
     claimedAt: Date,
     returnedAt: Date,
@@ -141,5 +140,5 @@ foundItemSchema.index({
 foundItemSchema.index({ department: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
 foundItemSchema.index({ adminId: 1 });
-foundItemSchema.index({ matchedLostItemIds: 1 }); 
+foundItemSchema.index({ matchedLostItemIds: 1 });
 export const FoundItem = mongoose.model("FoundItem", foundItemSchema);
