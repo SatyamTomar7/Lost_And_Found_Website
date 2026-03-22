@@ -15,6 +15,7 @@ import matchRoutes from "./routes/matches.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 
 const app = express();
+app.set("trust proxy", 1);
 const httpServer = createServer(app);
 
 // 1. SOCKET.IO SETUP
