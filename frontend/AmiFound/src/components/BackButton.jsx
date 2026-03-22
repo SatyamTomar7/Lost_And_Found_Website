@@ -9,14 +9,17 @@ const BackButton = () => {
   const isHomePage = location.pathname === "/";
   if (isHomePage) return null;
 
-  const handleBack = () => {
-    // location.key is 'default' if the user landed here directly (no history)
-    if (location.key === "default") {
-      navigate("/", { replace: true });
-    } else {
-      navigate(-1);
-    }
-  };
+const handleBack = () => {
+  // location.key is "default" when user landed directly on this page
+  // (typed URL, bookmarked, refreshed) — no browser history to go back to.
+  // In that case, send them home instead of navigate(-1) which would
+  // exit the app entirely.
+  if (location.key === "default") {
+    navigate("/", { replace: true });
+  } else {
+    navigate(-1);
+  }
+};
 
   return (
     <button

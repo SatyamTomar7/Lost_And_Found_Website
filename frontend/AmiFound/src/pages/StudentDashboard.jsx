@@ -61,20 +61,6 @@ const lostItemSchema = z.object({
     .max(100, "Description cannot exceed 100 characters")
     .optional()
     .or(z.literal("")),
-  photo: z
-    .any()
-    .refine(
-      (files) => !files || files.length === 0 || files[0].size <= 5000000,
-      `Max file size is 5MB.`,
-    )
-    .refine(
-      (files) =>
-        !files ||
-        files.length === 0 ||
-        ["image/jpeg", "image/png", "image/jpg"].includes(files[0].type),
-      ".jpg, .jpeg, and .png files are accepted.",
-    )
-    .optional(),
 });
 
 const resolver = zodResolver(lostItemSchema);
@@ -120,10 +106,7 @@ const SubmitConfirmModal = React.memo(
         {/* Body */}
         <div className="return-details__body">
           {/* Warning message */}
-          <div
-            className="submit-confirm-modal__warning"
-            role="alert"
-          >
+          <div className="submit-confirm-modal__warning" role="alert">
             <FaExclamationTriangle />
             <p>
               <strong>Once submitted, details cannot be edited.</strong> Please
@@ -135,25 +118,35 @@ const SubmitConfirmModal = React.memo(
           <div className="submit-confirm-modal__details">
             <div className="submit-confirm-modal__row">
               <span className="submit-confirm-modal__label">Item Name</span>
-              <span className="submit-confirm-modal__value">{formData.name}</span>
+              <span className="submit-confirm-modal__value">
+                {formData.name}
+              </span>
             </div>
             <div className="submit-confirm-modal__row">
               <span className="submit-confirm-modal__label">Color</span>
-              <span className="submit-confirm-modal__value">{formData.color}</span>
+              <span className="submit-confirm-modal__value">
+                {formData.color}
+              </span>
             </div>
             <div className="submit-confirm-modal__row">
               <span className="submit-confirm-modal__label">Condition</span>
-              <span className="submit-confirm-modal__value">{formData.condition}</span>
+              <span className="submit-confirm-modal__value">
+                {formData.condition}
+              </span>
             </div>
             {formData.brand && (
               <div className="submit-confirm-modal__row">
                 <span className="submit-confirm-modal__label">Brand</span>
-                <span className="submit-confirm-modal__value">{formData.brand}</span>
+                <span className="submit-confirm-modal__value">
+                  {formData.brand}
+                </span>
               </div>
             )}
             <div className="submit-confirm-modal__row">
               <span className="submit-confirm-modal__label">Place Lost</span>
-              <span className="submit-confirm-modal__value">{formData.placeLost}</span>
+              <span className="submit-confirm-modal__value">
+                {formData.placeLost}
+              </span>
             </div>
             <div className="submit-confirm-modal__row">
               <span className="submit-confirm-modal__label">Date Lost</span>
@@ -168,14 +161,8 @@ const SubmitConfirmModal = React.memo(
             {formData.description && (
               <div className="submit-confirm-modal__row">
                 <span className="submit-confirm-modal__label">Description</span>
-                <span className="submit-confirm-modal__value">{formData.description}</span>
-              </div>
-            )}
-            {formData.photo?.[0] && (
-              <div className="submit-confirm-modal__row">
-                <span className="submit-confirm-modal__label">Photo</span>
                 <span className="submit-confirm-modal__value">
-                  {formData.photo[0].name}
+                  {formData.description}
                 </span>
               </div>
             )}
@@ -243,9 +230,15 @@ const SelfResolveModal = React.memo(
           <div className="self-resolve-modal__item-preview">
             <div className="self-resolve-modal__item-name">{item.name}</div>
             <div className="item-meta">
-              <span><FaPalette /> {item.color}</span>
-              <span><FaCalendarAlt /> {new Date(item.dateLost).toLocaleDateString()}</span>
-              <span><FaMapMarkerAlt /> {item.placeLost}</span>
+              <span>
+                <FaPalette /> {item.color}
+              </span>
+              <span>
+                <FaCalendarAlt /> {new Date(item.dateLost).toLocaleDateString()}
+              </span>
+              <span>
+                <FaMapMarkerAlt /> {item.placeLost}
+              </span>
             </div>
           </div>
           <div className="self-resolve-modal__message">
@@ -274,9 +267,13 @@ const SelfResolveModal = React.memo(
             disabled={isLoading}
           >
             {isLoading ? (
-              <><FaSpinner className="spin-icon" /> Closing…</>
+              <>
+                <FaSpinner className="spin-icon" /> Closing…
+              </>
             ) : (
-              <><FaCheckCircle /> Yes, I Found It</>
+              <>
+                <FaCheckCircle /> Yes, I Found It
+              </>
             )}
           </button>
         </div>
@@ -293,15 +290,21 @@ const LostItemCard = React.memo(({ item, onSelfResolve, isResolving }) => (
       <div className="item-info">
         <h4>{item.name}</h4>
         <div className="item-meta">
-          <span><FaPalette /> {item.color}</span>
-          <span><FaCalendarAlt /> {new Date(item.dateLost).toLocaleDateString()}</span>
-          <span><FaMapMarkerAlt /> {item.placeLost}</span>
+          <span>
+            <FaPalette /> {item.color}
+          </span>
+          <span>
+            <FaCalendarAlt /> {new Date(item.dateLost).toLocaleDateString()}
+          </span>
+          <span>
+            <FaMapMarkerAlt /> {item.placeLost}
+          </span>
         </div>
       </div>
       <span
-        className={`status status--${item.status.toLowerCase().replace(/_/g, "-")}`}
+        className={`status status--${item.status.toLowerCase().replace(/[\s_]/g, "-")}`}
       >
-        {item.status === "self_resolved" ? "Self Resolved" : item.status}
+        {item.status === "self resolved" ? "Self Resolved" : item.status}
       </span>
     </div>
     {item.description && (
@@ -365,13 +368,12 @@ const ProfileField = React.memo(({ label, value }) => (
   </div>
 ));
 ProfileField.displayName = "ProfileField";
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
   const [activeTab, setActiveTab] = useState("report-lost");
   const [showNotifications, setShowNotifications] = useState(false);
   const [selfResolveModalItem, setSelfResolveModalItem] = useState(null);
-  const [pendingFormData, setPendingFormData] = useState(null); // ← NEW: holds data for confirm modal
+  const [pendingFormData, setPendingFormData] = useState(null);
   const queryClient = useQueryClient();
 
   const {
@@ -402,7 +404,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
     enabled: activeTab === "my-items",
     staleTime: 0,
     gcTime: 1000 * 60 * 5,
-    refetchInterval: 5000,
+    refetchInterval: 10000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
@@ -418,7 +420,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
         };
       },
       staleTime: 0,
-      refetchInterval: 3000,
+      refetchInterval: 10000,
       refetchIntervalInBackground: false,
       refetchOnWindowFocus: true,
     });
@@ -427,7 +429,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
 
   // ── Mutations ─────────────────────────────────────────────────────────────
   const submitLostItemMutation = useMutation({
-    mutationFn: (data) => submitLostItem(data, data.photo?.[0]),
+    mutationFn: (data) => submitLostItem(data),
     onMutate: () => setLoading(true),
     onSuccess: () => {
       reset();
@@ -463,7 +465,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
       queryClient.setQueryData(QUERY_KEYS.lostItems, (old = []) =>
         old.map((item) =>
           item._id === itemId
-            ? { ...item, status: "self_resolved", isActive: false }
+            ? { ...item, status: "self resolved", isActive: false }
             : item,
         ),
       );
@@ -477,7 +479,10 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
     },
     onError: (err, _itemId, context) => {
       if (context?.previousLostItems) {
-        queryClient.setQueryData(QUERY_KEYS.lostItems, context.previousLostItems);
+        queryClient.setQueryData(
+          QUERY_KEYS.lostItems,
+          context.previousLostItems,
+        );
       }
       showMessage(
         err.message || "Failed to resolve the item. Please try again.",
@@ -492,7 +497,6 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
     (notificationId) => markReadMutation.mutate(notificationId),
     [markReadMutation],
   );
-
   const handleCloseNotifications = useCallback(() => {
     setShowNotifications(false);
     markAllReadMutation.mutate();
@@ -611,11 +615,15 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       >
                         <option value="">Select Name</option>
                         {ITEM_NAME.map((item) => (
-                          <option key={item} value={item}>{item}</option>
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
                         ))}
                       </select>
                       {errors.name && (
-                        <div className="error-message">{errors.name.message}</div>
+                        <div className="error-message">
+                          {errors.name.message}
+                        </div>
                       )}
                     </div>
 
@@ -632,7 +640,9 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       >
                         <option value="">Select a color</option>
                         {COLORS.map((color) => (
-                          <option key={color} value={color}>{color}</option>
+                          <option key={color} value={color}>
+                            {color}
+                          </option>
                         ))}
                       </select>
                       {errors.color && (
@@ -692,7 +702,10 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                         </label>
                       </div>
                       {errors.condition && (
-                        <div className="error-message" style={{ marginTop: "5px" }}>
+                        <div
+                          className="error-message"
+                          style={{ marginTop: "5px" }}
+                        >
                           {errors.condition.message}
                         </div>
                       )}
@@ -723,11 +736,15 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       >
                         <option value="">Select Location</option>
                         {CAMPUS_LOCATIONS.map((location) => (
-                          <option key={location} value={location}>{location}</option>
+                          <option key={location} value={location}>
+                            {location}
+                          </option>
                         ))}
                       </select>
                       {errors.placeLost && (
-                        <div className="error-message">{errors.placeLost.message}</div>
+                        <div className="error-message">
+                          {errors.placeLost.message}
+                        </div>
                       )}
                     </div>
                     <div className="form-group">
@@ -743,7 +760,9 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                         disabled={isFormDisabled}
                       />
                       {errors.dateLost && (
-                        <div className="error-message">{errors.dateLost.message}</div>
+                        <div className="error-message">
+                          {errors.dateLost.message}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -757,20 +776,6 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       {...register("description")}
                       className="form-control"
                       rows={3}
-                      disabled={isFormDisabled}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="photo" className="form-label">
-                      Photo (optional)
-                    </label>
-                    <input
-                      id="photo"
-                      type="file"
-                      {...register("photo")}
-                      className="form-control"
-                      accept="image/*"
                       disabled={isFormDisabled}
                     />
                   </div>

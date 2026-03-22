@@ -11,7 +11,6 @@ import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   FaPalette,
-  FaTag,
   FaCalendarAlt,
   FaMapMarkerAlt,
   FaCheck,
@@ -33,6 +32,8 @@ import {
   FaExclamationTriangle,
   FaEdit,
   FaCheckCircle,
+  FaIdCard,
+  FaPhone,
 } from "react-icons/fa";
 
 import {
@@ -44,7 +45,7 @@ import {
   markItemCollectedOffline,
 } from "../services/itemService";
 
-// ─── Zod Schema ───────────────────────────────────────────────────────────────
+// ─── Zod Schemas ──────────────────────────────────────────────────────────────
 const today = new Date().toISOString().split("T")[0];
 
 const foundItemSchema = z.object({
@@ -59,6 +60,15 @@ const foundItemSchema = z.object({
     .min(1, "Date is required")
     .refine((d) => d <= today, { message: "Date cannot be in the future" }),
   placeFound: z.string().min(1, "Please select a location"),
+});
+
+// ─── NEW: Zod schema for offline collector form ───────────────────────────────
+const collectOfflineSchema = z.object({
+  collectorName: z.string().min(1, "Collector name is required"),
+  collectorContact: z
+    .string()
+    .min(1, "Enrollment / contact is required")
+    .max(30, "Too long"),
 });
 
 const resolver = zodResolver(foundItemSchema);
@@ -78,7 +88,6 @@ const SubmitConfirmModal = React.memo(
         aria-modal="true"
         aria-labelledby="confirm-submit-title"
       >
-        {/* Header */}
         <div className="return-modal__header">
           <div className="return-modal__title-group">
             <FaExclamationTriangle className="return-modal__icon return-modal__icon--warning" />
@@ -86,9 +95,7 @@ const SubmitConfirmModal = React.memo(
           </div>
         </div>
 
-        {/* Body */}
         <div className="return-details__body">
-          {/* Warning */}
           <div className="submit-confirm-modal__warning" role="alert">
             <FaExclamationTriangle />
             <p>
@@ -98,7 +105,6 @@ const SubmitConfirmModal = React.memo(
             </p>
           </div>
 
-          {/* Details */}
           <div className="submit-confirm-modal__details">
             <div className="submit-confirm-modal__row">
               <span className="submit-confirm-modal__label">Item Name</span>
@@ -145,7 +151,6 @@ const SubmitConfirmModal = React.memo(
           </div>
         </div>
 
-        {/* Footer */}
         <div className="return-modal__footer">
           <button
             className="btn btn--outline"
@@ -177,96 +182,107 @@ const SubmitConfirmModal = React.memo(
 SubmitConfirmModal.displayName = "SubmitConfirmModal";
 
 // ─── Return Details Modal ─────────────────────────────────────────────────────
-const ReturnDetailsModal = ({ item, onClose }) => {
-  return (
-    <div className="return-modal-overlay" onClick={onClose}>
-      <div
-        className="return-modal"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="details-modal-title"
-      >
-        <div className="return-modal__header">
-          <div className="return-modal__title-group">
-            <FaInfoCircle className="return-modal__icon" />
-            <h3 id="details-modal-title">Return Details</h3>
+const ReturnDetailsModal = ({ item, onClose }) => (
+  <div className="return-modal-overlay" onClick={onClose}>
+    <div
+      className="return-modal"
+      onClick={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="details-modal-title"
+    >
+      <div className="return-modal__header">
+        <div className="return-modal__title-group">
+          <FaInfoCircle className="return-modal__icon" />
+          <h3 id="details-modal-title">Return Details</h3>
+        </div>
+        <button
+          className="return-modal__close"
+          onClick={onClose}
+          aria-label="Close modal"
+        >
+          <FaTimes />
+        </button>
+      </div>
+
+      <div className="return-details__body">
+        <div className="return-details__section">
+          <p className="return-details__section-label">Returned Item</p>
+          <div className="return-details__item-card">
+            <div className="return-details__item-name">{item.name}</div>
+            <div className="item-meta">
+              <span>
+                <FaPalette /> {item.color}
+              </span>
+              <span>
+                <FaMapMarkerAlt /> {item.placeFound}
+              </span>
+              <span>
+                <FaCalendarAlt />{" "}
+                {new Date(item.dateFound).toLocaleDateString()}
+              </span>
+            </div>
           </div>
-          <button
-            className="return-modal__close"
-            onClick={onClose}
-            aria-label="Close modal"
-          >
-            <FaTimes />
-          </button>
         </div>
 
-        <div className="return-details__body">
+        <div className="return-details__section">
+          <p className="return-details__section-label">Claimed By</p>
+          <div className="return-details__claimant-card">
+            <div className="return-details__avatar">
+              <FaUser />
+            </div>
+            <div className="return-details__claimant-info">
+              <div className="return-details__claimant-name">
+                {item.claimedBy?.name || "N/A"}
+              </div>
+              <div className="return-details__claimant-email">
+                <FaEnvelope /> {item.claimedBy?.email || "N/A"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {item.returnedAt && (
           <div className="return-details__section">
-            <p className="return-details__section-label">Returned Item</p>
-            <div className="return-details__item-card">
-              <div className="return-details__item-name">{item.name}</div>
-              <div className="item-meta">
-                <span>
-                  <FaPalette /> {item.color}
-                </span>
-                <span>
-                  <FaMapMarkerAlt /> {item.placeFound}
-                </span>
-                <span>
-                  <FaCalendarAlt />{" "}
-                  {new Date(item.dateFound).toLocaleDateString()}
-                </span>
-              </div>
+            <p className="return-details__section-label">Returned On</p>
+            <div className="return-details__date">
+              <FaCalendarAlt />
+              <span>
+                {new Date(item.returnedAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </span>
             </div>
           </div>
+        )}
+      </div>
 
-          <div className="return-details__section">
-            <p className="return-details__section-label">Claimed By</p>
-            <div className="return-details__claimant-card">
-              <div className="return-details__avatar">
-                <FaUser />
-              </div>
-              <div className="return-details__claimant-info">
-                <div className="return-details__claimant-name">
-                  {item.claimedBy?.name || "N/A"}
-                </div>
-                <div className="return-details__claimant-email">
-                  <FaEnvelope /> {item.claimedBy?.email || "N/A"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {item.returnedAt && (
-            <div className="return-details__section">
-              <p className="return-details__section-label">Returned On</p>
-              <div className="return-details__date">
-                <FaCalendarAlt />
-                <span>
-                  {new Date(item.returnedAt).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="return-modal__footer">
-          <button className="btn btn--primary" onClick={onClose}>
-            Close
-          </button>
-        </div>
+      <div className="return-modal__footer">
+        <button className="btn btn--primary" onClick={onClose}>
+          Close
+        </button>
       </div>
     </div>
-  );
-};
+  </div>
+);
 
-// ─── Offline Collected Details Modal ─────────────────────────────────────────
-const OfflineCollectedDetailsModal = ({ item, onClose }) => {
+// ─── NEW: Collect Offline Modal — captures collector info ─────────────────────
+const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(collectOfflineSchema),
+    defaultValues: { collectorName: "", collectorContact: "" },
+  });
+
+  const onSubmit = (data) => {
+    onConfirm(item._id, data.collectorName, data.collectorContact);
+  };
+
   return (
     <div className="return-modal-overlay" onClick={onClose}>
       <div
@@ -274,84 +290,246 @@ const OfflineCollectedDetailsModal = ({ item, onClose }) => {
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="offline-modal-title"
+        aria-labelledby="collect-offline-title"
       >
         <div className="return-modal__header">
           <div className="return-modal__title-group">
             <FaWalking className="return-modal__icon" />
-            <h3 id="offline-modal-title">Collected Offline</h3>
+            <h3 id="collect-offline-title">Collected Offline</h3>
           </div>
           <button
             className="return-modal__close"
             onClick={onClose}
             aria-label="Close modal"
+            disabled={isLoading}
           >
             <FaTimes />
           </button>
         </div>
 
-        <div className="return-details__body">
-          <div className="return-details__section">
-            <p className="return-details__section-label">Item</p>
-            <div className="return-details__item-card">
-              <div className="return-details__item-name">{item.name}</div>
-              <div className="item-meta">
-                <span>
-                  <FaPalette /> {item.color}
-                </span>
-                <span>
-                  <FaMapMarkerAlt /> {item.placeFound}
-                </span>
-                <span>
-                  <FaCalendarAlt />{" "}
-                  {new Date(item.dateFound).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          </div>
+        {/* Item summary */}
+        <div className="return-modal__found-summary">
+          <p className="return-modal__label">Item being marked as collected:</p>
+          <p className="return-modal__item-name">
+            <strong>{item.name}</strong> — {item.color} • {item.placeFound}
+          </p>
+        </div>
 
-          <div className="return-details__section">
-            <p className="return-details__section-label">Collection Note</p>
-            <div className="return-details__item-card">
-              <p
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className="return-modal__body" style={{ paddingBottom: 0 }}>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "var(--text-secondary, #6b7280)",
+                marginBottom: "16px",
+                lineHeight: 1.5,
+              }}
+            >
+              Record who collected this item in person so it can be referenced
+              later.
+            </p>
+
+            {/* Collector Name */}
+            <div className="form-group">
+              <label htmlFor="collectorName" className="form-label">
+                Collector Name *
+              </label>
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: "14px",
-                  color: "var(--text-secondary, #666)",
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
                 }}
               >
-                This item was collected in person by the owner without using the
-                system. No digital claimant record is available.
-              </p>
+                <FaUser
+                  style={{
+                    position: "absolute",
+                    left: "12px",
+                    color: "var(--text-muted, #9ca3af)",
+                    fontSize: "13px",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  id="collectorName"
+                  {...register("collectorName")}
+                  className={`form-control ${errors.collectorName ? "is-invalid" : ""}`}
+                  placeholder="Full name of the person"
+                  disabled={isLoading}
+                  style={{ paddingLeft: "34px" }}
+                />
+              </div>
+              {errors.collectorName && (
+                <div className="error-message">
+                  {errors.collectorName.message}
+                </div>
+              )}
+            </div>
+
+            {/* Enrollment / Contact */}
+            <div className="form-group">
+              <label htmlFor="collectorContact" className="form-label">
+                Enrollment No. / Contact *
+              </label>
+              <div
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <FaIdCard
+                  style={{
+                    position: "absolute",
+                    left: "12px",
+                    color: "var(--text-muted, #9ca3af)",
+                    fontSize: "13px",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  id="collectorContact"
+                  {...register("collectorContact")}
+                  className={`form-control ${errors.collectorContact ? "is-invalid" : ""}`}
+                  placeholder="e.g. A2305214118 or phone number"
+                  disabled={isLoading}
+                  style={{ paddingLeft: "34px" }}
+                />
+              </div>
+              {errors.collectorContact && (
+                <div className="error-message">
+                  {errors.collectorContact.message}
+                </div>
+              )}
             </div>
           </div>
 
-          {item.returnedAt && (
-            <div className="return-details__section">
-              <p className="return-details__section-label">Collected On</p>
-              <div className="return-details__date">
-                <FaCalendarAlt />
-                <span>
-                  {new Date(item.returnedAt).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="return-modal__footer">
-          <button className="btn btn--primary" onClick={onClose}>
-            Close
-          </button>
-        </div>
+          <div className="return-modal__footer">
+            <button
+              type="button"
+              className="btn btn--outline"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn--collected-offline"
+              disabled={isLoading}
+              style={{
+                background: isLoading ? undefined : "#b45309",
+                color: "#fff",
+                border: "none",
+              }}
+            >
+              {isLoading ? (
+                <>
+                  <FaSpinner className="spin-icon" /> Saving…
+                </>
+              ) : (
+                <>
+                  <FaWalking /> Confirm Offline Collection
+                </>
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
 };
+CollectOfflineModal.displayName = "CollectOfflineModal";
+
+// ─── UPDATED: Offline Collected Details Modal — shows claimedBy info ──────────
+const OfflineCollectedDetailsModal = ({ item, onClose }) => (
+  <div className="return-modal-overlay" onClick={onClose}>
+    <div
+      className="return-modal"
+      onClick={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="offline-modal-title"
+    >
+      <div className="return-modal__header">
+        <div className="return-modal__title-group">
+          <FaWalking className="return-modal__icon" />
+          <h3 id="offline-modal-title">Collected Offline</h3>
+        </div>
+        <button
+          className="return-modal__close"
+          onClick={onClose}
+          aria-label="Close modal"
+        >
+          <FaTimes />
+        </button>
+      </div>
+
+      <div className="return-details__body">
+        {/* Item info */}
+        <div className="return-details__section">
+          <p className="return-details__section-label">Item</p>
+          <div className="return-details__item-card">
+            <div className="return-details__item-name">{item.name}</div>
+            <div className="item-meta">
+              <span>
+                <FaPalette /> {item.color}
+              </span>
+              <span>
+                <FaMapMarkerAlt /> {item.placeFound}
+              </span>
+              <span>
+                <FaCalendarAlt />{" "}
+                {new Date(item.dateFound).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Collector info — same structure as ReturnDetailsModal for consistency */}
+        <div className="return-details__section">
+          <p className="return-details__section-label">Collected By</p>
+          <div className="return-details__claimant-card">
+            <div className="return-details__avatar">
+              <FaUser />
+            </div>
+            <div className="return-details__claimant-info">
+              <div className="return-details__claimant-name">
+                {item.claimedBy?.name || "N/A"}
+              </div>
+              {/* Shows contact (enrollment/phone) instead of email */}
+              <div className="return-details__claimant-email">
+                <FaIdCard /> {item.claimedBy?.contact || "N/A"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {item.returnedAt && (
+          <div className="return-details__section">
+            <p className="return-details__section-label">Collected On</p>
+            <div className="return-details__date">
+              <FaCalendarAlt />
+              <span>
+                {new Date(item.returnedAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="return-modal__footer">
+        <button className="btn btn--primary" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+);
 
 // ─── Return Modal ─────────────────────────────────────────────────────────────
 const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
@@ -647,7 +825,7 @@ const MultiMatchSummaryCard = React.memo(
   },
 );
 
-// ─── Sub-Components ──────────────────────────────────────────────────────────
+// ─── FoundItemCard ────────────────────────────────────────────────────────────
 const FoundItemCard = React.memo(
   ({
     item,
@@ -658,7 +836,9 @@ const FoundItemCard = React.memo(
     onViewDetails,
     onViewOfflineDetails,
   }) => {
+    // ✅ normalise status — handles "offline returned" with space correctly
     const statusLower = item.status.toLowerCase();
+    const statusClass = statusLower.replace(/\s+/g, "-");
 
     return (
       <div className="item-card">
@@ -685,7 +865,8 @@ const FoundItemCard = React.memo(
                 </div>
               )}
           </div>
-          <span className={`status status--${statusLower}`}>{item.status}</span>
+          {/* ✅ statusClass prevents invalid CSS class with space */}
+          <span className={`status status--${statusClass}`}>{item.status}</span>
         </div>
 
         <div className="item-actions">
@@ -698,7 +879,8 @@ const FoundItemCard = React.memo(
             </button>
           )}
 
-          {statusLower === "collected" && (
+          {/* ✅ correctly matches "offline returned" from backend */}
+          {statusLower === "offline returned" && (
             <button
               className="btn btn--sm btn--info"
               onClick={() => onViewOfflineDetails(item)}
@@ -723,9 +905,10 @@ const FoundItemCard = React.memo(
               >
                 <FaClock /> Mark as Unclaimed
               </button>
+              {/* ✅ now passes full item, not just id */}
               <button
                 className="btn btn--sm btn--collected-offline"
-                onClick={() => onMarkCollectedOffline(item._id)}
+                onClick={() => onMarkCollectedOffline(item)}
                 disabled={isUpdating}
                 title="Student collected the item in person without using the system"
               >
@@ -757,7 +940,9 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
   const [returnModalItem, setReturnModalItem] = useState(null);
   const [detailsModalItem, setDetailsModalItem] = useState(null);
   const [offlineDetailsModalItem, setOfflineDetailsModalItem] = useState(null);
-  const [pendingFormData, setPendingFormData] = useState(null); // ← NEW
+  // ✅ NEW: holds the full item waiting for collector info — replaces direct itemId call
+  const [collectOfflineItem, setCollectOfflineItem] = useState(null);
+  const [pendingFormData, setPendingFormData] = useState(null);
   const queryClient = useQueryClient();
 
   const {
@@ -787,7 +972,7 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     enabled: activeTab === "found-items",
     staleTime: 0,
     gcTime: 1000 * 60 * 5,
-    refetchInterval: 3000,
+    refetchInterval: 10000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
@@ -800,7 +985,7 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     },
     enabled: activeTab === "matches",
     staleTime: 0,
-    refetchInterval: 3000,
+    refetchInterval: 10000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
@@ -822,9 +1007,9 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
         showMessage(result.message || "Failed to add found item.", "error");
       }
     },
-    onError: () => {
+    onError: (error) => {
       setPendingFormData(null);
-      showMessage("Failed to add found item.", "error");
+      showMessage(error?.message || "Failed to add found item.", "error");
     },
     onSettled: () => setLoading(false),
   });
@@ -851,21 +1036,23 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
       setReturnModalItem(null);
       showMessage("Item status updated successfully.", "success");
     },
-    onError: (err, variables, context) => {
+    onError: (error, variables, context) => {
       if (context?.previousFoundItems) {
         queryClient.setQueryData(
           QUERY_KEYS.foundItems,
           context.previousFoundItems,
         );
       }
-      showMessage("Failed to update item status.", "error");
+      showMessage(error?.message || "Failed to update item status.", "error");
     },
     onSettled: () => setLoading(false),
   });
 
+  // ✅ UPDATED: now accepts collectorName + collectorContact
   const collectedOfflineMutation = useMutation({
-    mutationFn: (itemId) => markItemCollectedOffline(itemId),
-    onMutate: async (itemId) => {
+    mutationFn: ({ itemId, collectorName, collectorContact }) =>
+      markItemCollectedOffline(itemId, collectorName, collectorContact),
+    onMutate: async ({ itemId, collectorName, collectorContact }) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.foundItems });
       const previousFoundItems = queryClient.getQueryData(
         QUERY_KEYS.foundItems,
@@ -873,7 +1060,13 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
       queryClient.setQueryData(QUERY_KEYS.foundItems, (old = []) =>
         old.map((item) =>
           item._id === itemId
-            ? { ...item, status: "offline returned", matchedLostItemIds: [] }
+            ? {
+                ...item,
+                status: "offline returned",
+                matchedLostItemIds: [],
+                // ✅ optimistic update includes collector info for immediate UI
+                claimedBy: { name: collectorName, contact: collectorContact },
+              }
             : item,
         ),
       );
@@ -883,34 +1076,34 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.foundItems });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.matches });
+      setCollectOfflineItem(null);
       showMessage("Item marked as collected offline.", "success");
     },
-    onError: (err, itemId, context) => {
+    onError: (error, variables, context) => {
       if (context?.previousFoundItems) {
         queryClient.setQueryData(
           QUERY_KEYS.foundItems,
           context.previousFoundItems,
         );
       }
-      showMessage("Failed to mark item as collected offline.", "error");
+      showMessage(
+        error?.message || "Failed to mark item as collected offline.",
+        "error",
+      );
     },
     onSettled: () => setLoading(false),
   });
 
   // ── Callbacks ─────────────────────────────────────────────────────────────
-
-  // ── NEW: intercept form — show confirm modal ──
   const handleFormSubmit = useCallback((data) => {
     setPendingFormData(data);
   }, []);
 
-  // ── NEW: user confirmed — actual submit ──
   const handleConfirmSubmit = useCallback(() => {
     if (!pendingFormData) return;
     submitMutation.mutate(pendingFormData);
   }, [pendingFormData, submitMutation]);
 
-  // ── NEW: user wants to edit — close modal, form stays filled ──
   const handleEditBack = useCallback(() => {
     setPendingFormData(null);
   }, []);
@@ -941,8 +1134,20 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
     setDetailsModalItem(item);
   }, []);
 
-  const handleMarkCollectedOffline = useCallback(
-    (itemId) => collectedOfflineMutation.mutate(itemId),
+  // ✅ UPDATED: now opens CollectOfflineModal instead of directly mutating
+  const handleMarkCollectedOffline = useCallback((item) => {
+    setCollectOfflineItem(item);
+  }, []);
+
+  // ✅ NEW: called when admin submits collector info in CollectOfflineModal
+  const handleCollectOfflineConfirm = useCallback(
+    (itemId, collectorName, collectorContact) => {
+      collectedOfflineMutation.mutate({
+        itemId,
+        collectorName,
+        collectorContact,
+      });
+    },
     [collectedOfflineMutation],
   );
 
@@ -961,7 +1166,9 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
   }, [matches]);
 
   const isAnyUpdating =
-    updateStatusMutation.isPending || collectedOfflineMutation.isPending;
+    updateStatusMutation.isPending ||
+    collectedOfflineMutation.isPending ||
+    submitMutation.isPending;
 
   const isTabLoading =
     (activeTab === "found-items" && foundItemsLoading) ||
@@ -1009,7 +1216,6 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
                   <FaPlusCircle /> Add Found Item
                 </h2>
 
-                {/* ── onSubmit now intercepts via handleFormSubmit ── */}
                 <form
                   onSubmit={handleSubmit(handleFormSubmit)}
                   className="dashboard-form"
@@ -1301,6 +1507,16 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
         <OfflineCollectedDetailsModal
           item={offlineDetailsModalItem}
           onClose={() => setOfflineDetailsModalItem(null)}
+        />
+      )}
+
+      {/* ─── NEW: Collect Offline Modal — captures collector info ─── */}
+      {collectOfflineItem && (
+        <CollectOfflineModal
+          item={collectOfflineItem}
+          onConfirm={handleCollectOfflineConfirm}
+          onClose={() => setCollectOfflineItem(null)}
+          isLoading={collectedOfflineMutation.isPending}
         />
       )}
 

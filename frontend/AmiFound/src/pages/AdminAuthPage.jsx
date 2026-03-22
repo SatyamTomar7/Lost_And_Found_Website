@@ -1,15 +1,32 @@
-import React, { useMemo, useEffect, useState, useCallback, useRef } from "react"; // ADDED: useState, useCallback, useRef
+import React, {
+  useMemo,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react"; 
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { FaSignInAlt, FaLock, FaArrowLeft, FaEnvelope, FaKey, FaCheck, FaRedo, FaClock, FaEye, FaEyeSlash } from "react-icons/fa"; // ADDED icons
+import {
+  FaSignInAlt,
+  FaLock,
+  FaArrowLeft,
+  FaEnvelope,
+  FaKey,
+  FaCheck,
+  FaRedo,
+  FaClock,
+  FaEye,
+  FaEyeSlash,
+} from "react-icons/fa";
 import {
   adminLogin,
-  adminForgotPassword,       // ADDED
-  adminVerifyResetOTP,       // ADDED
-  adminResetPassword,        // ADDED
+  adminForgotPassword,
+  adminVerifyResetOTP,
+  adminResetPassword,
 } from "../services/authService";
 
 // ─── Zod Schema ───────────────────────────────────────────────────────────────
@@ -20,7 +37,6 @@ const adminLoginSchema = z.object({
 });
 
 
-// ── ADDED: Extra schemas for forgot password flow ─────────────────────────────
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, "Email is required").email("Must be a valid email"),
 });
@@ -45,9 +61,9 @@ const schemaMap = {
   "reset-otp": resetOTPSchema,
   "new-password": newPasswordSchema,
 };
-// ── END ADDED ──
 
-// ── ADDED: OTP Countdown Timer Hook ──────────────────────────────────────────
+
+
 const OTP_COOLDOWN = 120;
 
 const useOTPTimer = () => {
@@ -55,38 +71,58 @@ const useOTPTimer = () => {
   const intervalRef = useRef(null);
 
   const startTimer = useCallback(() => {
+    
     if (intervalRef.current) clearInterval(intervalRef.current);
+
     setSecondsLeft(OTP_COOLDOWN);
+
+
+    intervalRef.current = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   }, []);
 
   const resetTimer = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
     setSecondsLeft(0);
   }, []);
 
+  
   useEffect(() => {
-    if (secondsLeft <= 0) {
+    return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      return;
-    }
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) { clearInterval(intervalRef.current); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(intervalRef.current);
-  }, [secondsLeft]);
+    };
+  }, []); 
 
   const minutes = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const seconds = String(secondsLeft % 60).padStart(2, "0");
 
-  return { isActive: secondsLeft > 0, display: `${minutes}:${seconds}`, startTimer, resetTimer };
+  return {
+    isActive: secondsLeft > 0,
+    display: `${minutes}:${seconds}`,
+    secondsLeft,
+    startTimer,
+    resetTimer,
+  };
 };
-// ── END ADDED ──
 
-// ── ADDED: Password Input with Show/Hide ──────────────────────────────────────
-const PasswordInput = ({ id, registration, error, placeholder, disabled, autoComplete }) => {
+
+const PasswordInput = ({
+  id,
+  registration,
+  error,
+  placeholder,
+  disabled,
+  autoComplete,
+}) => {
   const [show, setShow] = useState(false);
   return (
     <div className="password-input-wrapper">
@@ -111,10 +147,14 @@ const PasswordInput = ({ id, registration, error, placeholder, disabled, autoCom
     </div>
   );
 };
-// ── END ADDED ──
 
-// ── ADDED: Resend Button with Timer ───────────────────────────────────────────
-const ResendButton = ({ onResend, isResending, timerDisplay, timerActive, isAnyPending }) => (
+const ResendButton = ({
+  onResend,
+  isResending,
+  timerDisplay,
+  timerActive,
+  isAnyPending,
+}) => (
   <button
     type="button"
     onClick={onResend}
@@ -122,17 +162,25 @@ const ResendButton = ({ onResend, isResending, timerDisplay, timerActive, isAnyP
     disabled={timerActive || isResending || isAnyPending}
   >
     {isResending ? (
-      <><FaRedo className="spin-icon" /><span>Resending…</span></>
+      <>
+        <FaRedo className="spin-icon" />
+        <span>Resending…</span>
+      </>
     ) : timerActive ? (
-      <><FaClock /><span>Resend in {timerDisplay}</span></>
+      <>
+        <FaClock />
+        <span>Resend in {timerDisplay}</span>
+      </>
     ) : (
-      <><FaRedo /><span>Resend OTP</span></>
+      <>
+        <FaRedo />
+        <span>Resend OTP</span>
+      </>
     )}
   </button>
 );
-// ── END ADDED ──
 
-// ─── Component ───────────────────────────────────────────────────────────────
+
 const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
   const navigate = useNavigate();
 
@@ -159,14 +207,14 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
   // ── END ADDED ──
 
   const resolver = useMemo(
-    () => zodResolver(schemaMap[formType]),  // CHANGED: dynamic schema based on formType
-    [formType]
+    () => zodResolver(schemaMap[formType]), // CHANGED: dynamic schema based on formType
+    [formType],
   );
 
   const {
     register,
     handleSubmit,
-    reset,         // ADDED
+    reset, // ADDED
     setError,
     formState: { errors, isSubmitting },
   } = useForm({
@@ -175,18 +223,21 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
       department: "",
       username: "",
       password: "",
-      email: "",           // ADDED
-      otp: "",             // ADDED
-      newPassword: "",     // ADDED
+      email: "", // ADDED
+      otp: "", // ADDED
+      newPassword: "", // ADDED
       confirmPassword: "", // ADDED
     },
   });
 
   // ── ADDED: switchForm helper ──
-  const switchForm = useCallback((type) => {
-    reset();
-    setFormType(type);
-  }, [reset]);
+  const switchForm = useCallback(
+    (type) => {
+      reset();
+      setFormType(type);
+    },
+    [reset],
+  );
   // ── END ADDED ──
 
   // ── TanStack Query Mutation — COMPLETELY UNCHANGED ────────────────────────
@@ -212,9 +263,8 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
         });
       }
     },
-    onError: () => {
-      showMessage("Error connecting to server", "error");
-    },
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => {
       setLoading(false);
     },
@@ -225,13 +275,17 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
     mutationFn: ({ email }) => adminForgotPassword(email),
     onMutate: () => setLoading(true),
     onSuccess: (result, variables) => {
-      showMessage("If this admin email exists, an OTP has been sent.", "success");
+      showMessage(
+        "If this admin email exists, an OTP has been sent.",
+        "success",
+      );
       setResetEmail(variables.email);
       setFormType("reset-otp");
       reset();
       resetTimer.startTimer();
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -242,7 +296,8 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
       resetTimer.startTimer();
       showMessage("OTP resent to your email.", "success");
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -259,7 +314,8 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
         showMessage(result.message || "Invalid or expired OTP", "error");
       }
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -277,31 +333,41 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
         showMessage(result.message || "Failed to reset password", "error");
       }
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
   // ── END ADDED ──
 
   const onSubmit = (data) => {
     if (formType === "login") loginMutation.mutate(data);
-    else if (formType === "forgot-password") forgotPasswordMutation.mutate(data);       // ADDED
-    else if (formType === "reset-otp") verifyResetOTPMutation.mutate(data);             // ADDED
-    else if (formType === "new-password") resetPasswordMutation.mutate(data);           // ADDED
+    else if (formType === "forgot-password")
+      forgotPasswordMutation.mutate(data); // ADDED
+    else if (formType === "reset-otp")
+      verifyResetOTPMutation.mutate(data); // ADDED
+    else if (formType === "new-password") resetPasswordMutation.mutate(data); // ADDED
   };
 
   // ── ADDED ──
   const isAnyPending =
     loginMutation.isPending ||
     forgotPasswordMutation.isPending ||
+    resendResetOTPMutation.isPending ||
     verifyResetOTPMutation.isPending ||
     resetPasswordMutation.isPending ||
     isSubmitting;
 
   const headerMap = {
-    login:             { title: "Admin Login",       sub: "Department administrator access" },
-    "forgot-password": { title: "Forgot Password",   sub: "Enter your admin email to receive an OTP" },
-    "reset-otp":       { title: "Verify OTP",        sub: `OTP sent to ${resetEmail}` },
-    "new-password":    { title: "Set New Password",  sub: "Choose a strong password for your account" },
+    login: { title: "Admin Login", sub: "Department administrator access" },
+    "forgot-password": {
+      title: "Forgot Password",
+      sub: "Enter your admin email to receive an OTP",
+    },
+    "reset-otp": { title: "Verify OTP", sub: `OTP sent to ${resetEmail}` },
+    "new-password": {
+      title: "Set New Password",
+      sub: "Choose a strong password for your account",
+    },
   };
   // ── END ADDED ──
 
@@ -309,7 +375,6 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
     <main className="page active" id="main-content">
       <div className="auth-container">
         <div className="auth-card">
-
           {/* CHANGED: dynamic header */}
           <header className="auth-header">
             <h2>{headerMap[formType]?.title}</h2>
@@ -318,7 +383,11 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
 
           {/* ── Login form — COMPLETELY UNCHANGED except "Forgot password?" link added at bottom ── */}
           {formType === "login" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="form-group">
                 <label htmlFor="admin-department" className="form-label">
                   Department
@@ -375,7 +444,7 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                     type="button"
                     className="forgot-password-link"
                     onClick={() => switchForm("forgot-password")}
-                   disabled={isAnyPending}
+                    disabled={isAnyPending}
                   >
                     Forgot password?
                   </button>
@@ -392,7 +461,8 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                 />
                 {(errors.password || errors.root?.serverError) && (
                   <div className="error-message" role="alert">
-                    {errors.password?.message || errors.root?.serverError?.message}
+                    {errors.password?.message ||
+                      errors.root?.serverError?.message}
                   </div>
                 )}
               </div>
@@ -403,25 +473,36 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                 disabled={isAnyPending}
                 aria-busy={loginMutation.isPending}
               >
-                <FaSignInAlt aria-hidden="true" style={{ marginRight: "8px" }} />
-                <span>{loginMutation.isPending ? "Logging in…" : "Admin Login"}</span>
+                <FaSignInAlt
+                  aria-hidden="true"
+                  style={{ marginRight: "8px" }}
+                />
+                <span>
+                  {loginMutation.isPending ? "Logging in…" : "Admin Login"}
+                </span>
               </button>
             </form>
           )}
 
           {/* ── ADDED: Forgot Password — Enter Email ── */}
           {formType === "forgot-password" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="reset-info-box">
                 <FaLock className="reset-info-box__icon" />
                 <p>
-                  Enter your registered admin email. We'll send a 6-digit OTP
-                  to reset your password.
+                  Enter your registered admin email. We'll send a 6-digit OTP to
+                  reset your password.
                 </p>
               </div>
 
               <div className="form-group">
-                <label htmlFor="forgot-email" className="form-label">Admin Email Address</label>
+                <label htmlFor="forgot-email" className="form-label">
+                  Admin Email Address
+                </label>
                 <input
                   id="forgot-email"
                   {...register("email")}
@@ -430,12 +511,22 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                   placeholder="admin@example.com"
                   disabled={isAnyPending}
                 />
-                {errors.email && <div className="error-message">{errors.email.message}</div>}
+                {errors.email && (
+                  <div className="error-message">{errors.email.message}</div>
+                )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
                 <FaEnvelope />
-                <span>{forgotPasswordMutation.isPending ? "Sending OTP…" : "Send Reset OTP"}</span>
+                <span>
+                  {forgotPasswordMutation.isPending
+                    ? "Sending OTP…"
+                    : "Send Reset OTP"}
+                </span>
               </button>
 
               <button
@@ -452,14 +543,22 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
 
           {/* ── ADDED: Forgot Password — Verify OTP ── */}
           {formType === "reset-otp" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="otp-message">
                 <FaEnvelope />
-                <p>Reset OTP sent to <strong>{resetEmail}</strong></p>
+                <p>
+                  Reset OTP sent to <strong>{resetEmail}</strong>
+                </p>
               </div>
 
               <div className="form-group">
-                <label htmlFor="reset-otp-input" className="form-label">Reset OTP</label>
+                <label htmlFor="reset-otp-input" className="form-label">
+                  Reset OTP
+                </label>
                 <input
                   id="reset-otp-input"
                   {...register("otp")}
@@ -469,12 +568,22 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                   placeholder="000000"
                   disabled={isAnyPending}
                 />
-                {errors.otp && <div className="error-message">{errors.otp.message}</div>}
+                {errors.otp && (
+                  <div className="error-message">{errors.otp.message}</div>
+                )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
                 <FaKey />
-                <span>{verifyResetOTPMutation.isPending ? "Verifying…" : "Verify OTP"}</span>
+                <span>
+                  {verifyResetOTPMutation.isPending
+                    ? "Verifying…"
+                    : "Verify OTP"}
+                </span>
               </button>
 
               <ResendButton
@@ -499,14 +608,22 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
 
           {/* ── ADDED: New Password ── */}
           {formType === "new-password" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="reset-info-box reset-info-box--success">
                 <FaCheck className="reset-info-box__icon" />
-                <p>OTP verified! Choose a strong new password for your account.</p>
+                <p>
+                  OTP verified! Choose a strong new password for your account.
+                </p>
               </div>
 
               <div className="form-group">
-                <label htmlFor="new-password-input" className="form-label">New Password</label>
+                <label htmlFor="new-password-input" className="form-label">
+                  New Password
+                </label>
                 <PasswordInput
                   id="new-password-input"
                   registration={register("newPassword")}
@@ -516,7 +633,9 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                   autoComplete="new-password"
                 />
                 {errors.newPassword && (
-                  <div className="error-message">{errors.newPassword.message}</div>
+                  <div className="error-message">
+                    {errors.newPassword.message}
+                  </div>
                 )}
               </div>
 
@@ -533,18 +652,27 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                   autoComplete="new-password"
                 />
                 {errors.confirmPassword && (
-                  <div className="error-message">{errors.confirmPassword.message}</div>
+                  <div className="error-message">
+                    {errors.confirmPassword.message}
+                  </div>
                 )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
                 <FaLock />
-                <span>{resetPasswordMutation.isPending ? "Resetting…" : "Reset Password"}</span>
+                <span>
+                  {resetPasswordMutation.isPending
+                    ? "Resetting…"
+                    : "Reset Password"}
+                </span>
               </button>
             </form>
           )}
           {/* ── END ADDED ── */}
-
         </div>
       </div>
     </main>

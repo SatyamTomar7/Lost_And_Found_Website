@@ -92,32 +92,36 @@ const useOTPTimer = () => {
   const intervalRef = useRef(null);
 
   const startTimer = useCallback(() => {
+    // Clear any existing interval first
     if (intervalRef.current) clearInterval(intervalRef.current);
+
     setSecondsLeft(OTP_COOLDOWN);
-  }, []);
 
-  const resetTimer = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setSecondsLeft(0);
-  }, []);
-
-  useEffect(() => {
-    if (secondsLeft <= 0) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      return;
-    }
+    // Start a single interval that runs until done
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           clearInterval(intervalRef.current);
+          intervalRef.current = null;
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+  }, []);
 
-    return () => clearInterval(intervalRef.current);
-  }, [secondsLeft]);
+  const resetTimer = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
+    setSecondsLeft(0);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []); // ✅ runs only on mount/unmount
 
   const minutes = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const seconds = String(secondsLeft % 60).padStart(2, "0");
@@ -247,7 +251,6 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
     mutationFn: ({ email, password }) => login(email, password),
     onMutate: () => setLoading(true),
     onSuccess: (result) => {
-      // ── STUCK STATE FIX ───────────────────────────────────────────────
       if (result.message === "ACCOUNT_NOT_VERIFIED") {
         setPendingRegistration({
           email: result.data?.email ?? "",
@@ -261,9 +264,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
           "Your email isn't verified yet — a new code has been sent.",
           "info",
         );
-        return; // ← stops here, never reaches the code below
+        return;
       }
-      // ── END FIX ───────────────────────────────────────────────────────
 
       if (result.success && result.data) {
         setCurrentUser(result.data.user);
@@ -277,7 +279,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
         showMessage(result.message || "Invalid email or password", "error");
       }
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -301,7 +304,6 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
         );
         return;
       }
-      // ── END FIX ───────────────────────────────────────────────────────
 
       if (result.success) {
         setPendingRegistration({
@@ -316,7 +318,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
         showMessage(result.message || "Registration failed", "error");
       }
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -339,7 +342,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
         showMessage(result.message || "Invalid OTP", "error");
       }
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -354,7 +358,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
         showMessage(result.message || "Failed to resend OTP", "error");
       }
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -368,7 +373,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
       reset();
       resetTimer.startTimer();
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -379,7 +385,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
       resetTimer.startTimer();
       showMessage("OTP resent to your email.", "success");
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -396,7 +403,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
         showMessage(result.message || "Invalid or expired OTP", "error");
       }
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -414,7 +422,8 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
         showMessage(result.message || "Failed to reset password", "error");
       }
     },
-    onError: () => showMessage("Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 

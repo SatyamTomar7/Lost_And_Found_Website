@@ -16,7 +16,7 @@ import {
 } from "react-router-dom";
 import { FaSpinner, FaExclamationTriangle } from "react-icons/fa";
 import { checkCurrentUser, logout } from "./services/authService";
-import "./styles/App1.css";
+import "./styles/App.css";
 
 // ── Non-lazy components (always needed, no code-split overhead) ───────────────
 import BackButton from "./components/BackButton";
