@@ -1,5 +1,6 @@
 import { google } from "googleapis";
-import { MailComposer } from "nodemailer/lib/mail-composer/index.js";
+import pkg from "nodemailer/lib/mail-composer/index.js";
+const { MailComposer } = pkg;
 
 // ─── Sanitizer ────────────────────────────────────────────────────────────────
 const sanitize = (str) =>
