@@ -217,17 +217,23 @@ export const updateFoundItem = asyncHandler(async (req, res) => {
 export const markAsReturned = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { lostItemId, claimedByUserId } = req.body;
+
   if (!lostItemId || !claimedByUserId) {
-    throw new ApiError(
-      400,
-      "Lost Item ID and Claimant ID are required for handover"
-    );
+    throw new ApiError(400, "Lost Item ID and Claimant ID are required for handover");
   }
 
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
+    const claimant = await User.findById(claimedByUserId)
+      .select("name email")
+      .session(session);
+
+    if (!claimant) {
+      throw new ApiError(404, "Claimant user not found");
+    }
+
     const foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
@@ -237,14 +243,18 @@ export const markAsReturned = asyncHandler(async (req, res) => {
       {
         $set: {
           status: ITEM_STATUS.RETURNED,
-          claimedBy: claimedByUserId,
+          claimedBy: {
+            name: claimant.name,   
+            email: claimant.email, 
+          },
           matchedLostItemId: lostItemId,
           returnedAt: new Date(),
           matchedLostItemIds: [],
         },
       },
       { new: true, session, runValidators: true }
-    ).populate("claimedBy", "name email");
+    
+    );
 
     if (!foundItem) {
       throw new ApiError(404, "Found item not found or access denied");
@@ -263,10 +273,7 @@ export const markAsReturned = asyncHandler(async (req, res) => {
     );
 
     if (!lostUpdate) {
-      throw new ApiError(
-        400,
-        "Specific lost item record not found or user mismatch"
-      );
+      throw new ApiError(400, "Specific lost item record not found or user mismatch");
     }
 
     await LostItem.updateMany(
@@ -283,22 +290,13 @@ export const markAsReturned = asyncHandler(async (req, res) => {
 
     await session.commitTransaction();
 
-    res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          { foundItem },
-          "Item returned and all related potential matches cleared"
-        )
-      );
+    res.status(200).json(
+      new ApiResponse(200, { foundItem }, "Item returned and all related potential matches cleared")
+    );
   } catch (error) {
     await session.abortTransaction();
     console.error("Handover Error:", error);
-    throw new ApiError(
-      error.statusCode || 500,
-      error.message || "Internal Server Error during handover"
-    );
+    throw new ApiError(error.statusCode || 500, error.message || "Internal Server Error during handover");
   } finally {
     session.endSession();
   }
