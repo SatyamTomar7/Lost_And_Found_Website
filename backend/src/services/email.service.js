@@ -1,6 +1,4 @@
 import { google } from "googleapis";
-import pkg from "nodemailer/lib/mail-composer/index.js";
-const { MailComposer } = pkg;
 
 // ─── Sanitizer ────────────────────────────────────────────────────────────────
 const sanitize = (str) =>
@@ -23,16 +21,17 @@ oauth2Client.setCredentials({
 const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
 // ─── Helper: Build raw base64 email ──────────────────────────────────────────
-async function buildRawEmail({ to, subject, html }) {
-  const composer = new MailComposer({
-    from: `Amity Lost & Found <${process.env.MY_EMAIL}>`,
-    to,
-    subject,
+function buildRawEmail({ to, subject, html }) {
+  const message = [
+    `From: Amity Lost & Found <${process.env.MY_EMAIL}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/html; charset=UTF-8`,
+    ``,
     html,
-    textEncoding: "base64",
-  });
+  ].join("\r\n");
 
-  const message = await composer.compile().build();
   return Buffer.from(message)
     .toString("base64")
     .replace(/\+/g, "-")
@@ -42,7 +41,7 @@ async function buildRawEmail({ to, subject, html }) {
 
 // ─── Helper: Send via Gmail API ───────────────────────────────────────────────
 async function sendEmail({ to, subject, html }) {
-  const raw = await buildRawEmail({ to, subject, html });
+  const raw = buildRawEmail({ to, subject, html });
   await gmail.users.messages.send({
     userId: "me",
     requestBody: { raw },
