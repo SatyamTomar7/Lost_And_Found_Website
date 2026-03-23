@@ -1,3 +1,4 @@
+import { User } from "../models/user.model.js";
 import mongoose from "mongoose";
 import { ITEM_STATUS, NOTIFICATION_TYPES } from "../constants.js";
 import { FoundItem } from "../models/FoundItem.model.js";
