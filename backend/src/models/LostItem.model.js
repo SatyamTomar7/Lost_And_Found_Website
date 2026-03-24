@@ -51,7 +51,12 @@ const lostItemSchema = new Schema(
     },
     status: {
       type: String,
-      enum: [ITEM_STATUS.PENDING, ITEM_STATUS.COLLECTED,ITEM_STATUS.SELF_RESOLVED,ITEM_STATUS.MATCHED],
+      enum: [
+        ITEM_STATUS.PENDING,
+        ITEM_STATUS.COLLECTED,
+        ITEM_STATUS.SELF_RESOLVED,
+        ITEM_STATUS.MATCHED,
+      ],
       default: ITEM_STATUS.PENDING,
     },
 
@@ -109,7 +114,12 @@ lostItemSchema.index({
   placeLost: "text",
   searchKeywords: "text",
 });
-
+lostItemSchema.index({
+  name: 1,
+  color: 1,
+  isActive: 1,
+  status: 1,
+});
 lostItemSchema.index({ userId: 1, createdAt: -1 });
 lostItemSchema.index({ status: 1, dateLost: -1 });
 lostItemSchema.index({ matchedFoundItemIds: 1 });

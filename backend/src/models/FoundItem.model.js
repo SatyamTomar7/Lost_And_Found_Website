@@ -136,7 +136,12 @@ foundItemSchema.index({
   placeFound: "text",
   searchKeywords: "text",
 });
-
+foundItemSchema.index({
+  name: 1,
+  color: 1,
+  isActive: 1,
+  status: 1,
+});
 foundItemSchema.index({ department: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
 foundItemSchema.index({ adminId: 1 });

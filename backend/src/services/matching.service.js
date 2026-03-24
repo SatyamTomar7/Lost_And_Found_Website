@@ -16,6 +16,7 @@ const WEIGHTS = Object.freeze({
   brand: 0.05, // booster only (optional field)
 });
 
+const AMBIGUOUS_COLORS = Object.freeze(["Multi-colored", "Other"]);
 const CONDITION_BONUS_POINTS = 3; // Flat points added to final 0-100 score
 
 class MatchingService {
@@ -45,16 +46,13 @@ class MatchingService {
   // ---------------------------------------------------------------------------
   calculateColorSimilarity(color1, color2) {
     if (!color1 || !color2) return 0;
-
     if (color1 === color2) return 1;
 
-    const ambiguous = ["Multi-colored", "Other"];
-
     // Both ambiguous → small partial credit
-    if (ambiguous.includes(color1) && ambiguous.includes(color2)) return 0.4;
+    if (AMBIGUOUS_COLORS.includes(color1) && AMBIGUOUS_COLORS.includes(color2)) return 0.4;
 
-    // One side is "Other" → finder may not know exact color
-    if (color1 === "Other" || color2 === "Other") return 0.2;
+    // One side ambiguous → finder may not know exact color
+    if (AMBIGUOUS_COLORS.includes(color1) || AMBIGUOUS_COLORS.includes(color2)) return 0.2;
 
     return 0; // Different specific colors = definite no match
   }
@@ -70,7 +68,7 @@ class MatchingService {
     if (diffDays > 3) return 0; // Hard cutoff
 
     // Linear decay: same day = 1.0, day 3 = 0.0
-    return Math.round((1 - diffDays / 3) * 100) / 100;
+    return Math.round((1 - diffDays / 4) * 100) / 100;
   }
 
   // ---------------------------------------------------------------------------
@@ -133,7 +131,11 @@ class MatchingService {
         lostItem.color,
         foundItem.color
       );
-      if (colorSim < 0.85) return 0;
+      const eitherAmbiguous =
+        AMBIGUOUS_COLORS.includes(lostItem.color) ||
+        AMBIGUOUS_COLORS.includes(foundItem.color);
+      const colorGate = eitherAmbiguous ? 0.15 : 0.85;
+      if (colorSim < colorGate) return 0;
 
       // ── GATE 3: Date ±3 days ──
       const dateScore = this.checkDateProximity(
@@ -193,7 +195,9 @@ class MatchingService {
     }
   }
 
-
+  // ---------------------------------------------------------------------------
+  // FIND MATCHES FOR A LOST ITEM
+  // ---------------------------------------------------------------------------
   async findMatchesForLostItem(lostItemId, threshold = 60) {
     const session = await mongoose.startSession();
     try {
@@ -209,13 +213,17 @@ class MatchingService {
           "Lost item not found, inactive, or not in pending state"
         );
 
-      // DB-level pre-filter: exact name + color + active status
+      // DB-level pre-filter: exact name + color-aware filter + active status
+      // Always include AMBIGUOUS_COLORS so a specific color catches "Other"
+      // logs, and an ambiguous color catches all other ambiguous logs.
       // FOUND and MATCHED found items both eligible for matching
+      const colorFilter = { $in: [lostItem.color, ...AMBIGUOUS_COLORS] };
+
       const foundItems = await FoundItem.find({
         isActive: true,
         status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
         name: lostItem.name,
-        color: lostItem.color,
+        color: colorFilter,
       })
         .populate("adminId", "name department")
         .session(session);
@@ -247,7 +255,7 @@ class MatchingService {
         await FoundItem.updateMany(
           { _id: { $in: matchedIds } },
           {
-            $addToSet: { matchedLostItemIds: lostItemId },
+            $addToSet: { matchedLostItemIds: { $each: [lostItemId] } },
             $set: { status: ITEM_STATUS.MATCHED },
           },
           { session }
@@ -286,13 +294,17 @@ class MatchingService {
           "Found item not found, inactive, or not available for matching"
         );
 
-      // DB-level pre-filter: exact name + color
+      // DB-level pre-filter: exact name + color-aware filter
+      // Always include AMBIGUOUS_COLORS so a specific color catches "Other"
+      // logs, and an ambiguous color catches all other ambiguous logs.
       // PENDING and MATCHED lost items both eligible for matching
+      const colorFilter = { $in: [foundItem.color, ...AMBIGUOUS_COLORS] };
+
       const lostItems = await LostItem.find({
         isActive: true,
         status: { $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED] },
         name: foundItem.name,
-        color: foundItem.color,
+        color: colorFilter,
       })
         .populate("userId", "name email")
         .session(session);
@@ -324,7 +336,7 @@ class MatchingService {
         await LostItem.updateMany(
           { _id: { $in: matchedIds } },
           {
-            $addToSet: { matchedFoundItemIds: foundItemId },
+            $addToSet: { matchedFoundItemIds: { $each: [foundItemId] } },
             $set: { status: ITEM_STATUS.MATCHED },
           },
           { session }
