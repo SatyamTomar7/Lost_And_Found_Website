@@ -112,7 +112,7 @@ const HomePage = () => {
         <span className="hero-credits__divider" aria-hidden="true">|</span>
         <span className="hero-credits__item">
           <span className="hero-credits__label">Mentor</span>
-          Dr. Ashok Shrivastava
+          Dr. Ashok Kumar Shrivastava
         </span>
 
       </div>
