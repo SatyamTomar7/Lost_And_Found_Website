@@ -221,10 +221,10 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
       department: "",
       username: "",
       password: "",
-      email: "", // ADDED
-      otp: "", // ADDED
-      newPassword: "", // ADDED
-      confirmPassword: "", // ADDED
+      email: "",
+      otp: "",
+      newPassword: "",
+      confirmPassword: "",
     },
   });
 
@@ -447,15 +447,13 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
                     Forgot password?
                   </button>
                 </div>
-                <input
-                  type="password"
+                <PasswordInput
                   id="admin-password"
-                  className={`form-control ${errors.password ? "is-invalid" : ""}`}
+                  registration={register("password")}
+                  error={errors.password}
                   placeholder="Enter admin password"
-                  autoComplete="current-password"
                   disabled={isAnyPending}
-                  {...register("password")}
-                  aria-invalid={errors.password ? "true" : "false"}
+                  autoComplete="current-password"
                 />
                 {(errors.password || errors.root?.serverError) && (
                   <div className="error-message" role="alert">
