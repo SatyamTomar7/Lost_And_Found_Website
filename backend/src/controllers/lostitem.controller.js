@@ -8,26 +8,92 @@ import { ITEM_STATUS, NOTIFICATION_TYPES } from "../constants.js";
 import { ApiError } from "../utils/ApiError.js";
 import mongoose from "mongoose";
 import { FoundItem } from "../models/FoundItem.model.js";
-export const submitLostItem = asyncHandler(async (req, res) => {
-  const lostItemData = {
-    ...req.body,
-    userId: req.user.id,
-  };
+import { deleteImage } from "../services/cloudinary.service.js";
+import { PendingUpload } from "../models/PendingUpload.model.js";
 
-  const lostItem = await LostItem.create(lostItemData);
+export const submitLostItem = asyncHandler(async (req, res) => {
+  let uploadedPublicId = null; // track so we can rollback on failure
+  // --- Build image array from whichever mode was used ---
+  let images = [];
+
+  if (req.file) {
+    // Mode A: file came directly with this request
+    uploadedPublicId = req.file.filename;
+    images = [{ url: req.file.path, publicId: req.file.filename }];
+  } else if (req.body.photoPublicId) {
+    // Mode B: client pre-uploaded, sends publicId in body
+    const publicId = req.body.photoPublicId;
+
+    // Validate: must be a PendingUpload owned by this user, not yet claimed
+    const pending = await PendingUpload.findOne({
+      publicId,
+      userId: req.user.id,
+      claimedAt: null,
+    });
+    if (!pending) {
+      throw new ApiError(400, "Invalid or already used image reference");
+    }
+
+    images = [{ url: pending.url, publicId }];
+    uploadedPublicId = publicId; // for rollback if DB save fails
+  }
+
+  // --- Save to DB ---
+  let lostItem;
+  try {
+    const {
+      name,
+      color,
+      condition,
+      dateLost,
+      placeLost,
+      description,
+      category,
+    } = req.body;
+    lostItem = await LostItem.create({
+      name,
+      color,
+      condition,
+      dateLost,
+      placeLost,
+      description,
+      category,
+      userId: req.user.id,
+      images,
+    });
+  } catch (err) {
+    // Rollback: delete the Cloudinary image if DB failed
+    if (uploadedPublicId) {
+      await deleteImage(uploadedPublicId).catch((e) =>
+        console.error("Rollback delete failed:", e)
+      );
+      // Also remove the pending record
+      await PendingUpload.deleteOne({ publicId: uploadedPublicId }).catch(
+        () => {}
+      );
+    }
+    throw new ApiError(500, err.message || "Failed to save lost item");
+  }
+
+  // --- Mark pending upload as claimed (Mode B) ---
+  if (req.body.photoPublicId) {
+    await PendingUpload.updateOne(
+      { publicId: req.body.photoPublicId },
+      { $set: { claimedAt: new Date() } }
+    );
+  }
+
   await lostItem.populate("userId", "name email");
 
+  // ... rest of your matching + notification logic unchanged ...
   const matches = await matchingService.findMatchesForLostItem(
     lostItem._id,
     70
   );
   const topMatches = matches.slice(0, 3);
-
   let matchNotifications = [];
-
   if (topMatches.length > 0) {
     const io = req.app.get("socketio");
-
     matchNotifications = await Promise.all(
       topMatches.map(async (match) => {
         const notification = await Notification.create({
@@ -59,25 +125,22 @@ export const submitLostItem = asyncHandler(async (req, res) => {
             foundItem: match.foundItem,
           });
         }
-
         return notification;
       })
     );
   }
 
-  res.status(201).json(
-    new ApiResponse(
-      201,
-      {
-        lostItem,
-        matches: topMatches,
-        matchNotifications,
-      },
-      matches.length > 0
-        ? `Submitted! Found ${matches.length} potential matches.`
-        : "Submitted successfully. We'll notify you of matches."
-    )
-  );
+  res
+    .status(201)
+    .json(
+      new ApiResponse(
+        201,
+        { lostItem, matches: topMatches, matchNotifications },
+        topMatches.length > 0
+          ? `Submitted! Found ${topMatches.length} potential matches.`
+          : "Submitted successfully. We'll notify you of matches."
+      )
+    );
 });
 
 export const getMyLostItems = asyncHandler(async (req, res) => {

@@ -6,7 +6,11 @@ const USER_ROLES = {
 
 // Departments/Blocks
 const DEPARTMENTS = ["Block A", "Block B", "Block C", "Block D", "Block E"];
-
+const FILE_UPLOAD = {
+  MAX_SIZE: 5 * 1024 * 1024, // 5MB
+  ALLOWED_TYPES: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
+  UPLOAD_PATH: "uploads/items/",
+};
 
 const ITEM_NAME = [
   "Earbuds",
@@ -46,10 +50,10 @@ const ITEM_STATUS = {
   COLLECTED: "collected",
   RETURNED: "returned",
   UNCLAIMED: "unclaimed",
-  OFFLINE_RETURNED:"offline returned",
-  SELF_RESOLVED:"self resolved",
-  MATCHED:"matched"
-}
+  OFFLINE_RETURNED: "offline returned",
+  SELF_RESOLVED: "self resolved",
+  MATCHED: "matched",
+};
 const COLORS = [
   "Black",
   "White",
@@ -83,14 +87,14 @@ const NOTIFICATION_TYPES = {
   ITEM_RETURNED: "item_returned",
   ITEM_CLAIMED: "item_claimed",
   SYSTEM_ALERT: "system_alert",
-    ITEM_UNAVAILABLE: "item_unavailable"
+  ITEM_UNAVAILABLE: "item_unavailable",
 };
 
 const ITEM_CONDITIONS = {
   NEW: "New",
   USED: "Used",
 };
-const ITEM_CONDITIONS_VALUES = Object.values(ITEM_CONDITIONS); 
+const ITEM_CONDITIONS_VALUES = Object.values(ITEM_CONDITIONS);
 const CAMPUS_LOCATIONS = [
   // --- Block A ---
   "Block A - Classrooms",
@@ -148,7 +152,7 @@ const CAMPUS_LOCATIONS = [
   "Administrative Office",
   "University Entrance / Main Gate",
   "Main Garden / Open Area",
-  "Cafeteria (Main)"
+  "Cafeteria (Main)",
 ];
 
 export {
@@ -161,5 +165,6 @@ export {
   NOTIFICATION_TYPES,
   ITEM_NAME,
   ITEM_CONDITIONS,
-  ITEM_CONDITIONS_VALUES
+  ITEM_CONDITIONS_VALUES,
+  FILE_UPLOAD,
 };

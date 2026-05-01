@@ -49,6 +49,12 @@ const lostItemSchema = new Schema(
       trim: true,
       maxlength: [100, "Place lost can not exceed 100 characters"],
     },
+    images: [
+      {
+        url: String,
+        publicId: String,
+      },
+    ],
     status: {
       type: String,
       enum: [

@@ -13,6 +13,7 @@ import lostItemRoutes from "./routes/lostitem.routes.js";
 import foundItemRoutes from "./routes/founditem.routes.js";
 import matchRoutes from "./routes/matches.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import uploadRoutes from "./routes/upload.routes.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -21,11 +22,11 @@ const httpServer = createServer(app);
 // 1. SOCKET.IO SETUP
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL ,
+    origin: process.env.CLIENT_URL,
     methods: ["GET", "POST"],
     credentials: true,
   },
-   pingTimeout: 60000,
+  pingTimeout: 60000,
   pingInterval: 25000,
 });
 socketHandler(io);
@@ -92,11 +93,12 @@ const apiLimiter = rateLimit({
     message: "Too many requests, please try again later.",
   },
 });
-app.use("/api/auth", authLimiter, authRoutes);  
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/lostitems", apiLimiter, lostItemRoutes);
 app.use("/api/founditems", apiLimiter, foundItemRoutes);
 app.use("/api/matches", apiLimiter, matchRoutes);
 app.use("/api/notifications", apiLimiter, notificationRoutes);
+app.use("/api/upload", uploadRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
