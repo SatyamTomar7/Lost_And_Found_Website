@@ -61,6 +61,20 @@ const lostItemSchema = z.object({
     .max(100, "Description cannot exceed 100 characters")
     .optional()
     .or(z.literal("")),
+  photo: z
+    .any()
+    .refine(
+      (files) => !files || files.length === 0 || files[0].size <= 5000000,
+      `Max file size is 5MB.`,
+    )
+    .refine(
+      (files) =>
+        !files ||
+        files.length === 0 ||
+        ["image/jpeg", "image/png", "image/jpg"].includes(files[0].type),
+      ".jpg, .jpeg, and .png files are accepted.",
+    )
+    .optional(),
 });
 
 const resolver = zodResolver(lostItemSchema);
@@ -163,6 +177,14 @@ const SubmitConfirmModal = React.memo(
                 <span className="submit-confirm-modal__label">Description</span>
                 <span className="submit-confirm-modal__value">
                   {formData.description}
+                </span>
+              </div>
+            )}
+            {formData.photo?.[0] && (
+              <div className="submit-confirm-modal__row">
+                <span className="submit-confirm-modal__label">Photo</span>
+                <span className="submit-confirm-modal__value">
+                  {formData.photo[0].name}
                 </span>
               </div>
             )}
@@ -777,6 +799,20 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       {...register("description")}
                       className="form-control"
                       rows={3}
+                      disabled={isFormDisabled}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="photo" className="form-label">
+                      Photo (optional)
+                    </label>
+                    <input
+                      id="photo"
+                      type="file"
+                      {...register("photo")}
+                      className="form-control"
+                      accept="image/*"
                       disabled={isFormDisabled}
                     />
                   </div>

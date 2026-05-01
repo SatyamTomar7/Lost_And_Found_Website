@@ -14,7 +14,9 @@ const apiFetch = async (url, options = {}) => {
   const response = await fetch(url, options);
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    const error = new Error(body.message || `Request failed: ${response.status}`);
+    const error = new Error(
+      body.message || `Request failed: ${response.status}`,
+    );
     error.status = response.status;
     throw error;
   }
@@ -24,10 +26,33 @@ const apiFetch = async (url, options = {}) => {
 // ==================== LOST ITEMS ====================
 
 export const submitLostItem = async (itemData) => {
+  const photoFile = itemData.photo?.[0];
+
+  // Step 1: upload image if provided
+  if (photoFile) {
+    const uploadData = new FormData();
+    uploadData.append("image", photoFile);
+
+    const token = localStorage.getItem("authToken");
+    const uploadResult = await apiFetch(`${API_URL}/upload/single`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }, // NO Content-Type — browser sets it for FormData
+      body: uploadData,
+    });
+
+    itemData = {
+      ...itemData,
+      photoUrl: uploadResult.data.url,
+      photoPublicId: uploadResult.data.publicId,
+    };
+  }
+
+  // Step 2: submit lost item as JSON
+  const { photo, ...rest } = itemData; // strip the FileList — can't JSON.stringify it
   return apiFetch(`${API_URL}/lostitems`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify(itemData),
+    body: JSON.stringify(rest),
   });
 };
 
@@ -64,7 +89,7 @@ export const updateFoundItemStatus = async (
   itemId,
   status,
   lostItemId,
-  claimedByUserId
+  claimedByUserId,
 ) => {
   if (status === "Returned") {
     return apiFetch(`${API_URL}/founditems/${itemId}/returned`, {
@@ -94,7 +119,7 @@ export const getMatchedLostItemsForFoundItem = async (foundItemId) => {
 export const markItemCollectedOffline = async (
   itemId,
   collectorName,
-  collectorContact
+  collectorContact,
 ) => {
   return apiFetch(`${API_URL}/founditems/${itemId}/collected-offline`, {
     method: "PUT",
