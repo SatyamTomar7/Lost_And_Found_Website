@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary-v2";
 import multer from "multer";
 import { FILE_UPLOAD } from "../constants.js";
 import { ApiError } from "../utils/ApiError.js";
