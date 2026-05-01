@@ -684,8 +684,11 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
 };
 
 // ─── Match Display Components ─────────────────────────────────────────────────
-const SingleMatchCard = React.memo(({ match }) => (
-  <div className="item-card match-card--single">
+const SingleMatchCard = React.memo(({ match }) => {
+  const [showImg, setShowImg] = useState(false);
+  const lostImage = match.lostItem?.images?.[0];
+
+  return (<div className="item-card match-card--single">
     <div className="match-card__header">
       <span className="match-card__badge match-card__badge--single">
         <FaLink /> 1 Match Found
@@ -733,18 +736,42 @@ const SingleMatchCard = React.memo(({ match }) => (
             {new Date(match.lostItem.dateLost).toLocaleDateString()}
           </span>
         </div>
+
+        {lostImage && (
+          <div style={{ marginTop: "8px" }}>
+            <button
+              className="btn btn--sm btn--outline"
+              onClick={() => setShowImg((p) => !p)}
+            >
+              {showImg ? "Hide Image" : "View Image"}
+            </button>
+            {showImg && (
+              <img
+                src={lostImage.url}
+                alt="Lost item"
+                style={{
+                  marginTop: "8px",
+                  width: "100%",
+                  maxWidth: "200px",
+                  borderRadius: "8px",
+                  objectFit: "cover",
+                }}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
 
     <div className="match-card__claimant">
       <FaUser />
-      <span className="match-card__claimant-name">{match.user.name}</span>
+      <span className="match-card__claimant-name">{match.user?.name ?? "Unknown"}</span>
       <span className="match-card__claimant-sep">·</span>
       <FaEnvelope />
       <span className="match-card__claimant-email">{match.user.email}</span>
     </div>
-  </div>
-));
+  </div>)
+});
 
 const MultiMatchSummaryCard = React.memo(
   ({ itemName, matchCount, matches }) => {
@@ -793,31 +820,49 @@ const MultiMatchSummaryCard = React.memo(
 
         {expanded && (
           <ul className="match-card__expanded-list">
-            {matches.map((match, idx) => (
-              <li key={match.lostItem.id} className="match-card__expanded-item">
-                <div className="match-card__expanded-rank">#{idx + 1}</div>
-                <div className="match-card__expanded-info">
-                  <div className="match-card__expanded-name">
-                    {match.lostItem.name}
-                    <span className="match-card__expanded-sim">
-                      {(match.similarity ?? 0).toFixed(0)}% match
-                    </span>
+            {matches.map((match, idx) => {
+              const lostImage = match.lostItem?.images?.[0]; // ← define
+              return (
+                // ← return
+                <li
+                  key={match.lostItem.id}
+                  className="match-card__expanded-item"
+                >
+                  <div className="match-card__expanded-rank">#{idx + 1}</div>
+                  <div className="match-card__expanded-info">
+                    <div className="match-card__expanded-name">
+                      {match.lostItem.name}
+                      <span className="match-card__expanded-sim">
+                        {(match.similarity ?? 0).toFixed(0)}% match
+                      </span>
+                    </div>
+                    <div className="item-meta">
+                      <span>
+                        <FaPalette /> {match.lostItem.color}
+                      </span>
+                      <span>
+                        <FaMapMarkerAlt /> {match.lostItem.placeLost}
+                      </span>
+                    </div>
+                    <div className="match-card__expanded-user">
+                      <FaUser /> {match.user?.name ?? "Unknown"} ·
+                      <FaEnvelope /> {match.user?.email ?? "No Email"}
+                    </div>
+                    {lostImage && (
+                      <a
+                        href={lostImage.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn--sm btn--outline"
+                        style={{ marginTop: "6px", display: "inline-block" }}
+                      >
+                        View Image
+                      </a>
+                    )}
                   </div>
-                  <div className="item-meta">
-                    <span>
-                      <FaPalette /> {match.lostItem.color}
-                    </span>
-                    <span>
-                      <FaMapMarkerAlt /> {match.lostItem.placeLost}
-                    </span>
-                  </div>
-                  <div className="match-card__expanded-user">
-                    <FaUser /> {match.user?.name ?? "Unknown"} ·
-                    <FaEnvelope /> {match.user?.email ?? "No Email"}
-                  </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
