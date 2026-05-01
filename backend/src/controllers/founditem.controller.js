@@ -573,7 +573,7 @@ export const getMatchedLostItemsForItem = asyncHandler(async (req, res) => {
     .select("matchedLostItemIds name")
     .populate({
       path: "matchedLostItemIds",
-      select: "name color placeLost dateLost userId status",
+      select: "name color placeLost dateLost userId status images",
       populate: {
         path: "userId",
         select: "name email",
