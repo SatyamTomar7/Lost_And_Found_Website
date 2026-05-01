@@ -42,7 +42,7 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
           id: lostItem._id,
           name: lostItem.name,
           color: lostItem.color,
-          image:lostItem.images
+          images:lostItem.images
         },
         matches: matches.map((match) => ({
           foundItem: {
@@ -95,7 +95,7 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
         color: lostItem.color,
         dateLost: lostItem.dateLost,
         placeLost: lostItem.placeLost,
-        image:lostItem.images,
+        images:lostItem.images,
         user: {
           id: owner._id || "N/A",
           name: owner.name || "Unknown User",
@@ -257,7 +257,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           dateLost: lostItem.dateLost,
           placeLost: lostItem.placeLost,
           description: lostItem.description,
-          image:lostItem.images
+          images:lostItem.images
         },
         user,
         similarity: matchingService.calculateMatchScore(lostItem, foundItem),
