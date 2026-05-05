@@ -49,10 +49,12 @@ class MatchingService {
     if (color1 === color2) return 1;
 
     // Both ambiguous → small partial credit
-    if (AMBIGUOUS_COLORS.includes(color1) && AMBIGUOUS_COLORS.includes(color2)) return 0.4;
+    if (AMBIGUOUS_COLORS.includes(color1) && AMBIGUOUS_COLORS.includes(color2))
+      return 0.4;
 
     // One side ambiguous → finder may not know exact color
-    if (AMBIGUOUS_COLORS.includes(color1) || AMBIGUOUS_COLORS.includes(color2)) return 0.2;
+    if (AMBIGUOUS_COLORS.includes(color1) || AMBIGUOUS_COLORS.includes(color2))
+      return 0.2;
 
     return 0; // Different specific colors = definite no match
   }
@@ -60,15 +62,16 @@ class MatchingService {
   // ---------------------------------------------------------------------------
   // DATE: ±3 DAYS WINDOW (hard gate)
   // ---------------------------------------------------------------------------
+  // NEW
   checkDateProximity(dateLost, dateFound) {
     if (!dateLost || !dateFound) return 0;
 
     const diffDays = this.getDayDiff(dateLost, dateFound);
 
-    if (diffDays > 3) return 0; // Hard cutoff
+    if (diffDays > 7) return 0; // Hard cutoff
 
-    // Linear decay: same day = 1.0, day 3 = 0.0
-    return Math.round((1 - diffDays / 4) * 100) / 100;
+    // Linear decay: same day = 1.0, day 7 = 0.0
+    return Math.round((1 - diffDays / 8) * 100) / 100;
   }
 
   // ---------------------------------------------------------------------------
@@ -78,18 +81,24 @@ class MatchingService {
   calculatePlaceSimilarity(place1, place2) {
     if (!place1 || !place2) return 0;
 
-    const p1 = place1.toLowerCase().trim();
-    const p2 = place2.toLowerCase().trim();
+    const p1 = place1.trim();
+    const p2 = place2.trim();
 
-    if (p1 === p2) return 1; // Exact location
+    if (p1 === p2) return 1;
 
-    // Same block, different area → partial credit
-    const block1 = p1.split(" - ")[0];
-    const block2 = p2.split(" - ")[0];
-    if (block1 === block2 && block1 !== "") return 0.5;
+    const isBlockLocation = (p) => /^Block [A-Z] - /i.test(p);
+    const extractBlock = (p) => p.split(" - ")[0].trim();
 
-    // Fuzzy fallback for general/sports areas
-    return this.levenshteinSimilarity(p1, p2) * 0.4;
+    const p1IsBlock = isBlockLocation(p1);
+    const p2IsBlock = isBlockLocation(p2);
+
+    if (p1IsBlock && p2IsBlock) {
+      return extractBlock(p1) === extractBlock(p2) ? 0.7 : 0;
+    }
+
+    if (p1 === "Anywhere" || p2 === "Anywhere") return 0.5;
+
+    return 0.6; // sports / general areas
   }
 
   // ---------------------------------------------------------------------------

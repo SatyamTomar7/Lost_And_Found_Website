@@ -142,17 +142,14 @@ const CAMPUS_LOCATIONS = [
 
   // --- Sports & Athletics ---
   "Main Ground (Open Field)",
-  "Cricket Ground (Match Play)",
+  "Mini Cricket Ground",
   "Cricket Practice Nets",
   "Volleyball Court",
   "Basketball Court",
   "Badminton Court",
 
   // --- General Areas ---
-  "Administrative Office",
   "University Entrance / Main Gate",
-  "Main Garden / Open Area",
-  "Cafeteria (Main)",
 ];
 
 export {
