@@ -115,11 +115,11 @@ export const login = async (email, password) => {
  * Login admin user
  * Token storage is handled by the caller (AdminAuthPage)
  */
-export const adminLogin = async (department, username, password) => {
+export const adminLogin = async (email, password) => {
   return apiFetch(`${API_URL}/auth/admin-login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ department, username, password }),
+    body: JSON.stringify({ email, password }),
   });
 };
 
