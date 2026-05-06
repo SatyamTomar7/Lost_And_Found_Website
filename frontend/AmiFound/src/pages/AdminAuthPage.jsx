@@ -31,8 +31,7 @@ import {
 
 // ─── Zod Schema ───────────────────────────────────────────────────────────────
 const adminLoginSchema = z.object({
-  department: z.string().min(1, "Please select a department"),
-  username: z.string().min(1, "Username is required"),
+  email: z.string().min(1, "Email is required").email("Enter valid email"),
   password: z
     .string()
     .min(6, "Password must be at least 6 characters")
@@ -218,8 +217,6 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
   } = useForm({
     resolver,
     defaultValues: {
-      department: "",
-      username: "",
       password: "",
       email: "",
       otp: "",
@@ -240,8 +237,7 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
 
   // ── TanStack Query Mutation — COMPLETELY UNCHANGED ────────────────────────
   const loginMutation = useMutation({
-    mutationFn: ({ department, username, password }) =>
-      adminLogin(department, username, password),
+    mutationFn: ({ email, password }) => adminLogin(email, password),
     onMutate: () => {
       setLoading(true);
     },
@@ -387,47 +383,23 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
               noValidate
             >
               <div className="form-group">
-                <label htmlFor="admin-department" className="form-label">
-                  Department
+                <label htmlFor="admin-email" className="form-label">
+                  Email
                 </label>
-                <select
-                  id="admin-department"
-                  className={`form-control ${errors.department ? "is-invalid" : ""}`}
-                  disabled={isAnyPending}
-                  {...register("department")}
-                  aria-invalid={errors.department ? "true" : "false"}
-                >
-                  <option value="">Select Department</option>
-                  <option value="Block A">Block A</option>
-                  <option value="Block B">Block B</option>
-                  <option value="Block C">Block C</option>
-                  <option value="Block D">Block D</option>
-                  <option value="Block E">Block E</option>
-                </select>
-                {errors.department && (
-                  <div className="error-message" role="alert">
-                    {errors.department.message}
-                  </div>
-                )}
-              </div>
 
-              <div className="form-group">
-                <label htmlFor="admin-username" className="form-label">
-                  Username
-                </label>
                 <input
-                  type="text"
-                  id="admin-username"
-                  className={`form-control ${errors.username ? "is-invalid" : ""}`}
-                  placeholder="admin_a"
-                  autoComplete="username"
+                  type="email"
+                  id="admin-email"
+                  className={`form-control ${errors.email ? "is-invalid" : ""}`}
+                  placeholder="admin@gwa.amity.edu"
+                  autoComplete="email"
                   disabled={isAnyPending}
-                  {...register("username")}
-                  aria-invalid={errors.username ? "true" : "false"}
+                  {...register("email")}
                 />
-                {errors.username && (
+
+                {errors.email && (
                   <div className="error-message" role="alert">
-                    {errors.username.message}
+                    {errors.email.message}
                   </div>
                 )}
               </div>
