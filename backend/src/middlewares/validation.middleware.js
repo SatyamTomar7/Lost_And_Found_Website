@@ -16,7 +16,7 @@ const handleValidationErrors = (req, res, next) => {
       message: err.msg,
       value: err.value,
     }));
-    throw new ApiError(400, "Validation failed nhi hui hai", formattedErrors);
+    throw new ApiError(400, "Validation failed", formattedErrors);
   }
   next();
 };
