@@ -149,7 +149,7 @@ export const login = asyncHandler(async (req, res) => {
         {
           email: user.email,
           name: user.name,
-           role: user.role
+          role: user.role,
         },
         "ACCOUNT_NOT_VERIFIED"
       )
@@ -183,9 +183,11 @@ export const login = asyncHandler(async (req, res) => {
   );
 });
 export const adminLogin = asyncHandler(async (req, res) => {
-  const { username, password, department } = req.body;
-  const email = `${username}@gwa.amity.edu`;
+  const { email, password } = req.body;
 
+  if (!email || !password) {
+    throw new ApiError(400, "Email and password are required");
+  }
   const user = await User.findOne({
     email,
     role: USER_ROLES.ADMIN,
@@ -443,7 +445,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
 export const adminForgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
-const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
+  const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
 
   // Always respond the same way to prevent email enumeration
   if (!admin) {
@@ -495,7 +497,7 @@ const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
 export const adminVerifyResetOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
 
-const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
+  const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
   if (!admin) throw new ApiError(400, "Invalid or expired OTP");
 
   if (!admin.passwordResetOTP) {
