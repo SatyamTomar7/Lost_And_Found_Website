@@ -245,7 +245,7 @@ const AdminAuthPage = ({ setCurrentAdmin, setLoading, showMessage }) => {
       if (result.success && result.data) {
         setCurrentAdmin(result.data.user);
         localStorage.setItem("authToken", result.data.token);
-        localStorage.setItem("userRole", result.data.role);
+        localStorage.setItem("userRole", result.data.user.role);
         showMessage("Admin login successful!", "success");
         setTimeout(() => {
           navigate("/admin-dashboard", { replace: true });
