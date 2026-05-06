@@ -191,7 +191,6 @@ export const adminLogin = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     email,
     role: USER_ROLES.ADMIN,
-    department,
   }).select("+password");
 
   if (!user) throw new ApiError(401, "Invalid credentials for this department");
