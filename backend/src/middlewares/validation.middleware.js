@@ -70,11 +70,17 @@ const validateLogin = [
 ];
 
 const validateAdminLogin = [
-  body("username").trim().notEmpty().withMessage("Username is required"),
-  body("password").notEmpty().withMessage("Password is required"),
-  body("department")
-    .isIn(DEPARTMENTS)
-    .withMessage(`Department must be one of: ${DEPARTMENTS.join(", ")}`),
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Enter a valid email"),
+
+  body("password")
+    .notEmpty()
+    .withMessage("Password is required"),
+
   handleValidationErrors,
 ];
 
