@@ -12,6 +12,9 @@ import { deleteImage } from "../services/cloudinary.service.js";
 import { PendingUpload } from "../models/PendingUpload.model.js";
 
 export const submitLostItem = asyncHandler(async (req, res) => {
+  if (!req.user.profileCompleted) {
+    throw new ApiError(403, "Complete profile first");
+  }
   let uploadedPublicId = null; // track so we can rollback on failure
   // --- Build image array from whichever mode was used ---
   let images = [];
@@ -100,7 +103,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
           userId: req.user.id,
           type: NOTIFICATION_TYPES.MATCH_FOUND,
           title: "Potential Match Found",
-          message: `We found a ${match.matchScore}% match for your lost ${lostItem.name} in ${match.foundItem.department}.`,
+          message: `We found a ${match.matchScore}% match for your lost ${lostItem.name} in ${match.foundItem.block}.`,
           data: {
             lostItemId: lostItem._id,
             foundItemId: match.foundItem._id,
@@ -115,7 +118,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
             req.user.name,
             lostItem,
             match.foundItem,
-            match.foundItem.department
+            match.foundItem.block
           )
           .catch((err) => console.error("Match Email Failed:", err));
 
@@ -159,8 +162,8 @@ export const getMyLostItems = asyncHandler(async (req, res) => {
 
       .populate({
         path: "matchedFoundItemIds",
-        select: "name department adminId status",
-        populate: { path: "adminId", select: "name department" },
+        select: "name block adminId status",
+        populate: { path: "adminId", select: "name block" },
       })
       .sort({ createdAt: -1 })
       .limit(limit)
@@ -203,8 +206,8 @@ export const getLostItem = asyncHandler(async (req, res) => {
     .populate("userId", "name email")
     .populate({
       path: "matchedFoundItemIds",
-      select: "name department adminId status createdAt",
-      populate: { path: "adminId", select: "name department" },
+      select: "name block adminId status createdAt",
+      populate: { path: "adminId", select: "name block" },
     })
     .lean();
   if (!lostItem) {

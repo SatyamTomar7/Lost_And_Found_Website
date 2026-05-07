@@ -266,21 +266,19 @@ const validateCompleteProfile = [
     .withMessage("Branch name too long"),
 
   body("year")
-    .isInt({ min: 1, max: 5 })
-    .withMessage("Year must be between 1 and 5")
+    .isInt({ min: 1, max: 4 })
+    .withMessage("Year must be between 1 and 4")
     .toInt(),
 
   body("semester")
-    .isInt({ min: 1, max: 10 })
-    .withMessage("Semester must be between 1 and 10")
+    .isInt({ min: 1, max: 8 })
+    .withMessage("Semester must be between 1 and 8")
     .toInt(),
 
-  body("section")
-    .trim()
-    .notEmpty()
-    .withMessage("Section is required")
-    .isLength({ max: 10 })
-    .withMessage("Section too long"),
+body("section")
+  .trim()
+  .isIn(["A", "B", "C", "D", "E"])
+  .withMessage("Section must be A, B, C, D, or E"),
 
   handleValidationErrors,
 ];

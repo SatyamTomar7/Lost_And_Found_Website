@@ -98,10 +98,6 @@ const userSchema = new Schema(
       type: String,
     },
 
-    year: {
-      type: Number,
-    },
-
     semester: {
       type: Number,
     },

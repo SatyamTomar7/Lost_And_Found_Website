@@ -21,9 +21,9 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     brand,
     condition,
     adminId: req.user.id,
-    department: req.user.department,
+    block: req.user.block,
   };
-
+  console.log(req.user);
   const foundItem = await FoundItem.create(foundItemData);
 
   const matches = await matchingService.findMatchesForFoundItem(
@@ -38,11 +38,14 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 
     matchNotifications = await Promise.all(
       topMatches.map(async (match) => {
+        if (!match?.lostItem?.userId) {
+          return null;
+        }
         const notification = await Notification.create({
           userId: match.lostItem.userId._id,
           type: NOTIFICATION_TYPES.MATCH_FOUND,
           title: "Your Lost Item Might Be Found!",
-          message: `We found a ${match.matchScore}% match for your lost ${match.lostItem.name} in ${req.user.department}.`,
+          message: `We found a ${match.matchScore}% match for your lost ${match.lostItem.name} in ${req.user.block}.`,
           data: {
             lostItemId: match.lostItem._id,
             foundItemId: foundItem._id,
@@ -58,10 +61,10 @@ export const addFoundItem = asyncHandler(async (req, res) => {
             match.lostItem.userId.name,
             match.lostItem,
             foundItem,
-            req.user.department
+            req.user.block
           )
           .catch((err) => console.error("Email Error:", err));
-        if (io) {
+        if (io && match?.lostItem?.userId?._id) {
           io.sendNotificationToUser(match.lostItem.userId._id, {
             ...notification.toObject(),
             foundItem,
@@ -73,7 +76,7 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     );
   }
 
-  const populatedItem = await foundItem.populate("adminId", "name department");
+  const populatedItem = await foundItem.populate("adminId", "name block");
   res.status(201).json(
     new ApiResponse(
       201,
@@ -95,7 +98,7 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
   const { status } = req.query;
 
   const query = {
-    department: req.user.department,
+    block: req.user.block,
     isActive: true,
   };
   if (status) query.status = status;
@@ -132,8 +135,8 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
         data: foundItems,
       },
       foundItems.length > 0
-        ? "Department data fetched"
-        : "No items found for this department"
+        ? "block data fetched"
+        : "No items found for this block"
     )
   );
 });
@@ -143,11 +146,11 @@ export const getFoundItem = asyncHandler(async (req, res) => {
 
   const query = { _id: id };
   if (req.user.role === "admin") {
-    query.department = req.user.department;
+    query.block = req.user.block;
   }
 
   const foundItem = await FoundItem.findOne(query)
-    .populate("adminId", "name department")
+    .populate("adminId", "name block")
     .populate("claimedBy", "name email")
 
     .populate({
@@ -160,7 +163,7 @@ export const getFoundItem = asyncHandler(async (req, res) => {
   if (!foundItem) {
     throw new ApiError(
       404,
-      "Found item not found or access denied for your department"
+      "Found item not found or access denied for your block"
     );
   }
 
@@ -188,14 +191,14 @@ export const updateFoundItem = asyncHandler(async (req, res) => {
   const foundItem = await FoundItem.findOneAndUpdate(
     {
       _id: id,
-      department: req.user.department,
+      block: req.user.block,
     },
     { $set: updateData },
     {
       new: true,
       runValidators: true,
     }
-  ).populate("adminId", "name department");
+  ).populate("adminId", "name block");
 
   if (!foundItem) {
     throw new ApiError(
@@ -220,7 +223,10 @@ export const markAsReturned = asyncHandler(async (req, res) => {
   const { lostItemId, claimedByUserId } = req.body;
 
   if (!lostItemId || !claimedByUserId) {
-    throw new ApiError(400, "Lost Item ID and Claimant ID are required for handover");
+    throw new ApiError(
+      400,
+      "Lost Item ID and Claimant ID are required for handover"
+    );
   }
 
   const session = await mongoose.startSession();
@@ -238,15 +244,15 @@ export const markAsReturned = asyncHandler(async (req, res) => {
     const foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
-        department: req.user.department,
+        block: req.user.block,
         status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
       },
       {
         $set: {
           status: ITEM_STATUS.RETURNED,
           claimedBy: {
-            name: claimant.name,   
-            email: claimant.email, 
+            name: claimant.name,
+            email: claimant.email,
           },
           matchedLostItemId: lostItemId,
           returnedAt: new Date(),
@@ -254,7 +260,6 @@ export const markAsReturned = asyncHandler(async (req, res) => {
         },
       },
       { new: true, session, runValidators: true }
-    
     );
 
     if (!foundItem) {
@@ -274,7 +279,10 @@ export const markAsReturned = asyncHandler(async (req, res) => {
     );
 
     if (!lostUpdate) {
-      throw new ApiError(400, "Specific lost item record not found or user mismatch");
+      throw new ApiError(
+        400,
+        "Specific lost item record not found or user mismatch"
+      );
     }
 
     await LostItem.updateMany(
@@ -291,13 +299,22 @@ export const markAsReturned = asyncHandler(async (req, res) => {
 
     await session.commitTransaction();
 
-    res.status(200).json(
-      new ApiResponse(200, { foundItem }, "Item returned and all related potential matches cleared")
-    );
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { foundItem },
+          "Item returned and all related potential matches cleared"
+        )
+      );
   } catch (error) {
     await session.abortTransaction();
     console.error("Handover Error:", error);
-    throw new ApiError(error.statusCode || 500, error.message || "Internal Server Error during handover");
+    throw new ApiError(
+      error.statusCode || 500,
+      error.message || "Internal Server Error during handover"
+    );
   } finally {
     session.endSession();
   }
@@ -308,7 +325,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
   // Fetch before update — notifications ke liye matched users capture karo
   const existingFoundItem = await FoundItem.findOne({
     _id: id,
-    department: req.user.department,
+    block: req.user.block,
     status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
   }).populate({
     path: "matchedLostItemIds",
@@ -319,7 +336,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
   if (!existingFoundItem) {
     throw new ApiError(
       404,
-      "Found item not found or you lack permission for this department"
+      "Found item not found or you lack permission for this block"
     );
   }
 
@@ -331,7 +348,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
     foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
-        department: req.user.department,
+        block: req.user.block,
         status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
       },
       {
@@ -351,7 +368,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
         session,
         runValidators: true,
       }
-    ).populate("adminId", "name department");
+    ).populate("adminId", "name block");
 
     if (!foundItem) {
       throw new ApiError(
@@ -422,7 +439,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
             lostItem.userId.email,
             lostItem.userId.name,
             existingFoundItem.name,
-            req.user.department
+            req.user.block
           )
           .catch((err) => console.error("Email Error:", err));
       })
@@ -455,7 +472,7 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     // Fetch before update to capture existing matched lost items for notification
     existingFoundItem = await FoundItem.findOne({
       _id: id,
-      department: req.user.department,
+      block: req.user.block,
       status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
     }).populate({
       path: "matchedLostItemIds",
@@ -473,7 +490,7 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
-        department: req.user.department,
+        block: req.user.block,
         status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
       },
       {
@@ -490,7 +507,7 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
         $unset: { matchedLostItemId: "" }, // ✅ removed claimedBy from $unset
       },
       { new: true, session, runValidators: true }
-    ).populate("adminId", "name department");
+    ).populate("adminId", "name block");
 
     if (!foundItem) {
       throw new ApiError(
@@ -545,7 +562,7 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
             lostItem.userId.email,
             lostItem.userId.name,
             existingFoundItem.name,
-            req.user.department
+            req.user.block
           )
           .catch((err) => console.error("Email Error:", err));
       })
@@ -568,7 +585,7 @@ export const getMatchedLostItemsForItem = asyncHandler(async (req, res) => {
 
   const foundItem = await FoundItem.findOne({
     _id: id,
-    department: req.user.department,
+    block: req.user.block,
   })
     .select("matchedLostItemIds name")
     .populate({
@@ -619,7 +636,7 @@ export const deleteFoundItem = asyncHandler(async (req, res) => {
     const foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
-        department: req.user.department,
+        block: req.user.block,
         isActive: true,
       },
       {
@@ -658,16 +675,16 @@ export const deleteFoundItem = asyncHandler(async (req, res) => {
   }
 });
 export const searchFoundItems = asyncHandler(async (req, res) => {
-  const { q, color, department, dateFrom, dateTo } = req.query;
+  const { q, color, block, dateFrom, dateTo } = req.query;
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(parseInt(req.query.limit) || 10, 100);
 
   let query = { isActive: true };
 
   if (req.user.role === "admin") {
-    query.department = req.user.department;
-  } else if (department) {
-    query.department = department;
+    query.block = req.user.block;
+  } else if (block) {
+    query.block = block;
   }
 
   if (q) {
@@ -686,7 +703,7 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
 
   const [foundItems, total] = await Promise.all([
     FoundItem.find(query)
-      .populate("adminId", "name department")
+      .populate("adminId", "name block")
       .populate("claimedBy", "name email")
       .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
       .limit(limit)

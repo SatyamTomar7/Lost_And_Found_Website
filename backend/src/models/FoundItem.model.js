@@ -12,10 +12,10 @@ const foundItemSchema = new Schema(
       ref: "User",
       required: true,
     },
-    department: {
+    block: {
       type: String,
-      required: [true, "Department is required"],
-      enum: DEPARTMENTS,
+      enum: ["A", "B", "C", "D", "E"],
+      required: true,
     },
     name: {
       type: String,
@@ -119,7 +119,7 @@ foundItemSchema.pre("save", function (next) {
     this.color,
     this.brand,
     this.placeFound,
-    this.department,
+    this.block,
     ...(this.tags || []),
   ]
     .filter(Boolean)
@@ -142,7 +142,7 @@ foundItemSchema.index({
   isActive: 1,
   status: 1,
 });
-foundItemSchema.index({ department: 1, createdAt: -1 });
+foundItemSchema.index({ block: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
 foundItemSchema.index({ adminId: 1 });
 foundItemSchema.index({ matchedLostItemIds: 1 });
