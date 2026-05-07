@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import mongoose, { Schema } from "mongoose";
 import { USER_ROLES } from "../constants.js";
 import bcrypt from "bcryptjs";
@@ -17,7 +18,7 @@ const userSchema = new Schema(
       unique: true,
       trim: true,
       lowercase: true,
-      
+
       validate: {
         validator: function (v) {
           return (
@@ -43,10 +44,7 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
-    passwordResetOTP: {
-      type: String,
-      default: null,
-    },
+    passwordResetOTP: { type: String, default: null, select: false },
     passwordResetOTPExpiry: {
       type: Date,
       default: null,
@@ -59,17 +57,62 @@ const userSchema = new Schema(
       type: Date,
       default: null,
     },
-    emailVerificationOTP: String,
-    emailVerificationExpire: Date,
-    department: {
+    emailVerificationOTP: {
       type: String,
-      required: function () {
-        return this.role === USER_ROLES.ADMIN;
-      },
+      default: null,
+      select: false,
+    },
+    emailVerificationOTPUsed: { type: Boolean, default: false },
+    emailVerificationExpire: {
+      type: Date,
+      default: null,
+    },
+    block: {
+      type: String,
+      enum: ["A", "B", "C", "D", "E"],
     },
     profileImage: {
       type: String,
       default: null,
+    },
+    enrollmentNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
+    },
+
+    phoneNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+      match: [/^[0-9]{10}$/, "Please enter valid phone number"],
+    },
+
+    course: {
+      type: String,
+    },
+
+    branch: {
+      type: String,
+    },
+
+    year: {
+      type: Number,
+    },
+
+    semester: {
+      type: Number,
+    },
+
+    section: {
+      type: String,
+    },
+
+    profileCompleted: {
+      type: Boolean,
+      default: false,
     },
     isActive: {
       type: Boolean,
@@ -85,22 +128,20 @@ const userSchema = new Schema(
   }
 );
 
-
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   try {
     this.password = await bcrypt.hash(this.password, 10);
+    this.passwordChangedAt = new Date(Date.now() - 1000);
     next();
   } catch (error) {
     next(error);
   }
 });
 
-
 userSchema.methods.isPasswordCorrect = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
-
 
 userSchema.methods.getJWTToken = function () {
   const payload = {
@@ -109,21 +150,27 @@ userSchema.methods.getJWTToken = function () {
     role: this.role,
   };
 
- 
-  if (this.department) {
-    payload.department = this.department;
-  }
-
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || "24h",
   });
 };
 
 userSchema.methods.generateEmailVerificationOTP = async function () {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  this.emailVerificationOTP = await bcrypt.hash(otp, 10); 
-  const expireMinutes = parseInt(process.env.OTP_EXPIRE) || 10; 
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  this.emailVerificationOTP = await bcrypt.hash(otp, 10);
+  this.emailVerificationOTPUsed = false;
+  const expireMinutes = parseInt(process.env.OTP_EXPIRE) || 10;
   this.emailVerificationExpire = Date.now() + expireMinutes * 60 * 1000;
+  return otp;
+};
+userSchema.methods.generatePasswordResetOTP = async function () {
+  const otp = crypto.randomInt(100000, 1000000).toString();
+  this.passwordResetOTP = await bcrypt.hash(otp, 10);
+  this.passwordResetOTPUsed = false;
+  const expireMinutes = parseInt(process.env.OTP_EXPIRE) || 10;
+  this.passwordResetOTPExpiry = new Date(
+    Date.now() + expireMinutes * 60 * 1000
+  );
   return otp;
 };
 export const User = mongoose.model("User", userSchema);

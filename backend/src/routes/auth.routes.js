@@ -11,9 +11,10 @@ import {
   forgotPassword,
   verifyResetOTP,
   resetPassword,
-  adminForgotPassword, // ADDED
-  adminVerifyResetOTP, // ADDED
-  adminResetPassword, // ADDED
+  adminForgotPassword,
+  adminVerifyResetOTP,
+  adminResetPassword,
+  completeProfile,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import {
@@ -25,6 +26,7 @@ import {
   validateVerifyResetOTP,
   validateResetPassword,
   validateAdminForgotPassword,
+  validateCompleteProfile,
 } from "../middlewares/validation.middleware.js";
 
 const otpLimiter = rateLimit({
@@ -48,7 +50,12 @@ router.post("/admin-login", validateAdminLogin, adminLogin);
 
 router.get("/me", protect, getMe);
 router.post("/logout", protect, logout);
-
+router.patch(
+  "/complete-profile",
+  protect,
+  validateCompleteProfile,
+  completeProfile
+);
 router.post(
   "/forgot-password",
   otpLimiter,

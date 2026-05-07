@@ -139,7 +139,6 @@ const validateLostItem = [
   body("name")
     .isIn(ITEM_NAME)
     .withMessage("Please select a valid item category"),
-
   body("description")
     .optional({ checkFalsy: true })
     .trim()
@@ -235,6 +234,57 @@ const validatePagination = [
   handleValidationErrors,
 ];
 
+const validateCompleteProfile = [
+  body("block")
+    .trim()
+    .isIn(["A", "B", "C", "D", "E"])
+    .withMessage("Block must be A, B, C, D, or E"),
+
+  body("enrollmentNumber")
+    .trim()
+    .notEmpty()
+    .withMessage("Enrollment number is required")
+    .toUpperCase(),
+
+  body("phoneNumber")
+    .trim()
+    .matches(/^[0-9]{10}$/)
+    .withMessage("Please enter a valid 10-digit phone number"),
+
+  body("course")
+    .trim()
+    .notEmpty()
+    .withMessage("Course is required")
+    .isLength({ max: 100 })
+    .withMessage("Course name too long"),
+
+  body("branch")
+    .trim()
+    .notEmpty()
+    .withMessage("Branch is required")
+    .isLength({ max: 100 })
+    .withMessage("Branch name too long"),
+
+  body("year")
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Year must be between 1 and 5")
+    .toInt(),
+
+  body("semester")
+    .isInt({ min: 1, max: 10 })
+    .withMessage("Semester must be between 1 and 10")
+    .toInt(),
+
+  body("section")
+    .trim()
+    .notEmpty()
+    .withMessage("Section is required")
+    .isLength({ max: 10 })
+    .withMessage("Section too long"),
+
+  handleValidationErrors,
+];
+
 export {
   validateUserRegistration,
   validateOTPVerification,
@@ -248,4 +298,5 @@ export {
   validateObjectId,
   validatePagination,
   validateAdminForgotPassword,
+  validateCompleteProfile
 };

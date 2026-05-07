@@ -27,8 +27,16 @@ export const register = asyncHandler(async (req, res) => {
     }
 
     // Exists but unverified → update their details and resend OTP
+    if (
+      existingUser.emailVerificationExpire &&
+      existingUser.emailVerificationExpire >
+        new Date(Date.now() + 2 * 60 * 1000)
+    ) {
+      throw new ApiError(429, "Please wait 2 minutes before trying again.");
+    }
+
     existingUser.name = name;
-    existingUser.password = password; // pre-save hook will re-hash it
+    existingUser.password = password;
     const otp = await existingUser.generateEmailVerificationOTP();
     await existingUser.save();
 
@@ -81,7 +89,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     email,
     isEmailVerified: false,
     emailVerificationExpire: { $gt: Date.now() },
-  });
+  }).select("+emailVerificationOTP +emailVerificationOTPUsed");
 
   if (!user) {
     const exists = await User.findOne({ email }).lean();
@@ -90,13 +98,16 @@ export const verifyOTP = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Email already verified");
     throw new ApiError(400, "Invalid or expired OTP");
   }
+  if (user.emailVerificationOTPUsed) {
+    throw new ApiError(400, "OTP already used. Please request a new one.");
+  }
 
   const isOTPValid = await bcrypt.compare(otp, user.emailVerificationOTP);
   if (!isOTPValid) {
     throw new ApiError(400, "Invalid or expired OTP");
   }
   await User.findByIdAndUpdate(user._id, {
-    $set: { isEmailVerified: true },
+    $set: { isEmailVerified: true, emailVerificationOTPUsed: true },
     $unset: {
       emailVerificationOTP: "",
       emailVerificationExpire: "",
@@ -324,16 +335,9 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     );
   }
 
-  // Generate + hash OTP
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const hashedOTP = await bcrypt.hash(otp, 10);
-  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-  await User.findByIdAndUpdate(user._id, {
-    passwordResetOTP: hashedOTP,
-    passwordResetOTPExpiry: otpExpiry,
-    passwordResetOTPUsed: false,
-  });
+  // with this
+  const otp = await user.generatePasswordResetOTP();
+  await user.save();
 
   emailService
     .sendPasswordResetOTP(user.email, user.name, otp)
@@ -349,7 +353,9 @@ export const verifyResetOTP = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Email and OTP are required");
   }
 
-  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
+    "+passwordResetOTP +passwordResetOTPExpiry +passwordResetOTPUsed"
+  );
 
   if (!user || !user.passwordResetOTP) {
     throw new ApiError(400, "Invalid or expired OTP");
@@ -420,15 +426,11 @@ export const resetPassword = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-  await User.findByIdAndUpdate(user._id, {
-    password: hashedPassword,
-    passwordResetOTP: null,
-    passwordResetOTPExpiry: null,
-    passwordResetOTPUsed: false,
-    passwordChangedAt: new Date(), // invalidates all existing JWTs
-  });
+  user.password = newPassword;
+  user.passwordResetOTP = null;
+  user.passwordResetOTPExpiry = null;
+  user.passwordResetOTPUsed = false;
+  await user.save();
 
   emailService
     .sendPasswordResetConfirmation(user.email, user.name)
@@ -444,7 +446,9 @@ export const resetPassword = asyncHandler(async (req, res) => {
 export const adminForgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
-  const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
+  const admin = await User.findOne({ email, role: USER_ROLES.ADMIN }).select(
+    "+passwordResetOTP +passwordResetOTPExpiry +passwordResetOTPUsed"
+  );
 
   // Always respond the same way to prevent email enumeration
   if (!admin) {
@@ -469,15 +473,8 @@ export const adminForgotPassword = asyncHandler(async (req, res) => {
     );
   }
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const hashedOTP = await bcrypt.hash(otp, 10);
-  const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-  await User.findByIdAndUpdate(admin._id, {
-    passwordResetOTP: hashedOTP, // ← hashed
-    passwordResetOTPExpiry: otpExpiry,
-    passwordResetOTPUsed: false,
-  });
+  const otp = await admin.generatePasswordResetOTP();
+  await admin.save();
   emailService
     .sendPasswordResetOTP(admin.email, admin.name, otp)
     .catch((err) => console.error("Admin password reset email error:", err));
@@ -496,7 +493,9 @@ export const adminForgotPassword = asyncHandler(async (req, res) => {
 export const adminVerifyResetOTP = asyncHandler(async (req, res) => {
   const { email, otp } = req.body;
 
-  const admin = await User.findOne({ email, role: USER_ROLES.ADMIN });
+  User.findOne({ email, role: USER_ROLES.ADMIN }).select(
+    "+passwordResetOTP +passwordResetOTPExpiry +passwordResetOTPUsed"
+  );
   if (!admin) throw new ApiError(400, "Invalid or expired OTP");
 
   if (!admin.passwordResetOTP) {
@@ -556,15 +555,11 @@ export const adminResetPassword = asyncHandler(async (req, res) => {
   if (!admin) throw new ApiError(404, "Admin not found");
   if (admin.role !== USER_ROLES.ADMIN) throw new ApiError(403, "Unauthorized");
 
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-  await User.findByIdAndUpdate(admin._id, {
-    password: hashedPassword,
-    passwordResetOTP: null,
-    passwordResetOTPExpiry: null,
-    passwordResetOTPUsed: false,
-    passwordChangedAt: new Date(), // invalidates all existing JWTs
-  });
+  admin.password = newPassword;
+  admin.passwordResetOTP = null;
+  admin.passwordResetOTPExpiry = null;
+  admin.passwordResetOTPUsed = false;
+  await admin.save();
 
   emailService
     .sendPasswordResetConfirmation(admin.email, admin.name)
@@ -575,4 +570,87 @@ export const adminResetPassword = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(200, {}, "Password reset successfully. Please login.")
     );
+});
+export const completeProfile = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  const {
+    enrollmentNumber,
+    phoneNumber,
+    course,
+    branch,
+    year,
+    semester,
+    section,
+    block,
+  } = req.body;
+
+  // find user
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // only student can complete profile
+  if (user.role !== USER_ROLES.STUDENT) {
+    throw new ApiError(403, "Only students can complete profile");
+  }
+
+  // check email verified
+  if (!user.isEmailVerified) {
+    throw new ApiError(403, "Please verify email first");
+  }
+
+  // validate required fields
+  if (
+    !enrollmentNumber ||
+    !phoneNumber ||
+    !course ||
+    !branch ||
+    !year ||
+    !semester ||
+    !section ||
+    !block
+  ) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  // check enrollment already exists
+  const existingEnrollment = await User.findOne({
+    enrollmentNumber,
+    _id: { $ne: userId },
+  });
+
+  if (existingEnrollment) {
+    throw new ApiError(400, "Enrollment number already exists");
+  }
+
+  // check phone already exists
+  const existingPhone = await User.findOne({
+    phoneNumber,
+    _id: { $ne: userId },
+  });
+
+  if (existingPhone) {
+    throw new ApiError(400, "Phone number already exists");
+  }
+
+  // update profile
+  user.enrollmentNumber = enrollmentNumber;
+  user.phoneNumber = phoneNumber;
+  user.course = course;
+  user.branch = branch;
+  user.year = year;
+  user.semester = semester;
+  user.section = section;
+  user.block = block;
+
+  user.profileCompleted = true;
+
+  await user.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, user, "Profile completed successfully")
+  );
 });
