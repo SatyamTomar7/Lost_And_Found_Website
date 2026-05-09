@@ -62,8 +62,7 @@ export const authorize = (...roles) => {
 
 export const isStudent = authorize(USER_ROLES.STUDENT);
 export const isAdmin = authorize(USER_ROLES.ADMIN);
-export const isDirector = authorize(USER_ROLES.DIRECTOR);
-export const isSecurity = authorize(USER_ROLES.SECURITY);
+export const isManagement = authorize(USER_ROLES.SECURITY,USER_ROLES.DIRECTOR);
 export const optionalAuth = asyncHandler(async (req, _, next) => {
   let token;
 

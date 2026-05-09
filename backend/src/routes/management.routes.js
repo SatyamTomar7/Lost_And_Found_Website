@@ -8,14 +8,14 @@ import {
   getAllAdmins,
 } from "../controllers/management.controller.js";
 
-import { protect, isDirector } from "../middlewares/auth.middleware.js";
+import { protect, isManagement} from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
 // Protect all managements routes
 router.use(
   protect,
-  isDirector
+  isManagement
 );
 
 // Analytics
