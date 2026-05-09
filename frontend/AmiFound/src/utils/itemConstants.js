@@ -123,3 +123,73 @@ export const CAMPUS_LOCATIONS = [
   "Main Garden / Open Area",
   "Cafeteria (Main)"
 ];
+export const COURSES = [
+  "B.Tech",
+  "M.Tech",
+  "BCA",
+  "MCA",
+  "B.Sc",
+  "M.Sc",
+  "BBA",
+  "MBA",
+  "B.Com",
+  "BA",
+  "MA",
+  "B.Pharm",
+  "M.Pharm",
+  "BA LLB",
+  "BBA LLB",
+  "LLB",
+  "LLM",
+  "B.Des",
+  "M.Des",
+  "B.Arch",
+  "M.Plan",
+  "PhD"
+];
+
+export const BRANCHES = [
+  "CSE",
+  "CSE (AI & ML)",
+  "CSE (Data Science)",
+  "Cyber Security",
+  "IoT",
+  "IT",
+  "ECE",
+  "Mechanical Engineering",
+  "Civil Engineering",
+  "Electrical Engineering",
+  "Biotechnology",
+  "Computer Science",
+  "Artificial Intelligence",
+  "Forensic Science",
+  "Environmental Science",
+  "Commerce",
+  "Management",
+  "Law",
+  "Fashion Design",
+  "Interior Design",
+  "Architecture",
+  "Psychology",
+  "Journalism & Mass Communication",
+  "Animation & Visual Graphics",
+  "English",
+  "Economics",
+  "Political Science",
+  "History",
+  "Biology",
+  "Pharmacy"
+];
+export const SEMESTER_OPTIONS = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+];
+export const YEAR_OPTIONS = ["1", "2", "3", "4"];
+export const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
+export const BLOCK_OPTIONS = ["A", "B", "C", "D", "E"];

@@ -231,3 +231,11 @@ export const adminResetPassword = async (resetToken, newPassword, confirmPasswor
     body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
   });
 };
+
+export const completeProfile = async (data) => {
+  return apiFetch(`${API_URL}/auth/complete-profile`, {
+    method: "PATCH",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+};

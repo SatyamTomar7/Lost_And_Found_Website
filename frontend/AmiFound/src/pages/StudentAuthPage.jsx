@@ -44,10 +44,13 @@ const amityEmailRule = z
 
 const loginSchema = z.object({
   email: amityEmailRule,
-password: z.string()
-  .min(6, "Password must be at least 6 characters")
-  .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 
-    "Password must include uppercase, lowercase, and a number"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      "Password must include uppercase, lowercase, and a number",
+    ),
 });
 
 const registerSchema = z.object({
@@ -130,7 +133,7 @@ const useOTPTimer = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []); // ✅ runs only on mount/unmount
+  }, []);
 
   const minutes = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const seconds = String(secondsLeft % 60).padStart(2, "0");
@@ -212,7 +215,12 @@ const ResendButton = ({
 );
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
+const StudentAuthPage = ({
+  setCurrentUser,
+  setLoading,
+  showMessage,
+  currentUser,
+}) => {
   const navigate = useNavigate();
   const [formType, setFormType] = useState("login");
   const [pendingRegistration, setPendingRegistration] = useState(null);
@@ -224,8 +232,14 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
-    if (token) navigate("/student-dashboard", { replace: true });
-  }, [navigate]);
+    if (token && currentUser) {
+      if (!currentUser.profileCompleted) {
+        navigate("/complete-profile", { replace: true });
+      } else {
+        navigate("/student-dashboard", { replace: true });
+      }
+    }
+  }, [navigate, currentUser]);
 
   // Clean up timers when leaving their screens
   useEffect(() => {
@@ -277,13 +291,16 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
       }
 
       if (result.success && result.data) {
-        setCurrentUser(result.data.user);
+        const user = result.data.user;
+
+        setCurrentUser(user);
         localStorage.setItem("authToken", result.data.token);
         showMessage("Login successful!", "success");
-        setTimeout(
-          () => navigate("/student-dashboard", { replace: true }),
-          1000,
-        );
+        if (!user.profileCompleted) {
+          navigate("/complete-profile", { replace: true });
+        } else {
+          navigate("/student-dashboard", { replace: true });
+        }
       } else {
         showMessage(result.message || "Invalid email or password", "error");
       }
@@ -338,15 +355,17 @@ const StudentAuthPage = ({ setCurrentUser, setLoading, showMessage }) => {
     onSuccess: (result) => {
       if (result.success) {
         const user = result.data.user || result.data;
+
         setCurrentUser(user);
         if (result.data.token)
           localStorage.setItem("authToken", result.data.token);
         localStorage.setItem("userRole", result.data.role);
         showMessage("Registration successful!", "success");
-        setTimeout(
-          () => navigate("/student-dashboard", { replace: true }),
-          1000,
-        );
+        if (!user.profileCompleted) {
+          navigate("/complete-profile", { replace: true });
+        } else {
+          navigate("/student-dashboard", { replace: true });
+        }
       } else {
         showMessage(result.message || "Invalid OTP", "error");
       }

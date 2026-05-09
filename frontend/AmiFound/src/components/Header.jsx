@@ -55,7 +55,7 @@ const Header = ({ currentUser, currentAdmin, onLogout }) => {
                       style={{ marginRight: "8px" }}
                       aria-hidden="true"
                     />
-                    {currentAdmin.department}
+                    {currentAdmin.block} block
                   </>
                 )}
               </span>

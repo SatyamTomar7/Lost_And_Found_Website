@@ -873,22 +873,29 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
 
           {/* ── Profile Tab ── */}
           {activeTab === "profile" && (
-            <div
-              className="dashboard-tab active"
-              role="tabpanel"
-              id="profile-panel"
-              aria-labelledby="profile"
-            >
-              <div className="tab-content">
-                <h2>
-                  <FaUser /> Profile Information
-                </h2>
-                <div className="profile-info">
-                  <ProfileField label="Name" value={currentUser?.name} />
-                  <ProfileField label="Email" value={currentUser?.email} />
-                  <ProfileField label="Join Date" value={joinDate} />
-                </div>
-              </div>
+            <div className="profile-info">
+              <ProfileField label="Name" value={currentUser?.name} />
+
+              <ProfileField label="Email" value={currentUser?.email} />
+
+              <ProfileField
+                label="Enrollment Number"
+                value={currentUser?.enrollmentNumber}
+              />
+
+              <ProfileField
+                label="Phone Number"
+                value={currentUser?.phoneNumber}
+              />
+              <ProfileField
+                label="Semester"
+                value={
+                  currentUser?.semester
+                    ? `Semester ${currentUser.semester}`
+                    : "N/A"
+                }
+              />
+              <ProfileField label="Join Date" value={joinDate} />
             </div>
           )}
         </main>

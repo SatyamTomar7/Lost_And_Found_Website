@@ -206,6 +206,7 @@ const ReturnDetailsModal = ({ item, onClose }) => (
       </div>
 
       <div className="return-details__body">
+        {/* Item Info */}
         <div className="return-details__section">
           <p className="return-details__section-label">Returned Item</p>
           <div className="return-details__item-card">
@@ -225,23 +226,88 @@ const ReturnDetailsModal = ({ item, onClose }) => (
           </div>
         </div>
 
+        {/* Claimant Info */}
         <div className="return-details__section">
           <p className="return-details__section-label">Claimed By</p>
-          <div className="return-details__claimant-card">
-            <div className="return-details__avatar">
-              <FaUser />
-            </div>
-            <div className="return-details__claimant-info">
-              <div className="return-details__claimant-name">
+          <div className="return-details__claimant-grid">
+            <div className="return-details__claimant-row">
+              <span className="return-details__claimant-icon">
+                <FaUser />
+              </span>
+              <span className="return-details__claimant-field">Name</span>
+              <span className="return-details__claimant-val">
                 {item.claimedBy?.name || "N/A"}
-              </div>
-              <div className="return-details__claimant-email">
-                <FaEnvelope /> {item.claimedBy?.email || "N/A"}
-              </div>
+              </span>
+            </div>
+            <div className="return-details__claimant-row">
+              <span className="return-details__claimant-icon">
+                <FaEnvelope />
+              </span>
+              <span className="return-details__claimant-field">Email</span>
+              <span className="return-details__claimant-val">
+                {item.claimedBy?.email || "N/A"}
+              </span>
+            </div>
+            <div className="return-details__claimant-row">
+              <span className="return-details__claimant-icon">
+                <FaIdCard />
+              </span>
+              <span className="return-details__claimant-field">
+                Enrollment No.
+              </span>
+              <span className="return-details__claimant-val">
+                {item.claimedBy?.enrollmentNumber || "N/A"}
+              </span>
+            </div>
+            <div className="return-details__claimant-row">
+              <span className="return-details__claimant-icon">
+                <FaPhone />
+              </span>
+              <span className="return-details__claimant-field">Mobile</span>
+              <span className="return-details__claimant-val">
+                {item.claimedBy?.phoneNumber || "N/A"}
+              </span>
+            </div>
+            <div className="return-details__claimant-row">
+              <span className="return-details__claimant-icon">
+                <FaBox />
+              </span>
+              <span className="return-details__claimant-field">Course</span>
+              <span className="return-details__claimant-val">
+                {item.claimedBy?.course || "N/A"}
+              </span>
+            </div>
+            <div className="return-details__claimant-row">
+              <span className="return-details__claimant-icon">
+                <FaLink />
+              </span>
+              <span className="return-details__claimant-field">Branch</span>
+              <span className="return-details__claimant-val">
+                {item.claimedBy?.branch || "N/A"}
+              </span>
+            </div>
+            <div className="return-details__claimant-row">
+              <span className="return-details__claimant-icon">
+                <FaClock />
+              </span>
+              <span className="return-details__claimant-field">Semester</span>
+              <span className="return-details__claimant-val">
+                {item.claimedBy?.semester || "N/A"}
+              </span>
+            </div>
+            <div className="return-details__claimant-row">
+              <span className="return-details__claimant-icon">
+                <FaMapMarkerAlt />
+              </span>
+              <span className="return-details__claimant-field">Block</span>
+              <span className="return-details__claimant-val">
+                {item.claimedBy?.block || "N/A"}
+              </span>
             </div>
           </div>
         </div>
 
+        {/* Returned On */}
         {item.returnedAt && (
           <div className="return-details__section">
             <p className="return-details__section-label">Returned On</p>
@@ -636,17 +702,29 @@ const ReturnModal = ({ foundItem, onConfirm, onClose, isLoading }) => {
                         {new Date(lostItem.dateLost).toLocaleDateString()}
                       </span>
                     </div>
-                    {lostItem.userId && (
-                      <div className="return-modal__list-item-user">
-                        <FaUser /> {lostItem.userId.name}
-                        {lostItem.userId.email && (
-                          <span>
-                            {" "}
-                            · <FaEnvelope /> {lostItem.userId.email}
-                          </span>
-                        )}
+                    <div className="return-modal__list-item-user">
+                      <div>
+                        <FaUser /> {lostItem.userId?.name || "Unknown"}
                       </div>
-                    )}
+
+                      {lostItem.userId?.email && (
+                        <div>
+                          <FaEnvelope /> {lostItem.userId.email}
+                        </div>
+                      )}
+
+                      {lostItem.userId?.enrollmentNumber && (
+                        <div>
+                          <FaIdCard /> {lostItem.userId.enrollmentNumber}
+                        </div>
+                      )}
+
+                      {lostItem.userId?.semester && (
+                        <div>
+                          <FaClock /> Semester {lostItem.userId.semester}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}
@@ -688,89 +766,93 @@ const SingleMatchCard = React.memo(({ match }) => {
   const [showImg, setShowImg] = useState(false);
   const lostImage = match.lostItem?.images?.[0];
 
-  return (<div className="item-card match-card--single">
-    <div className="match-card__header">
-      <span className="match-card__badge match-card__badge--single">
-        <FaLink /> 1 Match Found
-      </span>
-      <span className="match-card__similarity">
-        <FaPercentage />
-        {(match.similarity ?? 0).toFixed(0)}% match
-      </span>
-    </div>
-
-    <div className="match-card__grid">
-      <div className="match-card__side match-card__side--found">
-        <p className="match-card__side-label">Found Item</p>
-        <h4 className="match-card__item-name">{match.foundItem.name}</h4>
-        <div className="item-meta">
-          <span>
-            <FaPalette /> {match.foundItem.color}
-          </span>
-          <span>
-            <FaMapMarkerAlt /> {match.foundItem.placeFound}
-          </span>
-          <span>
-            <FaCalendarAlt />{" "}
-            {new Date(match.foundItem.dateFound).toLocaleDateString()}
-          </span>
-        </div>
+  return (
+    <div className="item-card match-card--single">
+      <div className="match-card__header">
+        <span className="match-card__badge match-card__badge--single">
+          <FaLink /> 1 Match Found
+        </span>
+        <span className="match-card__similarity">
+          <FaPercentage />
+          {(match.similarity ?? 0).toFixed(0)}% match
+        </span>
       </div>
 
-      <div className="match-card__connector">
-        <FaExchangeAlt />
-      </div>
-
-      <div className="match-card__side match-card__side--lost">
-        <p className="match-card__side-label">Lost Item</p>
-        <h4 className="match-card__item-name">{match.lostItem.name}</h4>
-        <div className="item-meta">
-          <span>
-            <FaPalette /> {match.lostItem.color}
-          </span>
-          <span>
-            <FaMapMarkerAlt /> {match.lostItem.placeLost}
-          </span>
-          <span>
-            <FaCalendarAlt />{" "}
-            {new Date(match.lostItem.dateLost).toLocaleDateString()}
-          </span>
-        </div>
-
-        {lostImage && (
-          <div style={{ marginTop: "8px" }}>
-            <button
-              className="btn btn--sm btn--outline"
-              onClick={() => setShowImg((p) => !p)}
-            >
-              {showImg ? "Hide Image" : "View Image"}
-            </button>
-            {showImg && (
-              <img
-                src={lostImage.url}
-                alt="Lost item"
-                style={{
-                  marginTop: "8px",
-                  width: "100%",
-                  maxWidth: "200px",
-                  borderRadius: "8px",
-                  objectFit: "cover",
-                }}
-              />
-            )}
+      <div className="match-card__grid">
+        <div className="match-card__side match-card__side--found">
+          <p className="match-card__side-label">Found Item</p>
+          <h4 className="match-card__item-name">{match.foundItem.name}</h4>
+          <div className="item-meta">
+            <span>
+              <FaPalette /> {match.foundItem.color}
+            </span>
+            <span>
+              <FaMapMarkerAlt /> {match.foundItem.placeFound}
+            </span>
+            <span>
+              <FaCalendarAlt />{" "}
+              {new Date(match.foundItem.dateFound).toLocaleDateString()}
+            </span>
           </div>
-        )}
+        </div>
+
+        <div className="match-card__connector">
+          <FaExchangeAlt />
+        </div>
+
+        <div className="match-card__side match-card__side--lost">
+          <p className="match-card__side-label">Lost Item</p>
+          <h4 className="match-card__item-name">{match.lostItem.name}</h4>
+          <div className="item-meta">
+            <span>
+              <FaPalette /> {match.lostItem.color}
+            </span>
+            <span>
+              <FaMapMarkerAlt /> {match.lostItem.placeLost}
+            </span>
+            <span>
+              <FaCalendarAlt />{" "}
+              {new Date(match.lostItem.dateLost).toLocaleDateString()}
+            </span>
+          </div>
+
+          {lostImage && (
+            <div style={{ marginTop: "8px" }}>
+              <button
+                className="btn btn--sm btn--outline"
+                onClick={() => setShowImg((p) => !p)}
+              >
+                {showImg ? "Hide Image" : "View Image"}
+              </button>
+              {showImg && (
+                <img
+                  src={lostImage.url}
+                  alt="Lost item"
+                  style={{
+                    marginTop: "8px",
+                    width: "100%",
+                    maxWidth: "200px",
+                    borderRadius: "8px",
+                    objectFit: "cover",
+                  }}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="match-card__claimant">
+        <FaUser />
+        <span className="match-card__claimant-name">
+          {match.user?.name ?? "Unknown"}
+        </span>
+        <span className="match-card__claimant-sep">·</span>
+        <FaEnvelope />
+        <span className="match-card__claimant-email">{match.user.email}</span>
       </div>
     </div>
-
-    <div className="match-card__claimant">
-      <FaUser />
-      <span className="match-card__claimant-name">{match.user?.name ?? "Unknown"}</span>
-      <span className="match-card__claimant-sep">·</span>
-      <FaEnvelope />
-      <span className="match-card__claimant-email">{match.user.email}</span>
-    </div>
-  </div>)
+  );
 });
 
 const MultiMatchSummaryCard = React.memo(
@@ -791,7 +873,7 @@ const MultiMatchSummaryCard = React.memo(
 
         <div className="match-card__meta-row">
           <span className="match-card__dept">
-            <FaMapMarkerAlt /> {matches[0]?.foundItem?.department}
+            <FaMapMarkerAlt /> {matches[0]?.foundItem?.block}
           </span>
           <span className="match-card__avg-sim">
             Avg similarity:{" "}
@@ -910,7 +992,7 @@ const FoundItemCard = React.memo(
                 </div>
               )}
           </div>
-          {/* ✅ statusClass prevents invalid CSS class with space */}
+
           <span className={`status status--${statusClass}`}>{item.status}</span>
         </div>
 
@@ -1231,8 +1313,8 @@ const AdminDashboard = ({ currentAdmin, setLoading, showMessage }) => {
               <FaUserShield />
             </div>
             <div className="user-details">
-              <h3>{currentAdmin?.department || "Block A"} Admin</h3>
-              <p>{currentAdmin?.department || "Block A"}</p>
+              <h3>{currentAdmin?.block || "A"} block Admin</h3>
+        
             </div>
           </div>
         </header>

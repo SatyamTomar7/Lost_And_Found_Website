@@ -25,11 +25,12 @@ import MessageToast from "./components/MessageToast";
 import LoadingOverlay from "./components/LoadingOverlay";
 
 // ── Lazy-loaded page components ───────────────────────────────────────────────
-const HomePage       = lazy(() => import("./pages/HomePage"));
+const HomePage = lazy(() => import("./pages/HomePage"));
 const StudentAuthPage = lazy(() => import("./pages/StudentAuthPage"));
-const AdminAuthPage  = lazy(() => import("./pages/AdminAuthPage"));
+const AdminAuthPage = lazy(() => import("./pages/AdminAuthPage"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const CompleteProfile = lazy(() => import("./pages/CompleteProfile"));
 
 // ── Page Loader (Suspense fallback) ───────────────────────────────────────────
 const PageLoader = () => (
@@ -65,7 +66,9 @@ class ChunkErrorBoundary extends Component {
         <div className="page-loader">
           <div className="loading-spinner">
             <FaExclamationTriangle style={{ color: "var(--red, #dc2626)" }} />
-            <p>Failed to load page. Please check your connection and refresh.</p>
+            <p>
+              Failed to load page. Please check your connection and refresh.
+            </p>
             <button
               className="btn btn--primary"
               style={{ marginTop: 16 }}
@@ -85,16 +88,20 @@ class ChunkErrorBoundary extends Component {
 function AppContent() {
   const navigate = useNavigate();
 
-  const [currentUser, setCurrentUser]   = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [currentAdmin, setCurrentAdmin] = useState(null);
 
   // FIX #1: two separate loading states.
   // `authChecking` blocks rendering until the session is verified on mount.
   // `loading` is for user-triggered async actions (logout, form submit, etc.).
   const [authChecking, setAuthChecking] = useState(true);
-  const [loading, setLoading]           = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [message, setMessage] = useState({ text: "", type: "info", show: false });
+  const [message, setMessage] = useState({
+    text: "",
+    type: "info",
+    show: false,
+  });
 
   // FIX #2 & #3: single ref to track the active toast timer.
   // Cleared on every new showMessage call and on unmount — no leaks, no stacking.
@@ -245,11 +252,34 @@ function AppContent() {
               path="/student-dashboard"
               element={
                 currentUser ? (
-                  <StudentDashboard
-                    currentUser={currentUser}
-                    setLoading={setLoading}
-                    showMessage={showMessage}
-                  />
+                  currentUser.profileCompleted ? (
+                    <StudentDashboard
+                      currentUser={currentUser}
+                      setLoading={setLoading}
+                      showMessage={showMessage}
+                    />
+                  ) : (
+                    <Navigate to="/complete-profile" replace />
+                  )
+                ) : (
+                  <Navigate to="/student-auth" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/complete-profile"
+              element={
+                currentUser ? (
+                  !currentUser.profileCompleted ? (
+                    <CompleteProfile
+                      currentUser={currentUser}
+                      setCurrentUser={setCurrentUser}
+                      showMessage={showMessage}
+                    />
+                  ) : (
+                    <Navigate to="/student-dashboard" replace />
+                  )
                 ) : (
                   <Navigate to="/student-auth" replace />
                 )
