@@ -6,13 +6,13 @@ import {
   getAllFoundItems,
   getAllStudents,
   getAllAdmins,
-} from "../controllers/director.controller.js";
+} from "../controllers/management.controller.js";
 
 import { protect, isDirector } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Protect all director routes
+// Protect all managements routes
 router.use(
   protect,
   isDirector
