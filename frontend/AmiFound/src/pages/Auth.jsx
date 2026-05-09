@@ -66,7 +66,7 @@ const loginEmailRule = z.string().min(1, "Email is required").email("Enter a val
 const loginSchema = z.object({
   email:    loginEmailRule,
   password: z.string().min(6, "Password must be at least 6 characters")
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Must include uppercase, lowercase, and a number"),
+  //   .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Must include uppercase, lowercase, and a number"),
 });
 
 const registerSchema = z.object({
