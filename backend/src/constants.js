@@ -2,6 +2,8 @@ const DB_NAME = "LOST_AND_FOUND_AMITY";
 const USER_ROLES = {
   STUDENT: "student",
   ADMIN: "admin",
+  DIRECTOR: "director",
+  SECURITY: "security",
 };
 
 // Departments/Blocks

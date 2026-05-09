@@ -14,7 +14,7 @@ import foundItemRoutes from "./routes/founditem.routes.js";
 import matchRoutes from "./routes/matches.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
-
+import directorRoutes from "./routes/director.routes.js";
 const app = express();
 app.set("trust proxy", 1);
 const httpServer = createServer(app);
@@ -99,6 +99,7 @@ app.use("/api/founditems", apiLimiter, foundItemRoutes);
 app.use("/api/matches", apiLimiter, matchRoutes);
 app.use("/api/notifications", apiLimiter, notificationRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/director", directorRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({

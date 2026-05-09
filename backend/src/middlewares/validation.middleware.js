@@ -69,22 +69,6 @@ const validateLogin = [
   handleValidationErrors,
 ];
 
-const validateAdminLogin = [
-  body("email")
-    .trim()
-    .notEmpty()
-    .withMessage("Email is required")
-    .isEmail()
-    .withMessage("Enter a valid email"),
-
-  body("password")
-    .notEmpty()
-    .withMessage("Password is required"),
-
-  handleValidationErrors,
-];
-
-// --- PASSWORD RESET VALIDATIONS ---
 
 const validateForgotPassword = [
   body("email")
@@ -287,7 +271,7 @@ export {
   validateUserRegistration,
   validateOTPVerification,
   validateLogin,
-  validateAdminLogin,
+  // validateAdminLogin,
   validateForgotPassword,
   validateVerifyResetOTP,
   validateResetPassword,

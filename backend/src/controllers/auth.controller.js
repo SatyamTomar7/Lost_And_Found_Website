@@ -133,135 +133,6 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     )
   );
 });
-export const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-
-  const user = await User.findOne({ email }).select("+password");
-  if (!user) throw new ApiError(401, "Invalid email or password");
-
-  const isPasswordValid = await user.isPasswordCorrect(password);
-  if (!isPasswordValid) throw new ApiError(401, "Invalid email or password");
-
-  if (!user.isActive) {
-    throw new ApiError(403, "Account deactivated. Please contact support.");
-  }
-
-  if (!user.isEmailVerified) {
-    const otp = await user.generateEmailVerificationOTP();
-    await user.save();
-
-    emailService
-      .sendOTPVerification(user.email, user.name, otp)
-      .catch((err) => console.error("Email sending failed:", err));
-
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        },
-        "ACCOUNT_NOT_VERIFIED"
-      )
-    );
-  }
-
-  const lastLoginDate = new Date();
-  User.findByIdAndUpdate(user._id, {
-    $set: { lastLogin: lastLoginDate },
-  }).catch((err) => console.error("Failed to update last login:", err));
-
-  const token = user.getJWTToken();
-
-  res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        token,
-        user: {
-          id: user._id,
-
-          name: user.name,
-
-          email: user.email,
-
-          role: user.role,
-
-          profileImage: user.profileImage,
-
-          profileCompleted: user.profileCompleted,
-
-          enrollmentNumber: user.enrollmentNumber,
-
-          course: user.course,
-
-          branch: user.branch,
-
-          year: user.year,
-
-          semester: user.semester,
-
-          section: user.section,
-
-          block: user.block,
-
-          phoneNumber: user.phoneNumber,
-
-          lastLogin: lastLoginDate,
-
-          createdAt: user.createdAt,
-        },
-      },
-      "Login successful"
-    )
-  );
-});
-export const adminLogin = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    throw new ApiError(400, "Email and password are required");
-  }
-  const user = await User.findOne({
-    email,
-    role: USER_ROLES.ADMIN,
-  }).select("+password");
-
-  if (!user) throw new ApiError(401, "Invalid credentials for this block");
-
-  const isPasswordValid = await user.isPasswordCorrect(password);
-  if (!isPasswordValid) throw new ApiError(401, "Invalid credentials");
-
-  if (!user.isActive) {
-    throw new ApiError(403, "Admin account is deactivated");
-  }
-
-  const lastLoginDate = new Date();
-  User.findByIdAndUpdate(user._id, {
-    $set: { lastLogin: lastLoginDate },
-  }).catch((err) => console.error("Admin lastLogin update failed:", err));
-
-  const token = user.getJWTToken();
-
-  res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          block: user.block,
-          lastLogin: lastLoginDate,
-        },
-      },
-      "Admin login successful"
-    )
-  );
-});
 export const getMe = asyncHandler(async (req, res) => {
   if (!req.user) {
     throw new ApiError(404, "User session not found");
@@ -677,4 +548,162 @@ export const completeProfile = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, user, "Profile completed successfully"));
+});
+
+export const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new ApiError(400, "Email and password are required");
+  }
+
+  const user = await User.findOne({ email }).select("+password");
+
+  if (!user) {
+    throw new ApiError(401, "Invalid email or password");
+  }
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid email or password");
+  }
+
+  if (!user.isActive) {
+    throw new ApiError(
+      403,
+      "Account deactivated. Please contact support."
+    );
+  }
+
+  // Email verification only for students
+  if (
+    user.role === USER_ROLES.STUDENT &&
+    !user.isEmailVerified
+  ) {
+    const otp = await user.generateEmailVerificationOTP();
+
+    await user.save();
+
+    emailService
+      .sendOTPVerification(user.email, user.name, otp)
+      .catch((err) =>
+        console.error("Email sending failed:", err)
+      );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+        "ACCOUNT_NOT_VERIFIED"
+      )
+    );
+  }
+
+  const lastLoginDate = new Date();
+
+  User.findByIdAndUpdate(user._id, {
+    $set: { lastLogin: lastLoginDate },
+  }).catch((err) =>
+    console.error("Last login update failed:", err)
+  );
+
+  const token = user.getJWTToken();
+
+  let userData = {};
+
+  // Student Response
+  if (user.role === USER_ROLES.STUDENT) {
+    userData = {
+      id: user._id,
+
+      name: user.name,
+
+      email: user.email,
+
+      role: user.role,
+
+      profileImage: user.profileImage,
+
+      profileCompleted: user.profileCompleted,
+
+      enrollmentNumber: user.enrollmentNumber,
+
+      course: user.course,
+
+      branch: user.branch,
+
+      year: user.year,
+
+      semester: user.semester,
+
+      section: user.section,
+
+      block: user.block,
+
+      phoneNumber: user.phoneNumber,
+
+      lastLogin: lastLoginDate,
+
+      createdAt: user.createdAt,
+    };
+  }
+
+  // Admin Response
+  else if (user.role === USER_ROLES.ADMIN) {
+    userData = {
+      id: user._id,
+
+      name: user.name,
+
+      email: user.email,
+
+      role: user.role,
+
+      block: user.block,
+
+      profileImage: user.profileImage,
+
+      lastLogin: lastLoginDate,
+
+      createdAt: user.createdAt,
+    };
+  }
+
+  // Director + Security Response
+  else if (
+    user.role === USER_ROLES.DIRECTOR ||
+    user.role === USER_ROLES.SECURITY
+  ) {
+    userData = {
+      id: user._id,
+
+      name: user.name,
+
+      email: user.email,
+
+      role: user.role,
+
+      profileImage: user.profileImage,
+
+      lastLogin: lastLoginDate,
+
+      createdAt: user.createdAt,
+    };
+  }
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        token,
+        user: userData,
+      },
+      "Login successful"
+    )
+  );
 });
