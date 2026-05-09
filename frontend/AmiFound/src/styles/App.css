@@ -3343,3 +3343,599 @@ input[type="radio"] {
   font-size: 13px;
   word-break: break-word;
 }
+
+
+/* director dashboard css */
+/* DirectorDashboard.css — AmiFound Director Panel
+   Uses App.css tokens: --navy, --gold, --font-body, --sp-*, --r-*, etc.
+*/
+
+/* ── Accessibility ─────────────────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+.dd-shell {
+  padding: var(--sp-24);
+  max-width: 1140px;
+  margin: 0 auto;
+  font-family: var(--font-body);
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────── */
+.dd-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-24);
+}
+.dd-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  margin-bottom: var(--sp-4);
+}
+.dd-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+}
+.dd-badge {
+  display: inline-flex;
+  align-items: center;
+  background: var(--navy);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  letter-spacing: 0.03em;
+}
+.dd-sub {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--sp-2);
+}
+
+.dd-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: var(--sp-8) var(--sp-16);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dd-refresh-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+}
+.dd-refresh-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Stat cards ────────────────────────────────────────────────────────── */
+.dd-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-32);
+}
+.dd-stat {
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: var(--r-lg);
+  padding: var(--sp-16) var(--sp-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  transition: box-shadow var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
+}
+.dd-stat:hover {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+.dd-stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--sp-8);
+  flex-shrink: 0;
+}
+.dd-stat-icon.navy   { background: #e8f0fa; color: var(--navy); }
+.dd-stat-icon.gold   { background: #fef9e7; color: var(--gold-dark); }
+.dd-stat-icon.teal   { background: #e1f5ee; color: #0f6e56; }
+.dd-stat-icon.purple { background: #f3e8ff; color: #6b21a8; }
+.dd-stat-icon.green  { background: #dcfce7; color: #166534; }
+.dd-stat-icon.red    { background: #fef2f2; color: var(--red); }
+
+.dd-stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.dd-stat-value {
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+}
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+.dd-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  margin-bottom: var(--sp-16);
+}
+.dd-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  font-family: var(--font-body);
+  padding: var(--sp-10) var(--sp-16);
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  transition: color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
+  white-space: nowrap;
+}
+.dd-tab:hover {
+  color: var(--text-primary);
+  background: rgba(30, 80, 142, 0.04);
+}
+.dd-tab.active {
+  color: var(--navy);
+  border-bottom-color: var(--navy);
+}
+.dd-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Section header ────────────────────────────────────────────────────── */
+.dd-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-12);
+}
+.dd-section-title {
+  font-size: var(--text-base);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+/* ── Filter bar ────────────────────────────────────────────────────────── */
+.dd-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-16);
+  background: rgba(30, 80, 142, 0.03);
+  border: 1px solid rgba(30, 80, 142, 0.08);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  border-bottom: none;
+}
+.dd-filter-icon {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.dd-filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.dd-filter-label {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.dd-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.dd-select {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--r-md);
+  padding: var(--sp-6) var(--sp-32) var(--sp-6) var(--sp-10);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+  min-width: 130px;
+}
+.dd-select:hover {
+  border-color: var(--navy-light);
+}
+.dd-select:focus {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--navy);
+}
+.dd-select-icon {
+  position: absolute;
+  right: var(--sp-10);
+  pointer-events: none;
+  color: var(--text-muted);
+}
+
+/* Filter chips */
+.dd-filter-chips {
+  display: flex;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+}
+.dd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  font-family: var(--font-body);
+  background: rgba(30, 80, 142, 0.1);
+  color: var(--navy);
+  border: 1px solid rgba(30, 80, 142, 0.2);
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.dd-chip:hover {
+  background: rgba(30, 80, 142, 0.18);
+}
+
+/* ── Table ─────────────────────────────────────────────────────────────── */
+.dd-table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: var(--r-lg);
+}
+
+/* When filter bar is present, flatten top corners of table */
+.dd-filter-bar + .dd-table-wrap {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.dd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.dd-table th {
+  padding: var(--sp-10) var(--sp-16);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  background: rgba(30, 80, 142, 0.025);
+  white-space: nowrap;
+}
+.dd-table td {
+  padding: var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+.dd-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.dd-table tbody tr {
+  transition: background var(--dur-fast) var(--ease);
+}
+.dd-table tbody tr:hover td {
+  background: rgba(30, 80, 142, 0.025);
+}
+
+/* ── Cell helpers ──────────────────────────────────────────────────────── */
+.dd-name-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+}
+.dd-name {
+  display: block;
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+.dd-item-sub {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+.dd-muted { color: var(--text-secondary); }
+.dd-sm    { font-size: var(--text-xs); }
+.dd-mono  {
+  font-family: monospace;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+/* ── Avatar ────────────────────────────────────────────────────────────── */
+.dd-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-full);
+  background: #e8f0fa;
+  color: var(--navy);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* ── Block badge ───────────────────────────────────────────────────────── */
+.dd-block-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  background: var(--navy);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-extrabold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+/* ── Status pills ──────────────────────────────────────────────────────── */
+.dd-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--r-full);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+.pill-pending        { background: #fef9e7; color: #92400e; }
+.pill-matched        { background: #f3e8ff; color: #6b21a8; }
+.pill-collected      { background: #e8f0fa; color: var(--navy-dark); }
+.pill-returned       { background: #e1f5ee; color: #0f6e56; }
+.pill-unclaimed      { background: #fef2f2; color: #991b1b; }
+.pill-offline        { background: #fff7ed; color: #9a3412; }
+.pill-self           { background: #f0fdf4; color: #166534; }
+.pill-found          { background: #e0f2fe; color: #0c4a6e; }
+.pill-admin          { background: #e8f0fa; color: var(--navy-dark); }
+.pill-security       { background: #fff7ed; color: #c2410c; }
+
+/* ── Pagination ────────────────────────────────────────────────────────── */
+.dd-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-12);
+  padding: var(--sp-16) 0;
+}
+.dd-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--surface);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+}
+.dd-page-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--navy);
+  box-shadow: var(--shadow-xs);
+}
+.dd-page-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.dd-page-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.dd-page-info {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.dd-page-info strong {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+/* ── States ────────────────────────────────────────────────────────────── */
+.dd-empty-cell {
+  text-align: center;
+  padding: var(--sp-48);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+.dd-error-cell {
+  text-align: center;
+  padding: var(--sp-32);
+  color: var(--red);
+  font-size: var(--text-sm);
+}
+
+/* ── Shimmer ───────────────────────────────────────────────────────────── */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.06) 25%,
+    rgba(0, 0, 0, 0.02) 50%,
+    rgba(0, 0, 0, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: dd-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--r-sm);
+}
+.shimmer-cell {
+  height: 13px;
+  margin: 3px 0;
+  border-radius: var(--r-sm);
+}
+.dd-shimmer-row td {
+  padding: var(--sp-12) var(--sp-16);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+@keyframes dd-shimmer {
+  0%   { background-position:  200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .dd-shell {
+    padding: var(--sp-16);
+  }
+  .dd-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-8);
+  }
+  .dd-stat-value {
+    font-size: var(--text-3xl);
+  }
+  .dd-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .dd-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .dd-tab {
+    padding: var(--sp-8) var(--sp-12);
+  }
+  .dd-filter-bar {
+    gap: var(--sp-8);
+  }
+}
+
+@media (max-width: 480px) {
+  .dd-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dd-topbar {
+    flex-direction: column;
+    gap: var(--sp-12);
+  }
+  .dd-refresh-btn {
+    align-self: flex-start;
+  }
+}
+
+/* helper for single auth page */
+/*
+ * auth-unified.css — Additive styles for UnifiedAuthPage
+ * All existing class names preserved. Only NEW additions here.
+ * Import AFTER your existing auth CSS.
+ */
+
+/*
+ * NOTE: All existing classes are untouched:
+ *   .auth-container, .auth-card, .auth-header, .auth-form,
+ *   .form-group, .form-label, .form-label-row, .form-control,
+ *   .error-message, .is-invalid, .password-input-wrapper,
+ *   .password-toggle-btn, .forgot-password-link,
+ *   .btn, .btn--primary, .btn--outline, .btn--ghost, .btn--full-width,
+ *   .otp-message, .otp-input, .reset-info-box, .reset-info-box--success,
+ *   .reset-info-box__icon, .auth-switch, .auth-switch-btn,
+ *   .spin-icon
+ * are all from your existing stylesheet — nothing changed.
+ */
+
+/* ── auth-note: small helper for "admin accounts are created manually" ── */
+.auth-note {
+  margin-top: var(--sp-12);
+  padding: var(--sp-10) var(--sp-12);
+  background: rgba(30, 80, 142, 0.05);
+  border-left: 3px solid var(--navy);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: var(--leading-normal);
+}
+
+/* ── Role hint badge shown below login form (optional UX addition) ── */
+.auth-role-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-6);
+  margin-top: var(--sp-12);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.auth-role-hint__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--gold);
+  display: inline-block;
+  flex-shrink: 0;
+}
