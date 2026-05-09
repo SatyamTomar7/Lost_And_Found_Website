@@ -356,7 +356,7 @@ const HomePage          = lazy(() => import("./pages/HomePage"));
 const UnifiedAuthPage   = lazy(() => import("./pages/Auth"));
 const StudentDashboard  = lazy(() => import("./pages/StudentDashboard"));
 const AdminDashboard    = lazy(() => import("./pages/AdminDashboard"));
-const DirectorDashboard = lazy(() => import("./pages/DirectorDashboard"));
+const DirectorDashboard = lazy(() => import("./pages/ManagementDashboard"));
 const CompleteProfile   = lazy(() => import("./pages/CompleteProfile"));
 
 // ── Page Loader (Suspense fallback) ───────────────────────────────────────────

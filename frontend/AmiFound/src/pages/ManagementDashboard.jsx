@@ -15,7 +15,7 @@ import {
   getDirectorStudents,
   getDirectorLostItems,
   getDirectorFoundItems,
-} from "../services/directorService";
+} from "../services/managementService";
 
 
 // ── Constants ──────────────────────────────────────────────────────────────
