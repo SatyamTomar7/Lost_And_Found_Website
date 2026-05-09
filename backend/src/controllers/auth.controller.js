@@ -181,11 +181,35 @@ export const login = asyncHandler(async (req, res) => {
         token,
         user: {
           id: user._id,
+
           name: user.name,
+
           email: user.email,
+
           role: user.role,
+
           profileImage: user.profileImage,
+
+          profileCompleted: user.profileCompleted,
+
+          enrollmentNumber: user.enrollmentNumber,
+
+          course: user.course,
+
+          branch: user.branch,
+
+          year: user.year,
+
+          semester: user.semester,
+
+          section: user.section,
+
+          block: user.block,
+
+          phoneNumber: user.phoneNumber,
+
           lastLogin: lastLoginDate,
+
           createdAt: user.createdAt,
         },
       },
@@ -204,7 +228,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
     role: USER_ROLES.ADMIN,
   }).select("+password");
 
-  if (!user) throw new ApiError(401, "Invalid credentials for this department");
+  if (!user) throw new ApiError(401, "Invalid credentials for this block");
 
   const isPasswordValid = await user.isPasswordCorrect(password);
   if (!isPasswordValid) throw new ApiError(401, "Invalid credentials");
@@ -230,7 +254,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          department: user.department,
+          block: user.block,
           lastLogin: lastLoginDate,
         },
       },
@@ -248,7 +272,7 @@ export const getMe = asyncHandler(async (req, res) => {
     name: req.user.name,
     email: req.user.email,
     role: req.user.role,
-    ...(req.user.department && { department: req.user.department }),
+    ...(req.user.block && { block: req.user.block }),
     profileImage: req.user.profileImage,
     isEmailVerified: req.user.isEmailVerified,
     isActive: req.user.isActive,
@@ -584,7 +608,7 @@ export const completeProfile = asyncHandler(async (req, res) => {
     section,
     block,
   } = req.body;
-console.log(req.body)
+  console.log(req.body);
   // find user
   const user = await User.findById(userId);
 
@@ -650,7 +674,7 @@ console.log(req.body)
 
   await user.save();
 
-  return res.status(200).json(
-    new ApiResponse(200, user, "Profile completed successfully")
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Profile completed successfully"));
 });

@@ -1,5 +1,3 @@
-/* The above code is a JavaScript module that defines several functions related to matching lost and
-found items. Here is a summary of what each function does: */
 import { FoundItem } from "../models/FoundItem.model.js";
 import { LostItem } from "../models/LostItem.model.js";
 import matchingService from "../services/matching.service.js";
@@ -42,14 +40,14 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
           id: lostItem._id,
           name: lostItem.name,
           color: lostItem.color,
-          images:lostItem.images
+          images: lostItem.images,
         },
         matches: matches.map((match) => ({
           foundItem: {
             id: match.foundItem._id,
             name: match.foundItem.name,
             color: match.foundItem.color,
-            department: match.foundItem.department,
+            block: match.foundItem.block,
             dateFound: match.foundItem.dateFound,
             placeFound: match.foundItem.placeFound,
           },
@@ -72,13 +70,10 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
 
   if (!foundItem) throw new ApiError(404, "Found item not found");
 
-  if (
-    req.user.role === "admin" &&
-    foundItem.department !== req.user.department
-  ) {
+  if (req.user.role === "admin" && foundItem.block !== req.user.block) {
     throw new ApiError(
       403,
-      "Access denied. This item belongs to another department."
+      "Access denied. This item belongs to another block."
     );
   }
 
@@ -95,11 +90,21 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
         color: lostItem.color,
         dateLost: lostItem.dateLost,
         placeLost: lostItem.placeLost,
-        images:lostItem.images,
+        images: lostItem.images,
         user: {
           id: owner._id || "N/A",
           name: owner.name || "Unknown User",
           email: owner.email || "No Email",
+
+          enrollmentNumber: owner.enrollmentNumber || "N/A",
+          phoneNumber: owner.phoneNumber || "N/A",
+
+          course: owner.course || "N/A",
+          branch: owner.branch || "N/A",
+
+          semester: owner.semester || "N/A",
+
+          block: owner.block || "N/A",
         },
       },
       matchScore: match.matchScore,
@@ -116,7 +121,7 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
           id: foundItem._id,
           name: foundItem.name,
           color: foundItem.color,
-          department: foundItem.department,
+          block: foundItem.block,
         },
         matches: mappedMatches,
       },
@@ -125,7 +130,7 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
   );
 });
 export const getMatchingStats = asyncHandler(async (req, res) => {
-  const department = req.user.role === "admin" ? req.user.department : null;
+  const block = req.user.role === "admin" ? req.user.block : null;
 
   const [
     totalLostItems,
@@ -136,33 +141,33 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     foundItems,
     lostItems,
   ] = await Promise.all([
-    // Total active lost items
+    // Total active lost items — NO block filter (LostItem has no block field)
     LostItem.countDocuments({
-      isActive: true
+      isActive: true,
     }),
 
     // Total active found items
     FoundItem.countDocuments({
       isActive: true,
-      ...(department && { department }),
+      ...(block && { block }),
     }),
 
-    // Matched lost items count — status based
+    // Matched lost items count — NO block filter
     LostItem.countDocuments({
-      status: ITEM_STATUS.MATCHED
+      status: ITEM_STATUS.MATCHED,
     }),
 
     // Returned found items count
     FoundItem.countDocuments({
       status: ITEM_STATUS.RETURNED,
-      ...(department && { department }),
+      ...(block && { block }),
     }),
 
-    // Per-item breakdown
+    // Per-item breakdown — NO block filter on LostItem aggregate
     LostItem.aggregate([
       {
         $match: {
-          isActive: true
+          isActive: true,
         },
       },
       {
@@ -193,18 +198,20 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
       { $sort: { total: -1 } },
     ]),
 
-    // Active found items available for matching display
+    // Active found items — block filter stays (FoundItem HAS block field)
     FoundItem.find({
       isActive: true,
       status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
-      ...(department && { department }),
-    }),
+      ...(block && { block }),
+    }).lean(),
 
-    // Active lost items — both PENDING and MATCHED included for stats display
+    // Active lost items — NO block filter (LostItem has no block field)
     LostItem.find({
       isActive: true,
-      status: { $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED] }
-    }),
+      status: {
+        $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED],
+      },
+    }).lean(),
   ]);
 
   const matchRate =
@@ -219,11 +226,21 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
 
   // Batch fetch users for all lost items in one query — avoids N+1
   const userIds = [...new Set(lostItems.map((l) => l.userId.toString()))];
-  const users = await User.find({ _id: { $in: userIds } }).select("name email");
+  const users = await User.find({
+    _id: { $in: userIds },
+  }).select(`
+  name
+  email
+  enrollmentNumber
+  phoneNumber
+  course
+  branch
+  semester
+  block
+`);
   const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
   // Build matches display list using already-stored matchedFoundItemIds
-  // Avoids O(n*m) loop — only crosses pairs that are actually matched
   const matches = [];
 
   const foundItemMap = new Map(foundItems.map((f) => [f._id.toString(), f]));
@@ -236,17 +253,16 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
 
     const user = userMap[lostItem.userId.toString()] || null;
     for (const foundItemRef of lostItem.matchedFoundItemIds) {
-      // foundItems array se match karo — avoids extra DB call
       const foundItem = foundItemMap.get(foundItemRef.toString());
 
-      if (!foundItem) continue; // already returned/collected — skip
+      if (!foundItem) continue;
 
       matches.push({
         foundItem: {
           id: foundItem._id,
           name: foundItem.name,
           color: foundItem.color,
-          department: foundItem.department,
+          block: foundItem.block,
           dateFound: foundItem.dateFound,
           placeFound: foundItem.placeFound,
         },
@@ -257,9 +273,21 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           dateLost: lostItem.dateLost,
           placeLost: lostItem.placeLost,
           description: lostItem.description,
-          images:lostItem.images
+          images: lostItem.images,
         },
-        user,
+        user: user
+          ? {
+              id: user._id || "N/A",
+              name: user.name || "Unknown User",
+              email: user.email || "No Email",
+              enrollmentNumber: user.enrollmentNumber || "N/A",
+              phoneNumber: user.phoneNumber || "N/A",
+              course: user.course || "N/A",
+              branch: user.branch || "N/A",
+              semester: user.semester || "N/A",
+              block: user.block || "N/A",
+            }
+          : null,
         similarity: matchingService.calculateMatchScore(lostItem, foundItem),
       });
     }
@@ -279,7 +307,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
         },
         matches,
         itemBreakdown: itemStats,
-        department: department || "All Departments",
+        block: block || "All Blocks",
       },
       "Matching stats fetched successfully"
     )

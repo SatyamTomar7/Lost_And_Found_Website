@@ -4,7 +4,7 @@ import { google } from "googleapis";
 const sanitize = (str) =>
   String(str).replace(
     /[<>&"]/g,
-    (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c])
+    (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[c]
   );
 
 // ─── Gmail OAuth2 Setup ───────────────────────────────────────────────────────
@@ -105,10 +105,10 @@ class EmailService {
   }
 
   // ─── Match Notification Email ────────────────────────────────────────────
-  async sendMatchNotification(userEmail, userName, lostItem, foundItem, department) {
+  async sendMatchNotification(userEmail, userName, lostItem, foundItem, block) {
     try {
       const safeUserName = sanitize(userName);
-      const safeDepartment = sanitize(department);
+      const safeBlock = sanitize(block);
       const safeLostName = sanitize(lostItem.name);
       const safeLostColor = sanitize(lostItem.color);
       const safeLostPlace = sanitize(lostItem.placeLost);
@@ -142,12 +142,12 @@ class EmailService {
                 <p><strong>Color:</strong> ${safeFoundColor}</p>
                 <p><strong>Date Found:</strong> ${new Date(foundItem.dateFound).toLocaleDateString()}</p>
                 <p><strong>Place Found:</strong> ${safeFoundPlace}</p>
-                <p><strong>Department:</strong> ${safeDepartment}</p>
+                <p><strong>Block:</strong> ${safeBlock}</p>
               </div>
               <div style="text-align: center; margin: 30px 0;">
                 <p style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #fbbf24;">
                   <strong>Next Steps:</strong><br>
-                  Please visit the ${safeDepartment} Lost &amp; Found office to verify and collect your item.
+                  Please visit the ${safeBlock} Block Lost &amp; Found office to verify and collect your item.
                   Bring a valid ID and be prepared to provide additional details about the item.
                 </p>
               </div>
@@ -170,7 +170,12 @@ class EmailService {
   }
 
   // ─── Item Returned Confirmation Email ────────────────────────────────────
-  async sendItemReturnedConfirmation(userEmail, userName, itemName, returnedAt) {
+  async sendItemReturnedConfirmation(
+    userEmail,
+    userName,
+    itemName,
+    returnedAt
+  ) {
     try {
       const safeUserName = sanitize(userName);
       const safeItemName = sanitize(itemName);
@@ -210,11 +215,11 @@ class EmailService {
   }
 
   // ─── Item Unavailable Notification Email ─────────────────────────────────
-  async sendItemUnavailableNotification(email, userName, itemName, department) {
+  async sendItemUnavailableNotification(email, userName, itemName, block) {
     try {
       const safeUserName = sanitize(userName);
       const safeItemName = sanitize(itemName);
-      const safeDepartment = sanitize(department);
+      const safeBlock = sanitize(block);
 
       await sendEmail({
         to: email,
@@ -229,7 +234,7 @@ class EmailService {
               <h2 style="color: #b45309;">Item No Longer Available</h2>
               <p>Hello <strong>${safeUserName}</strong>,</p>
               <p>We wanted to inform you that the <strong>${safeItemName}</strong> found in
-              <strong>${safeDepartment}</strong> that previously matched your lost item report
+              <strong>${safeBlock} Block </strong> that previously matched your lost item report
               has been collected in person by its owner.</p>
               <div style="background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <p style="margin: 0;">
@@ -244,7 +249,7 @@ class EmailService {
                 <h3 style="color: #1e40af; margin-top: 0;">What you can do</h3>
                 <ul style="color: #374151; line-height: 1.8;">
                   <li>Keep your lost item report active — we are still looking</li>
-                  <li>Visit the ${safeDepartment} office if you have additional information</li>
+                  <li>Visit the ${safeBlock} Block office if you have additional information</li>
                   <li>Check the portal regularly for new matches</li>
                 </ul>
               </div>
@@ -373,6 +378,103 @@ class EmailService {
       return true;
     } catch (error) {
       console.error("Password reset confirmation email error:", error);
+      return false;
+    }
+  }
+
+  // ─── Item Returned Notification Email ────────────────────────────────────
+  async sendItemReturnedNotification(email, userName, itemName, block) {
+    try {
+      const safeUserName = sanitize(userName);
+      const safeItemName = sanitize(itemName);
+      const safeBlock = sanitize(block);
+
+      await sendEmail({
+        to: email,
+
+        subject: "Item Returned Successfully - Amity Lost & Found",
+
+        html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          
+          <div style="background: linear-gradient(135deg, #059669, #10b981); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">
+              Item Returned Successfully
+            </h1>
+
+            <p style="color: white; margin: 5px 0;">
+              Amity Lost &amp; Found System
+            </p>
+          </div>
+
+          <div style="padding: 30px; background: #f8fafc;">
+
+            <h2 style="color: #059669;">
+              Your Item Has Been Returned
+            </h2>
+
+            <p>
+              Hello <strong>${safeUserName}</strong>,
+            </p>
+
+            <p>
+              We are happy to inform you that your lost item has been successfully returned.
+            </p>
+
+            <div style="background: white; border: 2px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+
+              <h3 style="color: #1e40af; margin-top: 0;">
+                Returned Item Details
+              </h3>
+
+              <p>
+                <strong>Item Name:</strong>
+                ${safeItemName}
+              </p>
+
+              <p>
+                <strong>Block:</strong>
+                ${safeBlock}
+              </p>
+
+              <p>
+                <strong>Status:</strong>
+                RETURNED
+              </p>
+
+              <p>
+                <strong>Returned At:</strong>
+                ${new Date().toLocaleString()}
+              </p>
+            </div>
+
+            <div style="background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 8px; padding: 15px; margin: 20px 0;">
+
+              <p style="margin: 0;">
+                Thank you for using the Amity Lost &amp; Found Portal.
+                We are glad we could help you recover your item.
+              </p>
+
+            </div>
+
+            <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
+
+            <p style="color: #6b7280; font-size: 12px;">
+              This email was automatically sent by the
+              Amity Lost &amp; Found Management System.
+            </p>
+
+          </div>
+        </div>
+      `,
+      });
+
+      console.log(`Item returned notification sent to ${email}`);
+
+      return true;
+    } catch (error) {
+      console.error("Item returned notification email error:", error);
+
       return false;
     }
   }

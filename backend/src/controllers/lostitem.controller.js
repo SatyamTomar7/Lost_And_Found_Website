@@ -86,7 +86,19 @@ export const submitLostItem = asyncHandler(async (req, res) => {
     );
   }
 
-  await lostItem.populate("userId", "name email");
+  await lostItem.populate(
+    "userId",
+    `
+  name
+  email
+  enrollmentNumber
+  phoneNumber
+  course
+  branch
+  semester
+  block
+  `
+  );
 
   // ... rest of your matching + notification logic unchanged ...
   const matches = await matchingService.findMatchesForLostItem(
@@ -97,40 +109,42 @@ export const submitLostItem = asyncHandler(async (req, res) => {
   let matchNotifications = [];
   if (topMatches.length > 0) {
     const io = req.app.get("socketio");
-    matchNotifications = await Promise.all(
-      topMatches.map(async (match) => {
-        const notification = await Notification.create({
-          userId: req.user.id,
-          type: NOTIFICATION_TYPES.MATCH_FOUND,
-          title: "Potential Match Found",
-          message: `We found a ${match.matchScore}% match for your lost ${lostItem.name} in ${match.foundItem.block}.`,
-          data: {
-            lostItemId: lostItem._id,
-            foundItemId: match.foundItem._id,
-            matchScore: match.matchScore,
-          },
-          priority: match.matchScore > 85 ? "high" : "medium",
-        });
-
-        emailService
-          .sendMatchNotification(
-            req.user.email,
-            req.user.name,
-            lostItem,
-            match.foundItem,
-            match.foundItem.block
-          )
-          .catch((err) => console.error("Match Email Failed:", err));
-
-        if (io) {
-          io.sendNotificationToUser(req.user.id, {
-            ...notification.toObject(),
-            foundItem: match.foundItem,
+    matchNotifications = (
+      await Promise.all(
+        topMatches.map(async (match) => {
+          const notification = await Notification.create({
+            userId: req.user.id,
+            type: NOTIFICATION_TYPES.MATCH_FOUND,
+            title: "Potential Match Found",
+            message: `We found a ${match.matchScore}% match for your lost ${lostItem.name} in ${match.foundItem.block} block.`,
+            data: {
+              lostItemId: lostItem._id,
+              foundItemId: match.foundItem._id,
+              matchScore: match.matchScore,
+            },
+            priority: match.matchScore > 85 ? "high" : "medium",
           });
-        }
-        return notification;
-      })
-    );
+
+          emailService
+            .sendMatchNotification(
+              req.user.email,
+              req.user.name,
+              lostItem,
+              match.foundItem,
+              match.foundItem.block
+            )
+            .catch((err) => console.error("Match Email Failed:", err));
+
+          if (io) {
+            io.sendNotificationToUser(req.user.id, {
+              ...notification.toObject(),
+              foundItem: match.foundItem,
+            });
+          }
+          return notification;
+        })
+      )
+    ).filter(Boolean);
   }
 
   res
@@ -203,7 +217,19 @@ export const getLostItem = asyncHandler(async (req, res) => {
   }
 
   const lostItem = await LostItem.findOne(query)
-    .populate("userId", "name email")
+    .populate(
+      "userId",
+      `
+  name
+  email
+  enrollmentNumber
+  phoneNumber
+  course
+  branch
+  semester
+  block
+  `
+    )
     .populate({
       path: "matchedFoundItemIds",
       select: "name block adminId status createdAt",
@@ -226,7 +252,16 @@ export const getLostItem = asyncHandler(async (req, res) => {
 });
 export const updateLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, color, condition, dateLost, placeLost, description } = req.body;
+
+  const {
+    name,
+    color,
+    condition,
+    dateLost,
+    placeLost,
+    description,
+  } = req.body;
+
   const updateData = {
     name,
     color,
@@ -236,45 +271,155 @@ export const updateLostItem = asyncHandler(async (req, res) => {
     description,
   };
 
+  // remove undefined fields
   Object.keys(updateData).forEach(
-    (key) => updateData[key] === undefined && delete updateData[key]
+    (key) =>
+      updateData[key] === undefined &&
+      delete updateData[key]
   );
 
-  const lostItem = await LostItem.findOneAndUpdate(
-    {
-      _id: id,
-      userId: req.user.id,
-      status: ITEM_STATUS.PENDING,
-    },
-    { $set: updateData },
-    {
-      new: true,
-      runValidators: true,
-    }
-  ).populate("userId", "name email");
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!lostItem) {
-    throw new ApiError(
-      400,
-      "Item not found, unauthorized, or already processed."
-    );
-  }
-
-  const matches = await matchingService.findMatchesForLostItem(
-    lostItem._id,
-    70
-  );
-
-  res.status(200).json(
-    new ApiResponse(
-      200,
+  try {
+    // Update lost item basic details
+    let lostItem = await LostItem.findOneAndUpdate(
       {
-        lostItem,
-        newMatches: matches.slice(0, 3),
+        _id: id,
+        userId: req.user.id,
+        status: ITEM_STATUS.PENDING,
       },
-      "Lost item updated successfully"
-    )
-  );
+      {
+        $set: updateData,
+      },
+      {
+        new: true,
+        runValidators: true,
+        session,
+      }
+    ).populate(
+      "userId",
+      `
+        name
+        email
+        enrollmentNumber
+        phoneNumber
+        course
+        branch
+        semester
+        block
+      `
+    );
+
+    if (!lostItem) {
+      throw new ApiError(
+        400,
+        "Item not found, unauthorized, or already processed."
+      );
+    }
+
+    // Remove old reverse matches first
+    await FoundItem.updateMany(
+      {
+        matchedLostItemIds: lostItem._id,
+      },
+      {
+        $pull: {
+          matchedLostItemIds:
+            new mongoose.Types.ObjectId(
+              lostItem._id
+            ),
+        },
+      },
+      { session }
+    );
+
+    // Re-run matching
+    const matches =
+      await matchingService.findMatchesForLostItem(
+        lostItem._id,
+        70
+      );
+
+    const matchedFoundItemIds = matches.map(
+      (match) => match.foundItem._id
+    );
+
+    // Update reverse side (FoundItem)
+    if (matchedFoundItemIds.length > 0) {
+      await FoundItem.updateMany(
+        {
+          _id: {
+            $in: matchedFoundItemIds,
+          },
+        },
+        {
+          $addToSet: {
+            matchedLostItemIds:
+              lostItem._id,
+          },
+
+          $set: {
+            status: ITEM_STATUS.MATCHED,
+          },
+        },
+        { session }
+      );
+    }
+
+    // Update lost item match state atomically
+    lostItem = await LostItem.findByIdAndUpdate(
+      lostItem._id,
+      {
+        $set: {
+          matchedFoundItemIds,
+          status:
+            matchedFoundItemIds.length > 0
+              ? ITEM_STATUS.MATCHED
+              : ITEM_STATUS.PENDING,
+        },
+      },
+      {
+        new: true,
+        session,
+      }
+    ).populate(
+      "userId",
+      `
+        name
+        email
+        enrollmentNumber
+        phoneNumber
+        course
+        branch
+        semester
+        block
+      `
+    );
+
+    await session.commitTransaction();
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          lostItem,
+          newMatches: matches.slice(0, 3),
+        },
+        "Lost item updated successfully"
+      )
+    );
+  } catch (error) {
+    await session.abortTransaction();
+
+    throw new ApiError(
+      error.statusCode || 500,
+      error.message ||
+        "Failed to update lost item"
+    );
+  } finally {
+    session.endSession();
+  }
 });
 
 export const deleteLostItem = asyncHandler(async (req, res) => {
@@ -293,6 +438,18 @@ export const deleteLostItem = asyncHandler(async (req, res) => {
     if (!lostItem) {
       throw new ApiError(404, "Lost item not found or already deleted");
     }
+    await FoundItem.updateMany(
+      {
+        matchedLostItemIds: id,
+        status: ITEM_STATUS.MATCHED,
+      },
+      {
+        $set: {
+          status: ITEM_STATUS.FOUND,
+        },
+      },
+      { session }
+    );
 
     await FoundItem.updateMany(
       { matchedLostItemIds: id },
@@ -317,43 +474,86 @@ export const deleteLostItem = asyncHandler(async (req, res) => {
 });
 export const searchLostItems = asyncHandler(async (req, res) => {
   const { q, color, dateFrom, dateTo } = req.query;
+
   const page = Math.max(1, parseInt(req.query.page) || 1);
+
   const limit = Math.min(parseInt(req.query.limit) || 10, 100);
 
-  const query = { isActive: true };
+  const query = {
+    isActive: true,
+  };
 
   if (q) {
-    query.$text = { $search: q };
+    query.$text = {
+      $search: q,
+    };
   }
 
-  if (color) query.color = color;
+  if (color) {
+    query.color = color;
+  }
 
   if (dateFrom || dateTo) {
     query.dateLost = {};
-    if (dateFrom) query.dateLost.$gte = new Date(dateFrom);
-    if (dateTo) query.dateLost.$lte = new Date(dateTo);
+
+    if (dateFrom) {
+      query.dateLost.$gte = new Date(dateFrom);
+    }
+
+    if (dateTo) {
+      query.dateLost.$lte = new Date(dateTo);
+    }
   }
+
+  // Role-based user detail visibility
+  const userSelect =
+    req.user.role === "admin"
+      ? `
+          name
+          email
+          enrollmentNumber
+          phoneNumber
+          course
+          branch
+          semester
+          block
+        `
+      : `
+          name
+          branch
+          semester
+          block
+        `;
 
   const [lostItems, total] = await Promise.all([
     LostItem.find(query)
-      .populate("userId", "name email")
-      .sort({ createdAt: -1 })
+      .populate("userId", userSelect)
+      .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
       .limit(limit)
       .skip((page - 1) * limit)
       .lean(),
+
     LostItem.countDocuments(query),
   ]);
 
   const totalPages = Math.ceil(total / limit);
 
-  res.status(200).json(
+  return res.status(200).json(
     new ApiResponse(
       200,
       {
         count: lostItems.length,
-        pagination: { page, pages: totalPages, total, limit },
+
+        pagination: {
+          page,
+          pages: totalPages,
+          total,
+          limit,
+        },
+
         data: lostItems,
       },
+
       "Items searched successfully"
     )
   );
@@ -361,57 +561,104 @@ export const searchLostItems = asyncHandler(async (req, res) => {
 export const selfResolveLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const lostItem = await LostItem.findById(id);
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!lostItem) throw new ApiError(404, "Lost item not found");
+  try {
+    const lostItem = await LostItem.findById(id).session(session);
 
-  if (lostItem.userId.toString() !== req.user.id) {
+    if (!lostItem) {
+      throw new ApiError(404, "Lost item not found");
+    }
+
+    if (lostItem.userId.toString() !== req.user.id) {
+      throw new ApiError(
+        403,
+        "Access denied. You can only resolve your own lost item reports."
+      );
+    }
+
+    const resolvableStatuses = [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED];
+
+    if (!resolvableStatuses.includes(lostItem.status)) {
+      throw new ApiError(
+        400,
+        `Cannot self-resolve an item with status "${lostItem.status}".`
+      );
+    }
+
+    // Pull this lost item from all matched found items
+    const matchedFoundItemIds = lostItem.matchedFoundItemIds || [];
+
+    if (matchedFoundItemIds.length > 0) {
+      await FoundItem.updateMany(
+        {
+          _id: {
+            $in: matchedFoundItemIds,
+          },
+        },
+        {
+          $pull: {
+            matchedLostItemIds: new mongoose.Types.ObjectId(lostItem._id),
+          },
+        },
+        { session }
+      );
+
+      // Revert found items back to FOUND
+      // if no matched lost items remain
+      await FoundItem.updateMany(
+        {
+          _id: {
+            $in: matchedFoundItemIds,
+          },
+
+          matchedLostItemIds: {
+            $size: 0,
+          },
+        },
+        {
+          $set: {
+            status: ITEM_STATUS.FOUND,
+          },
+        },
+        { session }
+      );
+    }
+
+    // Update lost item
+    lostItem.status = ITEM_STATUS.SELF_RESOLVED;
+
+    lostItem.selfResolvedAt = new Date();
+
+    lostItem.matchedFoundItemId = null;
+
+    lostItem.matchedFoundItemIds = [];
+
+    await lostItem.save({ session });
+
+    await session.commitTransaction();
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          id: lostItem._id,
+          status: lostItem.status,
+          selfResolvedAt: lostItem.selfResolvedAt,
+        },
+        "Your lost item report has been closed. Glad you found it!"
+      )
+    );
+  } catch (error) {
+    await session.abortTransaction();
+
     throw new ApiError(
-      403,
-      "Access denied. You can only resolve your own lost item reports."
+      error.statusCode || 500,
+      error.message || "Failed to self resolve lost item"
     );
+  } finally {
+    session.endSession();
   }
-
-  const resolvableStatuses = [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED];
-  if (!resolvableStatuses.includes(lostItem.status)) {
-    throw new ApiError(
-      400,
-      `Cannot self-resolve an item with status "${lostItem.status}".`
-    );
-  }
-
-  // Pull this lost item from ALL matched found items' arrays
-  const matchedFoundItemIds = lostItem.matchedFoundItemIds || [];
-
-  if (matchedFoundItemIds.length > 0) {
-    await FoundItem.updateMany(
-      { _id: { $in: matchedFoundItemIds } },
-      { $pull: { matchedLostItemIds: lostItem._id } }
-    );
-
-    // Jinke matchedLostItemIds ab empty ho gaye — unhe FOUND pe revert karo
-    await FoundItem.updateMany(
-      { _id: { $in: matchedFoundItemIds }, matchedLostItemIds: { $size: 0 } },
-      { $set: { status: ITEM_STATUS.FOUND } }
-    );
-  }
-
-  lostItem.status = ITEM_STATUS.SELF_RESOLVED;
-  lostItem.selfResolvedAt = new Date();
-  lostItem.matchedFoundItemId = null;
-  lostItem.matchedFoundItemIds = []; // ← plural array bhi clear karo
-
-  await lostItem.save();
-
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        id: lostItem._id,
-        status: lostItem.status,
-        selfResolvedAt: lostItem.selfResolvedAt,
-      },
-      "Your lost item report has been closed. Glad you found it!"
-    )
-  );
 });
+

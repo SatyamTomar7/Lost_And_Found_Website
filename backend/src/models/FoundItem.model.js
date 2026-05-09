@@ -1,7 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import {
   COLORS,
-  DEPARTMENTS,
   ITEM_STATUS,
   ITEM_CONDITIONS_VALUES,
 } from "../constants.js";
@@ -85,9 +84,51 @@ const foundItemSchema = new Schema(
     },
 
     claimedBy: {
-      name: { type: String },
-      email: { type: String }, // used by online return
-      contact: { type: String }, // used by offline return
+      name: {
+        type: String,
+        trim: true,
+      },
+
+      email: {
+        type: String,
+        trim: true,
+        lowercase: true,
+      },
+
+      enrollmentNumber: {
+        type: String,
+        trim: true,
+      },
+
+      phoneNumber: {
+        type: String,
+        trim: true,
+      },
+
+      course: {
+        type: String,
+        trim: true,
+      },
+
+      branch: {
+        type: String,
+        trim: true,
+      },
+
+      semester: {
+        type: Number,
+      },
+
+      block: {
+        type: String,
+        trim: true,
+      },
+
+      // used for offline collection
+      contact: {
+        type: String,
+        trim: true,
+      },
     },
     claimedAt: Date,
     returnedAt: Date,
