@@ -47,11 +47,10 @@ import {
 // ─── Role → dashboard route map ───────────────────────────────────────────────
 const ROLE_ROUTES = {
   student:  "/student-dashboard",
-  admin:    "/admin-dashboard",
-  director: "/director-dashboard",
-  security: "/security-dashboard",
+  admin:    "/management-dashboard",
+  director: "/management-dashboard",
+  security: "/management-dashboard",
 };
-
 const getDashboardRoute = (role) => ROLE_ROUTES[role] || "/student-dashboard";
 
 // ─── Zod Schemas ──────────────────────────────────────────────────────────────
