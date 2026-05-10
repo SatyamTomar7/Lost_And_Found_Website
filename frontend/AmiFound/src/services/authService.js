@@ -1,33 +1,9 @@
+import { apiFetch } from "./apiClient";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-// ==================== CORE FETCH HELPER ====================
-
-/**
- * Wraps fetch with consistent HTTP error handling.
- * - Network failures (offline, DNS) → throws the original fetch error
- * - HTTP error responses (4xx, 5xx) → throws Error with server's message
- * - Success (2xx) → returns parsed JSON
- *
- * All callers can now rely on throw = something went wrong,
- * so TanStack Query's onError fires correctly for both network
- * and server errors — not just network failures.
- */
-const apiFetch = async (url, options = {}) => {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    const error = new Error(body.message || `Request failed: ${response.status}`);
-    error.status = response.status;
-    throw error;
-  }
-  return response.json();
-};
 
 // ==================== HELPER FUNCTIONS ====================
 
-/**
- * Get authentication headers with JWT token
- */
 export const getAuthHeaders = () => {
   const token = localStorage.getItem("authToken");
   const headers = { "Content-Type": "application/json" };
@@ -35,101 +11,52 @@ export const getAuthHeaders = () => {
   return headers;
 };
 
-/**
- * Validate if email is a valid Amity email
- */
-export const isValidAmityEmail = (email) => {
-  return email.endsWith("@s.amity.edu");
-};
+export const isValidAmityEmail = (email) =>
+  email.endsWith("@s.amity.edu") || email.endsWith("@gwa.amity.edu");
 
-/**
- * Check if user is authenticated
- */
-export const isAuthenticated = () => {
-  const token = localStorage.getItem("authToken");
-  return !!token;
-};
+export const isAuthenticated = () => !!localStorage.getItem("authToken");
 
-/**
- * Clear all authentication data
- */
-export const clearAuth = () => {
-  localStorage.removeItem("authToken");
-};
+export const clearAuth = () => localStorage.removeItem("authToken");
 
-// ==================== API CALLS ====================
+// ==================== AUTH ====================
 
-/**
- * Register a new student
- */
-export const register = async (name, email, password) => {
-  return apiFetch(`${API_URL}/auth/register`, {
+export const register = async (name, email, password) =>
+  apiFetch(`${API_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, password }),
   });
-};
 
-/**
- * Verify OTP for email verification
- * Token storage is handled by the caller (StudentAuthPage)
- */
-export const verifyOTP = async (email, otp) => {
-  return apiFetch(`${API_URL}/auth/verify-otp`, {
+export const verifyOTP = async (email, otp) =>
+  apiFetch(`${API_URL}/auth/verify-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, otp }),
   });
-};
 
-/**
- * Resend OTP to user's email
- */
-export const resendOTP = async (email) => {
-  return apiFetch(`${API_URL}/auth/resend-otp`, {
+export const resendOTP = async (email) =>
+  apiFetch(`${API_URL}/auth/resend-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-};
 
-/**
- * Login student user
- * Token storage is handled by the caller (StudentAuthPage)
- *
- * NOTE: This endpoint intentionally does NOT use apiFetch for the ok-check
- * because the backend returns a non-2xx-looking success for ACCOUNT_NOT_VERIFIED
- * (it sends 200 with a special message field). We still use apiFetch but the
- * caller's onSuccess handles that special case via result.message check.
- * apiFetch only throws on actual HTTP errors (4xx/5xx with !response.ok).
- */
-export const login = async (email, password) => {
-  return apiFetch(`${API_URL}/auth/login`, {
+export const login = async (email, password) =>
+  apiFetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-};
 
-/**
- * Login admin user
- * Token storage is handled by the caller (AdminAuthPage)
- */
-export const adminLogin = async (email, password) => {
-  return apiFetch(`${API_URL}/auth/login`, {
+export const adminLogin = async (email, password) =>
+  apiFetch(`${API_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-};
 
-/**
- * Logout current user
- */
 export const logout = async () => {
-  // Logout is best-effort — we clear the token regardless of server response.
-  // apiFetch not used here intentionally: even a 401/500 should result in
-  // local logout. Caller (App.jsx) handles the .catch() path already.
+  // Best-effort — clear token regardless of server response or timeout
   try {
     const response = await fetch(`${API_URL}/auth/logout`, {
       method: "POST",
@@ -138,24 +65,24 @@ export const logout = async () => {
     const data = await response.json();
     localStorage.removeItem("authToken");
     return data;
-  } catch (error) {
+  } catch (err) {
     localStorage.removeItem("authToken");
-    throw error;
+    throw err;
   }
 };
 
-/**
- * Check current user authentication status
- * Returns user object or null — never throws, so App.jsx session
- * rehydration always completes cleanly.
- */
 export const checkCurrentUser = async () => {
   const token = localStorage.getItem("authToken");
   if (!token) return null;
 
+  // Shorter timeout — don't block app startup too long
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
   try {
     const response = await fetch(`${API_URL}/auth/me`, {
       headers: getAuthHeaders(),
+      signal: controller.signal,
     });
 
     if (response.status === 401) {
@@ -169,73 +96,66 @@ export const checkCurrentUser = async () => {
     const result = await response.json();
     return result.data || null;
   } catch {
-    // Network failure during session check → treat as logged out
+    // Network failure or timeout → treat as logged out, never throw
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 };
 
-// ==================== STUDENT PASSWORD RESET ====================
-
-// Step 1: Request OTP
-export const forgotPassword = async (email) => {
-  return apiFetch(`${API_URL}/auth/forgot-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-};
-
-// Step 2: Verify OTP → returns resetToken
-export const verifyResetOTP = async (email, otp) => {
-  return apiFetch(`${API_URL}/auth/verify-reset-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
-  });
-};
-
-// Step 3: Set new password using resetToken
-export const resetPassword = async (resetToken, newPassword, confirmPassword) => {
-  return apiFetch(`${API_URL}/auth/reset-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
-  });
-};
-
-// ==================== ADMIN PASSWORD RESET ====================
-
-// Step 1: Request OTP
-export const adminForgotPassword = async (email) => {
-  return apiFetch(`${API_URL}/auth/admin/forgot-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-};
-
-// Step 2: Verify OTP → returns resetToken
-export const adminVerifyResetOTP = async (email, otp) => {
-  return apiFetch(`${API_URL}/auth/admin/verify-reset-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
-  });
-};
-
-// Step 3: Set new password using resetToken
-export const adminResetPassword = async (resetToken, newPassword, confirmPassword) => {
-  return apiFetch(`${API_URL}/auth/admin/reset-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
-  });
-};
-
-export const completeProfile = async (data) => {
-  return apiFetch(`${API_URL}/auth/complete-profile`, {
+export const completeProfile = async (data) =>
+  apiFetch(`${API_URL}/auth/complete-profile`, {
     method: "PATCH",
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-};
+
+// ==================== STUDENT PASSWORD RESET ====================
+
+export const forgotPassword = async (email) =>
+  apiFetch(`${API_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+export const verifyResetOTP = async (email, otp) =>
+  apiFetch(`${API_URL}/auth/verify-reset-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp }),
+  });
+
+export const resetPassword = async (resetToken, newPassword, confirmPassword) =>
+  apiFetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
+  });
+
+// ==================== ADMIN PASSWORD RESET ====================
+
+export const adminForgotPassword = async (email) =>
+  apiFetch(`${API_URL}/auth/admin/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+export const adminVerifyResetOTP = async (email, otp) =>
+  apiFetch(`${API_URL}/auth/admin/verify-reset-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp }),
+  });
+
+export const adminResetPassword = async (
+  resetToken,
+  newPassword,
+  confirmPassword
+) =>
+  apiFetch(`${API_URL}/auth/admin/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
+  });

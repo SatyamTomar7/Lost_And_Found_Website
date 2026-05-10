@@ -28,7 +28,7 @@ import {
   COLORS,
   ITEM_NAME,
   ITEM_CONDITIONS,
-  CAMPUS_LOCATIONS,
+  getLocationsByRole,
 } from "../utils/itemConstants";
 import {
   submitLostItem,
@@ -758,7 +758,10 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                         disabled={isFormDisabled}
                       >
                         <option value="">Select Location</option>
-                        {CAMPUS_LOCATIONS.map((location) => (
+                        {getLocationsByRole(
+                          currentUser.role,
+                          currentUser.block,
+                        ).map((location) => (
                           <option key={location} value={location}>
                             {location}
                           </option>

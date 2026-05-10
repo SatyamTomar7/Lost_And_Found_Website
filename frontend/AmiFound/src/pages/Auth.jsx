@@ -1,4 +1,4 @@
-// UnifiedAuthPage.jsx
+// Auth.jsx
 // Handles login for ALL roles (student, admin, director, security)
 // Handles registration for STUDENTS ONLY
 // Props:
@@ -46,8 +46,8 @@ import {
 
 // ─── Role → dashboard route map ───────────────────────────────────────────────
 const ROLE_ROUTES = {
-  student:  "/student-dashboard",
-  admin:    "/management-dashboard",
+  student: "/student-dashboard",
+  admin: "/management-dashboard",
   director: "/management-dashboard",
   security: "/management-dashboard",
 };
@@ -56,23 +56,37 @@ const getDashboardRoute = (role) => ROLE_ROUTES[role] || "/student-dashboard";
 // ─── Zod Schemas ──────────────────────────────────────────────────────────────
 const amityEmailRule = z
   .string()
+  .trim()
+  .toLowerCase()
   .min(1, "Email is required")
   .refine(isValidAmityEmail, { message: "Must be a valid Amity email" });
 
-// Login accepts ANY amity email (students + staff have @gwa.amity.edu)
-const loginEmailRule = z.string().min(1, "Email is required").email("Enter a valid email");
+const loginEmailRule = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1, "Email is required")
+  .email("Enter a valid email");
 
 const loginSchema = z.object({
-  email:    loginEmailRule,
-  password: z.string().min(6, "Password must be at least 6 characters")
-  //   .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Must include uppercase, lowercase, and a number"),
+  email: loginEmailRule,
+  password: z.string().min(1, "Password is required"),
 });
 
 const registerSchema = z.object({
-  name:     z.string().min(1, "Name is required"),
-  email:    amityEmailRule,
-  password: z.string().min(6, "Password must be at least 6 characters")
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Must include uppercase, lowercase, and a number"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(50, "Name cannot exceed 50 characters"),
+  email: amityEmailRule,
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+      "Must include uppercase, lowercase, and a number",
+    ),
 });
 
 const otpSchema = z.object({
@@ -89,7 +103,13 @@ const resetOTPSchema = z.object({
 
 const newPasswordSchema = z
   .object({
-    newPassword:     z.string().min(6, "Password must be at least 6 characters"),
+    newPassword: z
+      .string()
+      .min(6, "Password must be at least 6 characters")
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/,
+        "Must include uppercase, lowercase, and a number",
+      ),
     confirmPassword: z.string().min(1, "Please confirm your password"),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
@@ -98,12 +118,12 @@ const newPasswordSchema = z
   });
 
 const schemaMap = {
-  login:             loginSchema,
-  register:          registerSchema,
-  otp:               otpSchema,
+  login: loginSchema,
+  register: registerSchema,
+  otp: otpSchema,
   "forgot-password": forgotPasswordSchema,
-  "reset-otp":       resetOTPSchema,
-  "new-password":    newPasswordSchema,
+  "reset-otp": resetOTPSchema,
+  "new-password": newPasswordSchema,
 };
 
 // ─── OTP Countdown Timer ──────────────────────────────────────────────────────
@@ -118,7 +138,11 @@ const useOTPTimer = () => {
     setSecondsLeft(OTP_COOLDOWN);
     intervalRef.current = setInterval(() => {
       setSecondsLeft((prev) => {
-        if (prev <= 1) { clearInterval(intervalRef.current); intervalRef.current = null; return 0; }
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
@@ -130,16 +154,34 @@ const useOTPTimer = () => {
     setSecondsLeft(0);
   }, []);
 
-  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    },
+    [],
+  );
 
   const minutes = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const seconds = String(secondsLeft % 60).padStart(2, "0");
 
-  return { isActive: secondsLeft > 0, display: `${minutes}:${seconds}`, secondsLeft, startTimer, resetTimer };
+  return {
+    isActive: secondsLeft > 0,
+    display: `${minutes}:${seconds}`,
+    secondsLeft,
+    startTimer,
+    resetTimer,
+  };
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-const PasswordInput = ({ id, registration, error, placeholder, disabled, autoComplete }) => {
+const PasswordInput = ({
+  id,
+  registration,
+  error,
+  placeholder,
+  disabled,
+  autoComplete,
+}) => {
   const [show, setShow] = useState(false);
   return (
     <div className="password-input-wrapper">
@@ -165,7 +207,13 @@ const PasswordInput = ({ id, registration, error, placeholder, disabled, autoCom
   );
 };
 
-const ResendButton = ({ onResend, isResending, timerDisplay, timerActive, isAnyPending }) => (
+const ResendButton = ({
+  onResend,
+  isResending,
+  timerDisplay,
+  timerActive,
+  isAnyPending,
+}) => (
   <button
     type="button"
     onClick={onResend}
@@ -173,27 +221,44 @@ const ResendButton = ({ onResend, isResending, timerDisplay, timerActive, isAnyP
     disabled={timerActive || isResending || isAnyPending}
   >
     {isResending ? (
-      <><FaRedo className="spin-icon" /><span>Resending…</span></>
+      <>
+        <FaRedo className="spin-icon" />
+        <span>Resending…</span>
+      </>
     ) : timerActive ? (
-      <><FaClock /><span>Resend in {timerDisplay}</span></>
+      <>
+        <FaClock />
+        <span>Resend in {timerDisplay}</span>
+      </>
     ) : (
-      <><FaRedo /><span>Resend OTP</span></>
+      <>
+        <FaRedo />
+        <span>Resend OTP</span>
+      </>
     )}
   </button>
 );
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessage, currentUser }) => {
+const UnifiedAuthPage = ({
+  mode = "login",
+  setCurrentUser,
+  setLoading,
+  showMessage,
+  currentUser,
+}) => {
   const navigate = useNavigate();
 
   // If mode="register" is passed from router, start on register screen
-  const [formType, setFormType] = useState(mode === "register" ? "register" : "login");
+  const [formType, setFormType] = useState(
+    mode === "register" ? "register" : "login",
+  );
   const [pendingRegistration, setPendingRegistration] = useState(null);
-  const [resetEmail, setResetEmail]   = useState("");
-  const [resetToken, setResetToken]   = useState("");
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
 
   const registrationTimer = useOTPTimer();
-  const resetTimer        = useOTPTimer();
+  const resetTimer = useOTPTimer();
 
   // Auto-redirect if already logged in
   useEffect(() => {
@@ -209,20 +274,38 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
 
   // Clean up timers when leaving their screens
   useEffect(() => {
-    if (formType !== "otp")       registrationTimer.resetTimer();
+    if (formType !== "otp") registrationTimer.resetTimer();
     if (formType !== "reset-otp") resetTimer.resetTimer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formType]);
 
   const resolver = useMemo(() => zodResolver(schemaMap[formType]), [formType]);
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
     resolver,
     mode: "onBlur",
-    defaultValues: { name: "", email: "", password: "", otp: "", newPassword: "", confirmPassword: "" },
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      otp: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
   });
 
-  const switchForm = useCallback((type) => { reset(); setFormType(type); }, [reset]);
+  const switchForm = useCallback(
+    (type) => {
+      reset();
+      setFormType(type);
+    },
+    [reset],
+  );
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -231,17 +314,23 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
     onMutate: () => setLoading(true),
     onSuccess: (result) => {
       if (result.message === "ACCOUNT_NOT_VERIFIED") {
-        setPendingRegistration({ email: result.data?.email ?? "", name: result.data?.name ?? "" });
+        setPendingRegistration({
+          email: result.data?.email ?? "",
+          name: result.data?.name ?? "",
+        });
         registrationTimer.startTimer();
         setFormType("otp");
         reset();
-        showMessage("Your email isn't verified — a new code has been sent.", "info");
+        showMessage(
+          "Your email isn't verified — a new code has been sent.",
+          "info",
+        );
         return;
       }
       if (result.success && result.data) {
         const user = result.data.user;
         setCurrentUser(user);
-        localStorage.setItem("authToken", result.data.token);
+        localStorage.setItem("authToken", result.data?.token);
         localStorage.setItem("userRole", user.role);
         showMessage("Login successful!", "success");
         setTimeout(() => {
@@ -255,24 +344,35 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
         showMessage(result.message || "Invalid email or password", "error");
       }
     },
-    onError: (error) => showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
   const registerMutation = useMutation({
-    mutationFn: ({ name, email, password }) => registerUser(name, email, password),
+    mutationFn: ({ name, email, password }) =>
+      registerUser(name, email, password),
     onMutate: () => setLoading(true),
     onSuccess: (result, variables) => {
       if (result.message === "ACCOUNT_NOT_VERIFIED") {
-        setPendingRegistration({ email: result.data?.email ?? variables.email, name: result.data?.name ?? variables.name });
+        setPendingRegistration({
+          email: result.data?.email ?? variables.email,
+          name: result.data?.name ?? variables.name,
+        });
         registrationTimer.startTimer();
         setFormType("otp");
         reset();
-        showMessage("A verification code has been sent to your email.", "success");
+        showMessage(
+          "A verification code has been sent to your email.",
+          "success",
+        );
         return;
       }
       if (result.success) {
-        setPendingRegistration({ name: variables.name, email: variables.email });
+        setPendingRegistration({
+          name: variables.name,
+          email: variables.email,
+        });
         registrationTimer.startTimer();
         setFormType("otp");
         reset();
@@ -281,7 +381,8 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
         showMessage(result.message || "Registration failed", "error");
       }
     },
-    onError: (error) => showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -292,8 +393,9 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
       if (result.success) {
         const user = result.data.user || result.data;
         setCurrentUser(user);
-        if (result.data.token) localStorage.setItem("authToken", result.data.token);
-        localStorage.setItem("userRole", result.data.role);
+        if (result.data.token)
+          localStorage.setItem("authToken", result.data.token);
+        localStorage.setItem("userRole", user.role);
         showMessage("Registration successful!", "success");
         if (!user.profileCompleted) {
           navigate("/complete-profile", { replace: true });
@@ -304,7 +406,8 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
         showMessage(result.message || "Invalid OTP", "error");
       }
     },
-    onError: (error) => showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -312,10 +415,13 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
     mutationFn: () => resendOTP(pendingRegistration.email),
     onMutate: () => setLoading(true),
     onSuccess: (result) => {
-      if (result.success) { registrationTimer.startTimer(); showMessage("OTP resent to your email address", "success"); }
-      else showMessage(result.message || "Failed to resend OTP", "error");
+      if (result.success) {
+        registrationTimer.startTimer();
+        showMessage("OTP resent to your email address", "success");
+      } else showMessage(result.message || "Failed to resend OTP", "error");
     },
-    onError: (error) => showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -329,15 +435,20 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
       reset();
       resetTimer.startTimer();
     },
-    onError: (error) => showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
   const resendResetOTPMutation = useMutation({
     mutationFn: () => forgotPassword(resetEmail),
     onMutate: () => setLoading(true),
-    onSuccess: () => { resetTimer.startTimer(); showMessage("OTP resent to your email.", "success"); },
-    onError: (error) => showMessage(error?.message || "Error connecting to server", "error"),
+    onSuccess: () => {
+      resetTimer.startTimer();
+      showMessage("OTP resent to your email.", "success");
+    },
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
@@ -354,52 +465,84 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
         showMessage(result.message || "Invalid or expired OTP", "error");
       }
     },
-    onError: (error) => showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
   const resetPasswordMutation = useMutation({
-    mutationFn: ({ newPassword, confirmPassword }) => resetPassword(resetToken, newPassword, confirmPassword),
+    mutationFn: ({ newPassword, confirmPassword }) =>
+      resetPassword(resetToken, newPassword, confirmPassword),
     onMutate: () => setLoading(true),
     onSuccess: (result) => {
       if (result.success) {
         showMessage("Password reset successfully. Please login.", "success");
-        setResetEmail(""); setResetToken("");
+        setResetEmail("");
+        setResetToken("");
         switchForm("login");
       } else {
         showMessage(result.message || "Failed to reset password", "error");
       }
     },
-    onError: (error) => showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) =>
+      showMessage(error?.message || "Error connecting to server", "error"),
     onSettled: () => setLoading(false),
   });
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const onSubmit = useCallback((data) => {
-    if (formType === "login")             loginMutation.mutate(data);
-    else if (formType === "register")     registerMutation.mutate(data);
-    else if (formType === "otp")          otpMutation.mutate(data);
-    else if (formType === "forgot-password") forgotPasswordMutation.mutate(data);
-    else if (formType === "reset-otp")    verifyResetOTPMutation.mutate(data);
-    else if (formType === "new-password") resetPasswordMutation.mutate(data);
-  }, [formType, loginMutation, registerMutation, otpMutation, forgotPasswordMutation, verifyResetOTPMutation, resetPasswordMutation]);
+  const onSubmit = useCallback(
+    (data) => {
+      if (formType === "login") loginMutation.mutate(data);
+      else if (formType === "register") registerMutation.mutate(data);
+      else if (formType === "otp") otpMutation.mutate(data);
+      else if (formType === "forgot-password")
+        forgotPasswordMutation.mutate(data);
+      else if (formType === "reset-otp") verifyResetOTPMutation.mutate(data);
+      else if (formType === "new-password") resetPasswordMutation.mutate(data);
+    },
+    [
+      formType,
+      loginMutation,
+      registerMutation,
+      otpMutation,
+      forgotPasswordMutation,
+      verifyResetOTPMutation,
+      resetPasswordMutation,
+    ],
+  );
 
   const isAnyPending =
-    loginMutation.isPending || registerMutation.isPending || otpMutation.isPending ||
-    resendMutation.isPending || forgotPasswordMutation.isPending ||
-    resendResetOTPMutation.isPending || verifyResetOTPMutation.isPending ||
-    resetPasswordMutation.isPending || isSubmitting;
+    loginMutation.isPending ||
+    registerMutation.isPending ||
+    otpMutation.isPending ||
+    resendMutation.isPending ||
+    forgotPasswordMutation.isPending ||
+    resendResetOTPMutation.isPending ||
+    verifyResetOTPMutation.isPending ||
+    resetPasswordMutation.isPending ||
+    isSubmitting;
 
   const headerMap = {
-    login:             { title: "Login",           sub: "Sign in with your Amity account" },
-    register:          { title: "Student Registration", sub: "Create your account with official Amity email" },
-    otp:               { title: "Verify Email",    sub: "Enter the OTP sent to your email" },
-    "forgot-password": { title: "Forgot Password", sub: "Enter your email to receive a reset OTP" },
-    "reset-otp":       { title: "Verify OTP",      sub: `OTP sent to ${resetEmail}` },
-    "new-password":    { title: "Set New Password",sub: "Choose a strong password for your account" },
+    login: { title: "Login", sub: "Sign in with your Amity account" },
+    register: {
+      title: "Student Registration",
+      sub: "Create your account with official Amity email",
+    },
+    otp: { title: "Verify Email", sub: "Enter the OTP sent to your email" },
+    "forgot-password": {
+      title: "Forgot Password",
+      sub: "Enter your email to receive a reset OTP",
+    },
+    "reset-otp": { title: "Verify OTP", sub: `OTP sent to ${resetEmail}` },
+    "new-password": {
+      title: "Set New Password",
+      sub: "Choose a strong password for your account",
+    },
   };
 
-  const isResetFlow = ["forgot-password", "reset-otp", "new-password"].includes(formType);
+  const isResetFlow = ["forgot-password", "reset-otp", "new-password"].includes(
+    formType,
+  );
 
   return (
     <main className="page active" id="main-content">
@@ -412,9 +555,15 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
 
           {/* ── Login ── */}
           {formType === "login" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="form-group">
-                <label htmlFor="login-email" className="form-label">Email Address</label>
+                <label htmlFor="login-email" className="form-label">
+                  Email Address
+                </label>
                 <input
                   id="login-email"
                   {...register("email")}
@@ -423,12 +572,16 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                   placeholder="your.email@amity.edu"
                   disabled={isAnyPending}
                 />
-                {errors.email && <div className="error-message">{errors.email.message}</div>}
+                {errors.email && (
+                  <div className="error-message">{errors.email.message}</div>
+                )}
               </div>
 
               <div className="form-group">
                 <div className="form-label-row">
-                  <label htmlFor="login-password" className="form-label">Password</label>
+                  <label htmlFor="login-password" className="form-label">
+                    Password
+                  </label>
                   <button
                     type="button"
                     className="forgot-password-link"
@@ -446,10 +599,17 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                   disabled={isAnyPending}
                   autoComplete="current-password"
                 />
-                {errors.password && <div className="error-message">{errors.password.message}</div>}
+                {errors.password && (
+                  <div className="error-message">{errors.password.message}</div>
+                )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending} aria-busy={loginMutation.isPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+                aria-busy={loginMutation.isPending}
+              >
                 <FaSignInAlt aria-hidden="true" />
                 <span>{loginMutation.isPending ? "Logging in…" : "Login"}</span>
               </button>
@@ -458,9 +618,15 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
 
           {/* ── Register ── */}
           {formType === "register" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="form-group">
-                <label htmlFor="register-name" className="form-label">Full Name</label>
+                <label htmlFor="register-name" className="form-label">
+                  Full Name
+                </label>
                 <input
                   id="register-name"
                   {...register("name")}
@@ -469,11 +635,15 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                   placeholder="Enter your full name"
                   disabled={isAnyPending}
                 />
-                {errors.name && <div className="error-message">{errors.name.message}</div>}
+                {errors.name && (
+                  <div className="error-message">{errors.name.message}</div>
+                )}
               </div>
 
               <div className="form-group">
-                <label htmlFor="register-email" className="form-label">Amity Email</label>
+                <label htmlFor="register-email" className="form-label">
+                  Amity Email
+                </label>
                 <input
                   id="register-email"
                   {...register("email")}
@@ -482,39 +652,62 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                   placeholder="your.name@s.amity.edu"
                   disabled={isAnyPending}
                 />
-                {errors.email && <div className="error-message">{errors.email.message}</div>}
+                {errors.email && (
+                  <div className="error-message">{errors.email.message}</div>
+                )}
               </div>
 
               <div className="form-group">
-                <label htmlFor="register-password" className="form-label">Password</label>
+                <label htmlFor="register-password" className="form-label">
+                  Password
+                </label>
                 <PasswordInput
                   id="register-password"
                   registration={register("password")}
                   error={errors.password}
-                  placeholder="Create a password (min 6 characters)"
+                  placeholder="Min 6 chars with A-Z, a-z and number"
                   disabled={isAnyPending}
                   autoComplete="new-password"
                 />
-                {errors.password && <div className="error-message">{errors.password.message}</div>}
+                {errors.password && (
+                  <div className="error-message">{errors.password.message}</div>
+                )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
                 <FaUserPlus aria-hidden="true" />
-                <span>{registerMutation.isPending ? "Sending OTP…" : "Register & Send OTP"}</span>
+                <span>
+                  {registerMutation.isPending
+                    ? "Sending OTP…"
+                    : "Register & Send OTP"}
+                </span>
               </button>
             </form>
           )}
 
           {/* ── Registration OTP ── */}
           {formType === "otp" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="otp-message">
                 <FaEnvelope />
-                <p>Verification code sent to <strong>{pendingRegistration?.email}</strong></p>
+                <p>
+                  Verification code sent to{" "}
+                  <strong>{pendingRegistration?.email}</strong>
+                </p>
               </div>
 
               <div className="form-group">
-                <label htmlFor="otp-input" className="form-label">Verification Code</label>
+                <label htmlFor="otp-input" className="form-label">
+                  Verification Code
+                </label>
                 <input
                   id="otp-input"
                   {...register("otp")}
@@ -524,12 +717,20 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                   placeholder="000000"
                   disabled={isAnyPending}
                 />
-                {errors.otp && <div className="error-message">{errors.otp.message}</div>}
+                {errors.otp && (
+                  <div className="error-message">{errors.otp.message}</div>
+                )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
                 <FaCheck />
-                <span>{otpMutation.isPending ? "Verifying…" : "Verify Email"}</span>
+                <span>
+                  {otpMutation.isPending ? "Verifying…" : "Verify Email"}
+                </span>
               </button>
 
               <ResendButton
@@ -544,14 +745,23 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
 
           {/* ── Forgot Password: Email ── */}
           {formType === "forgot-password" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="reset-info-box">
                 <FaLock className="reset-info-box__icon" />
-                <p>Enter your registered email. We'll send a 6-digit OTP to reset your password.</p>
+                <p>
+                  Enter your registered email. We'll send a 6-digit OTP to reset
+                  your password.
+                </p>
               </div>
 
               <div className="form-group">
-                <label htmlFor="forgot-email" className="form-label">Email Address</label>
+                <label htmlFor="forgot-email" className="form-label">
+                  Email Address
+                </label>
                 <input
                   id="forgot-email"
                   {...register("email")}
@@ -560,15 +770,30 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                   placeholder="your.email@amity.edu"
                   disabled={isAnyPending}
                 />
-                {errors.email && <div className="error-message">{errors.email.message}</div>}
+                {errors.email && (
+                  <div className="error-message">{errors.email.message}</div>
+                )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
                 <FaEnvelope />
-                <span>{forgotPasswordMutation.isPending ? "Sending OTP…" : "Send Reset OTP"}</span>
+                <span>
+                  {forgotPasswordMutation.isPending
+                    ? "Sending OTP…"
+                    : "Send Reset OTP"}
+                </span>
               </button>
 
-              <button type="button" className="btn btn--ghost btn--full-width" onClick={() => switchForm("login")} disabled={isAnyPending}>
+              <button
+                type="button"
+                className="btn btn--ghost btn--full-width"
+                onClick={() => switchForm("login")}
+                disabled={isAnyPending}
+              >
                 <FaArrowLeft />
                 <span>Back to Login</span>
               </button>
@@ -577,14 +802,22 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
 
           {/* ── Forgot Password: OTP ── */}
           {formType === "reset-otp" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="otp-message">
                 <FaEnvelope />
-                <p>Reset OTP sent to <strong>{resetEmail}</strong></p>
+                <p>
+                  Reset OTP sent to <strong>{resetEmail}</strong>
+                </p>
               </div>
 
               <div className="form-group">
-                <label htmlFor="reset-otp-input" className="form-label">Reset OTP</label>
+                <label htmlFor="reset-otp-input" className="form-label">
+                  Reset OTP
+                </label>
                 <input
                   id="reset-otp-input"
                   {...register("otp")}
@@ -594,12 +827,22 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                   placeholder="000000"
                   disabled={isAnyPending}
                 />
-                {errors.otp && <div className="error-message">{errors.otp.message}</div>}
+                {errors.otp && (
+                  <div className="error-message">{errors.otp.message}</div>
+                )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
                 <FaKey />
-                <span>{verifyResetOTPMutation.isPending ? "Verifying…" : "Verify OTP"}</span>
+                <span>
+                  {verifyResetOTPMutation.isPending
+                    ? "Verifying…"
+                    : "Verify OTP"}
+                </span>
               </button>
 
               <ResendButton
@@ -610,7 +853,12 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                 isAnyPending={isAnyPending}
               />
 
-              <button type="button" className="btn btn--ghost btn--full-width" onClick={() => switchForm("forgot-password")} disabled={isAnyPending}>
+              <button
+                type="button"
+                className="btn btn--ghost btn--full-width"
+                onClick={() => switchForm("forgot-password")}
+                disabled={isAnyPending}
+              >
                 <FaArrowLeft />
                 <span>Change Email</span>
               </button>
@@ -619,27 +867,41 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
 
           {/* ── New Password ── */}
           {formType === "new-password" && (
-            <form onSubmit={handleSubmit(onSubmit)} className="auth-form" noValidate>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="auth-form"
+              noValidate
+            >
               <div className="reset-info-box reset-info-box--success">
                 <FaCheck className="reset-info-box__icon" />
-                <p>OTP verified! Choose a strong new password for your account.</p>
+                <p>
+                  OTP verified! Choose a strong new password for your account.
+                </p>
               </div>
 
               <div className="form-group">
-                <label htmlFor="new-password-input" className="form-label">New Password</label>
+                <label htmlFor="new-password-input" className="form-label">
+                  New Password
+                </label>
                 <PasswordInput
                   id="new-password-input"
                   registration={register("newPassword")}
                   error={errors.newPassword}
-                  placeholder="Min 6 characters"
+                  placeholder="Min 6 chars with A-Z, a-z and number"
                   disabled={isAnyPending}
                   autoComplete="new-password"
                 />
-                {errors.newPassword && <div className="error-message">{errors.newPassword.message}</div>}
+                {errors.newPassword && (
+                  <div className="error-message">
+                    {errors.newPassword.message}
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
-                <label htmlFor="confirm-password-input" className="form-label">Confirm New Password</label>
+                <label htmlFor="confirm-password-input" className="form-label">
+                  Confirm New Password
+                </label>
                 <PasswordInput
                   id="confirm-password-input"
                   registration={register("confirmPassword")}
@@ -648,12 +910,24 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
                   disabled={isAnyPending}
                   autoComplete="new-password"
                 />
-                {errors.confirmPassword && <div className="error-message">{errors.confirmPassword.message}</div>}
+                {errors.confirmPassword && (
+                  <div className="error-message">
+                    {errors.confirmPassword.message}
+                  </div>
+                )}
               </div>
 
-              <button type="submit" className="btn btn--primary btn--full-width" disabled={isAnyPending}>
+              <button
+                type="submit"
+                className="btn btn--primary btn--full-width"
+                disabled={isAnyPending}
+              >
                 <FaLock />
-                <span>{resetPasswordMutation.isPending ? "Resetting…" : "Reset Password"}</span>
+                <span>
+                  {resetPasswordMutation.isPending
+                    ? "Resetting…"
+                    : "Reset Password"}
+                </span>
               </button>
             </form>
           )}
@@ -663,13 +937,19 @@ const UnifiedAuthPage = ({ mode = "login", setCurrentUser, setLoading, showMessa
             <div className="auth-switch">
               <button
                 type="button"
-                onClick={() => switchForm(formType === "login" ? "register" : "login")}
+                onClick={() =>
+                  switchForm(formType === "login" ? "register" : "login")
+                }
                 className="auth-switch-btn"
               >
                 {formType === "login" ? (
-                  <>Don't have an account? <strong>Register here</strong></>
+                  <>
+                    Don't have an account? <strong>Register here</strong>
+                  </>
                 ) : (
-                  <>Already have an account? <strong>Login here</strong></>
+                  <>
+                    Already have an account? <strong>Login here</strong>
+                  </>
                 )}
               </button>
             </div>

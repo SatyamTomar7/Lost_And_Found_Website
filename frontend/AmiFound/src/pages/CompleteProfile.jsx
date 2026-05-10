@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,7 +8,6 @@ import { completeProfile } from "../services/authService.js";
 import {
   BRANCHES,
   COURSES,
-  SEMESTER_OPTIONS,
   YEAR_OPTIONS,
   SECTION_OPTIONS,
   BLOCK_OPTIONS,
@@ -126,6 +125,7 @@ const CompleteProfile = ({ currentUser, setCurrentUser }) => {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(profileSchema),
@@ -149,7 +149,7 @@ const CompleteProfile = ({ currentUser, setCurrentUser }) => {
         ...pendingData,
         profileCompleted: true,
       }));
-      navigate("/student-dashboard");
+      navigate("/student-dashboard", { replace: true });
     },
   });
 
@@ -161,6 +161,9 @@ const CompleteProfile = ({ currentUser, setCurrentUser }) => {
   const handleConfirm = () => mutation.mutate(pendingData);
 
   const selectedYear = watch("year");
+  useEffect(() => {
+    setValue("semester", "");
+  }, [selectedYear, setValue]);
   const semesterOptions = selectedYear
     ? getSemestersForYear(selectedYear)
     : ["1", "2", "3", "4", "5", "6", "7", "8"];
@@ -191,7 +194,7 @@ const CompleteProfile = ({ currentUser, setCurrentUser }) => {
             >
               <input
                 className={`cp-input${errors.enrollmentNumber ? " cp-input--error" : ""}`}
-                placeholder="e.g. A1234567890"
+                placeholder="e.g. A12345678090"
                 {...register("enrollmentNumber")}
               />
             </Field>
@@ -202,12 +205,14 @@ const CompleteProfile = ({ currentUser, setCurrentUser }) => {
               error={errors.phoneNumber?.message}
               required
             >
-              <input
-                className={`cp-input${errors.phoneNumber ? " cp-input--error" : ""}`}
-                placeholder="10-digit mobile number"
-                maxLength={10}
-                {...register("phoneNumber")}
-              />
+<input
+  type="tel"
+  inputMode="numeric"
+  className={`cp-input${errors.phoneNumber ? " cp-input--error" : ""}`}
+  placeholder="10-digit mobile number"
+  maxLength={10}
+  {...register("phoneNumber")}
+/>
             </Field>
           </div>
 
@@ -268,7 +273,7 @@ const CompleteProfile = ({ currentUser, setCurrentUser }) => {
                 {...register("semester")}
               >
                 <option value="">Semester</option>
-                {SEMESTER_OPTIONS.map((s) => (
+                {semesterOptions.map((s) => (
                   <option key={s} value={s}>
                     Semester {s}
                   </option>

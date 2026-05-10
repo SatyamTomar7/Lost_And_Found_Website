@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import {
   FaSignInAlt,
   FaUserPlus,
@@ -11,6 +12,9 @@ import {
 
 const HomePage = () => {
   const navigate = useNavigate();
+  useEffect(() => {
+    document.title = "AmiFound - Amity Lost & Found";
+  }, []);
 
   return (
     <div className="page active">
@@ -20,14 +24,15 @@ const HomePage = () => {
           <div className="hero-content">
             <div className="hero-text">
               <h1>
-                Amity University
+                AmiFound
                 <br />
-                Lost &amp; Found System
+                Amity University Lost & Found System
               </h1>
               <p>
                 A secure, efficient platform to report lost items and manage
-                found items across all departments. Connect students with their
-                belongings quickly and easily.
+                found items across university blocks and the university security
+                department. Connect students with their belongings quickly and
+                easily.
               </p>
               <div className="hero-buttons">
                 <button
@@ -42,7 +47,7 @@ const HomePage = () => {
                   className="btn btn--outline btn--lg"
                 >
                   <FaUserPlus aria-hidden="true" />
-                  Student Registration
+                  Create Account
                 </button>
               </div>
             </div>
@@ -97,7 +102,10 @@ const HomePage = () => {
                 <FaBuilding aria-hidden="true" />
               </div>
               <h3>Multi-Department</h3>
-              <p>Coordinated management across all university blocks (A-E).</p>
+              <p>
+                Coordinated management across all university blocks and security
+                department.
+              </p>
             </div>
           </div>
         </div>
@@ -109,7 +117,9 @@ const HomePage = () => {
           <span className="hero-credits__label">Developed by</span>
           Satyam Tomar
         </span>
-        <span className="hero-credits__divider" aria-hidden="true">|</span>
+        <span className="hero-credits__divider" aria-hidden="true">
+          |
+        </span>
         <span className="hero-credits__item">
           <span className="hero-credits__label">Mentor</span>
           Dr. Ashok Kumar Shrivastava
