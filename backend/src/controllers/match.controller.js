@@ -20,14 +20,14 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
   }
 
   const isOwner = lostItem.userId.toString() === req.user.id;
-  const isAdmin = req.user.role === "admin";
+  const isStaff = req.user.role === "admin" || req.user.role === "security";
 
-  if (!isOwner && !isAdmin) {
-    throw new ApiError(
-      403,
-      "Access denied. You can only view matches for your own items."
-    );
-  }
+  if (!isOwner && !isStaff) {
+      throw new ApiError(
+        403,
+        "Access denied. You can only view matches for your own items."
+      );
+    }
 
   const matches = await matchingService.findMatchesForLostItem(id, threshold);
 
@@ -70,11 +70,17 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
 
   if (!foundItem) throw new ApiError(404, "Found item not found");
 
-  if (req.user.role === "admin" && foundItem.block !== req.user.block) {
+  if (
+    req.user.role === "admin" &&
+    (foundItem.block !== req.user.block || foundItem.handledBy !== "admin")
+  ) {
     throw new ApiError(
       403,
       "Access denied. This item belongs to another block."
     );
+  }
+  if (req.user.role === "security" && foundItem.handledBy !== "security") {
+    throw new ApiError(403, "Access denied.");
   }
 
   const matches = await matchingService.findMatchesForFoundItem(id, threshold);
@@ -130,8 +136,17 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
   );
 });
 export const getMatchingStats = asyncHandler(async (req, res) => {
-  const block = req.user.role === "admin" ? req.user.block : null;
-
+  const foundItemQuery =
+    req.user.role === "admin"
+      ? {
+          block: req.user.block,
+          handledBy: "admin",
+        }
+      : req.user.role === "security"
+        ? {
+            handledBy: "security",
+          }
+        : {};
   const [
     totalLostItems,
     totalFoundItems,
@@ -149,7 +164,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     // Total active found items
     FoundItem.countDocuments({
       isActive: true,
-      ...(block && { block }),
+      ...foundItemQuery,
     }),
 
     // Matched lost items count — NO block filter
@@ -160,7 +175,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     // Returned found items count
     FoundItem.countDocuments({
       status: ITEM_STATUS.RETURNED,
-      ...(block && { block }),
+      ...foundItemQuery,
     }),
 
     // Per-item breakdown — NO block filter on LostItem aggregate
@@ -202,7 +217,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     FoundItem.find({
       isActive: true,
       status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
-      ...(block && { block }),
+      ...foundItemQuery,
     }).lean(),
 
     // Active lost items — NO block filter (LostItem has no block field)
@@ -307,7 +322,12 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
         },
         matches,
         itemBreakdown: itemStats,
-        block: block || "All Blocks",
+        scope:
+          req.user.role === "admin"
+            ? `Block ${req.user.block}`
+            : req.user.role === "security"
+              ? "University Security Department"
+              : "All Items",
       },
       "Matching stats fetched successfully"
     )

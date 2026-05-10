@@ -151,9 +151,8 @@ export const getAllFoundItems = asyncHandler(async (req, res) => {
 
   // Filter by block
   if (block) {
-    query.block = block;
+    query.$or = [{ block }, { originalBlock: block }];
   }
-
   // Search by item name
   if (search) {
     query.name = {
@@ -165,12 +164,13 @@ export const getAllFoundItems = asyncHandler(async (req, res) => {
   const [foundItems, total] = await Promise.all([
     FoundItem.find(query)
       .populate(
-        "adminId",
+        "createdBy",
         `
-        name
-        email
-        block
-        `
+    name
+    email
+    role
+    block
+  `
       )
       .populate({
         path: "matchedLostItemIds",
@@ -276,7 +276,8 @@ export const getAllStudents = asyncHandler(async (req, res) => {
 
   const [students, total] = await Promise.all([
     User.find(query)
-      .select(`
+      .select(
+        `
         name
         email
         enrollmentNumber
@@ -289,7 +290,8 @@ export const getAllStudents = asyncHandler(async (req, res) => {
         profileImage
         profileCompleted
         createdAt
-      `)
+      `
+      )
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -329,10 +331,7 @@ export const getAllAdmins = asyncHandler(async (req, res) => {
 
   const query = {
     role: {
-      $in: [
-        USER_ROLES.ADMIN,
-        USER_ROLES.SECURITY,
-      ],
+      $in: [USER_ROLES.ADMIN, USER_ROLES.SECURITY],
     },
     isActive: true,
   };
@@ -367,7 +366,8 @@ export const getAllAdmins = asyncHandler(async (req, res) => {
 
   const [admins, total] = await Promise.all([
     User.find(query)
-      .select(`
+      .select(
+        `
         name
         email
         role
@@ -376,7 +376,8 @@ export const getAllAdmins = asyncHandler(async (req, res) => {
         isActive
         lastLogin
         createdAt
-      `)
+      `
+      )
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -402,9 +403,7 @@ export const getAllAdmins = asyncHandler(async (req, res) => {
 
         data: admins,
       },
-      admins.length > 0
-        ? "Admins fetched successfully"
-        : "No admins found"
+      admins.length > 0 ? "Admins fetched successfully" : "No admins found"
     )
   );
 });

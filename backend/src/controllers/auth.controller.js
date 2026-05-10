@@ -146,6 +146,7 @@ export const getMe = asyncHandler(async (req, res) => {
     ...(req.user.block && { block: req.user.block }),
     profileImage: req.user.profileImage,
     isEmailVerified: req.user.isEmailVerified,
+    profileCompleted: req.user.profileCompleted,
     isActive: req.user.isActive,
     lastLogin: req.user.lastLogin,
     createdAt: req.user.createdAt,
@@ -338,134 +339,6 @@ export const resetPassword = asyncHandler(async (req, res) => {
     );
 });
 
-export const adminForgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  const admin = await User.findOne({ email, role: USER_ROLES.ADMIN }).select(
-    "+passwordResetOTP +passwordResetOTPExpiry +passwordResetOTPUsed"
-  );
-
-  // Always respond the same way to prevent email enumeration
-  if (!admin) {
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          {},
-          "If this admin email exists, an OTP has been sent."
-        )
-      );
-  }
-
-  if (
-    admin.passwordResetOTPExpiry &&
-    admin.passwordResetOTPExpiry > new Date(Date.now() + 2 * 60 * 1000)
-  ) {
-    throw new ApiError(
-      429,
-      "Please wait 2 minutes before requesting a new OTP."
-    );
-  }
-
-  const otp = await admin.generatePasswordResetOTP();
-  await admin.save();
-  emailService
-    .sendPasswordResetOTP(admin.email, admin.name, otp)
-    .catch((err) => console.error("Admin password reset email error:", err));
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        {},
-        "If this admin email exists, an OTP has been sent."
-      )
-    );
-});
-
-export const adminVerifyResetOTP = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-
-  User.findOne({ email, role: USER_ROLES.ADMIN }).select(
-    "+passwordResetOTP +passwordResetOTPExpiry +passwordResetOTPUsed"
-  );
-  if (!admin) throw new ApiError(400, "Invalid or expired OTP");
-
-  if (!admin.passwordResetOTP) {
-    throw new ApiError(400, "Invalid or expired OTP");
-  }
-  if (admin.passwordResetOTPExpiry < new Date()) {
-    throw new ApiError(400, "OTP has expired. Please request a new one.");
-  }
-  if (admin.passwordResetOTPUsed) {
-    throw new ApiError(400, "OTP has already been used.");
-  }
-  const isValid = await bcrypt.compare(otp, admin.passwordResetOTP); // ← bcrypt
-  if (!isValid) {
-    throw new ApiError(400, "Invalid OTP. Please check and try again.");
-  }
-  await User.findByIdAndUpdate(admin._id, {
-    passwordResetOTPUsed: true, // consume OTP so it cant be reused
-  });
-
-  const resetToken = jwt.sign(
-    { userId: admin._id, purpose: "password_reset" },
-    process.env.JWT_SECRET,
-    { expiresIn: "10m" }
-  );
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { resetToken }, "OTP verified successfully."));
-});
-
-export const adminResetPassword = asyncHandler(async (req, res) => {
-  const { resetToken, newPassword, confirmPassword } = req.body;
-
-  if (!resetToken || !newPassword || !confirmPassword) {
-    throw new ApiError(400, "All fields are required");
-  }
-
-  if (newPassword.length < 6) {
-    throw new ApiError(400, "Password must be at least 6 characters");
-  }
-
-  if (newPassword !== confirmPassword) {
-    throw new ApiError(400, "Passwords do not match");
-  }
-  let decoded;
-  try {
-    decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
-  } catch {
-    throw new ApiError(400, "Reset session expired. Please start again.");
-  }
-
-  if (decoded.purpose !== "password_reset") {
-    throw new ApiError(400, "Invalid reset token");
-  }
-
-  const admin = await User.findById(decoded.userId);
-  if (!admin) throw new ApiError(404, "Admin not found");
-  if (admin.role !== USER_ROLES.ADMIN) throw new ApiError(403, "Unauthorized");
-
-  admin.password = newPassword;
-  admin.passwordResetOTP = null;
-  admin.passwordResetOTPExpiry = null;
-  admin.passwordResetOTPUsed = false;
-  await admin.save();
-
-  emailService
-    .sendPasswordResetConfirmation(admin.email, admin.name)
-    .catch((err) => console.error("Confirmation email error:", err));
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, {}, "Password reset successfully. Please login.")
-    );
-});
 export const completeProfile = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 

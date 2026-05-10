@@ -13,8 +13,8 @@ export const getNotifications = asyncHandler(async (req, res) => {
   const [notifications, total, unreadCount] = await Promise.all([
     Notification.find(query)
       .populate("data.lostItemId", "name  color")
-      .populate("data.foundItemId", "name color department")
-      .populate("data.adminId", "name department")
+      .populate("data.foundItemId", "name color block handledBy")
+      .populate("data.createdBy", "name role block")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -40,24 +40,39 @@ export const getNotifications = asyncHandler(async (req, res) => {
     )
   );
 });
-
 export const markAsRead = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  let query = { userId: req.user.id, isRead: false };
+  let query = {
+    userId: req.user.id,
+    isRead: false,
+  };
 
-if (id.toLowerCase() !== "all") {
-  query._id = id;
-}
+  // mark single notification
+  if (id.toLowerCase() !== "all") {
+    query._id = id;
+  }
 
-const result = await Notification.updateMany(query, { $set: { isRead: true } });
-const newUnreadCount = await Notification.countDocuments({
-  userId: req.user.id,
-  isRead: false,
-});
+  const result = await Notification.updateMany(query, {
+    $set: {
+      isRead: true,
+      readAt: new Date(),
+    },
+  });
 
-  if (id !== "all" && result.matchedCount === 0) {
-    throw new ApiError(404, "Notification not found or already read");
+  const newUnreadCount = await Notification.countDocuments({
+    userId: req.user.id,
+    isRead: false,
+  });
+
+  if (
+    id.toLowerCase() !== "all" &&
+    result.matchedCount === 0
+  ) {
+    throw new ApiError(
+      404,
+      "Notification not found or already read"
+    );
   }
 
   res.status(200).json(
@@ -67,19 +82,25 @@ const newUnreadCount = await Notification.countDocuments({
         updatedCount: result.modifiedCount,
         newUnreadCount,
       },
-      id === "all"
+      id.toLowerCase() === "all"
         ? "All notifications marked as read"
         : "Notification marked as read"
     )
   );
 });
 
+
 export const markAllAsRead = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   const result = await Notification.updateMany(
     { userId, isRead: false },
-    { $set: { isRead: true, readAt: new Date() } }
+    {
+      $set: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    }
   );
 
   res.status(200).json(

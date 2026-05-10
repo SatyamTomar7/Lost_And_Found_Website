@@ -10,7 +10,7 @@ const notificationSchema = new Schema(
     type: {
       type: String,
       enum: Object.values(NOTIFICATION_TYPES),
-      required:true
+      required: true,
     },
     title: {
       type: String,
@@ -34,7 +34,7 @@ const notificationSchema = new Schema(
         ref: "FoundItem",
       },
       matchScore: Number,
-      adminId: {
+      createdBy: {
         type: Schema.Types.ObjectId,
         ref: "User",
       },
@@ -58,20 +58,20 @@ const notificationSchema = new Schema(
   },
   {
     timestamps: true,
-    toJSON:{virtuals:true},
-    toObject:{virtuals:true}
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-notificationSchema.index({userId:1,createdAt:-1});
-notificationSchema.index({isRead:1,priority:-1})
-notificationSchema.index({expiresAt:1},{expireAfterSeconds:0})
+notificationSchema.index({ userId: 1, createdAt: -1 });
+notificationSchema.index({ isRead: 1, priority: -1 });
+notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 //Mark as read method
 
-notificationSchema.methods.markAsRead=function(){
-    this.isRead=true;
-    this.readAt=new Date();
-    return this.save();
-}
+notificationSchema.methods.markAsRead = function () {
+  this.isRead = true;
+  this.readAt = new Date();
+  return this.save();
+};
 
 export const Notification = mongoose.model("Notification", notificationSchema);

@@ -97,68 +97,79 @@ const ITEM_CONDITIONS = {
   USED: "Used",
 };
 const ITEM_CONDITIONS_VALUES = Object.values(ITEM_CONDITIONS);
-const CAMPUS_LOCATIONS = [
-  // --- Block A ---
-  "Block A - Classrooms",
-  "Block A - Corridor / Hallway",
-  "Block A - Library",
-  "Block A - Canteen",
-  "Block A - Seminar Hall",
-  "Block A - Parking",
-  "Block A - Washroom",
+const BLOCK_LOCATIONS = {
+  A: [
+    "Block A - Classrooms",
+    "Block A - Corridor / Hallway",
+    "Block A - Library",
+    "Block A - Canteen",
+    "Block A - Seminar Hall",
+    "Block A - Parking",
+    "Block A - Washroom",
+  ],
 
-  // --- Block B ---
-  "Block B - Classrooms",
-  "Block B - Corridor / Hallway",
-  "Block B - Library",
-  "Block B - Canteen",
-  "Block B - Auditorium",
-  "Block B - Parking",
-  "Block B - Washroom",
+  B: [
+    "Block B - Classrooms",
+    "Block B - Corridor / Hallway",
+    "Block B - Library",
+    "Block B - Canteen",
+    "Block B - Auditorium",
+    "Block B - Parking",
+    "Block B - Washroom",
+  ],
 
-  // --- Block C ---
-  "Block C - Classrooms",
-  "Block C - Corridor / Hallway",
-  "Block C - Library",
-  "Block C - Canteen",
-  "Block C - Seminar Hall",
-  "Block C - Parking",
-  "Block C - Washroom",
+  C: [
+    "Block C - Classrooms",
+    "Block C - Corridor / Hallway",
+    "Block C - Library",
+    "Block C - Canteen",
+    "Block C - Seminar Hall",
+    "Block C - Parking",
+    "Block C - Washroom",
+  ],
 
-  // --- Block D ---
-  "Block D - Classrooms",
-  "Block D - Corridor / Hallway",
-  "Block D - Library",
-  "Block D - Canteen",
-  "Block D - Seminar Hall",
-  "Block D - Parking",
-  "Block D - Washroom",
+  D: [
+    "Block D - Classrooms",
+    "Block D - Corridor / Hallway",
+    "Block D - Library",
+    "Block D - Canteen",
+    "Block D - Seminar Hall",
+    "Block D - Parking",
+    "Block D - Washroom",
+  ],
 
-  // --- Block E ---
-  "Block E - Classrooms",
-  "Block E - Corridor / Hallway",
-  "Block E - Library",
-  "Block E - Seminar Hall",
-  "Block E - Parking",
-  "Block E - Washroom",
+  E: [
+    "Block E - Classrooms",
+    "Block E - Corridor / Hallway",
+    "Block E - Library",
+    "Block E - Seminar Hall",
+    "Block E - Parking",
+    "Block E - Washroom",
+  ],
+};
 
-  // --- Sports & Athletics ---
+const COMMON_LOCATIONS = [
   "Main Ground (Open Field)",
   "Mini Cricket Ground",
   "Cricket Practice Nets",
   "Volleyball Court",
   "Basketball Court",
   "Badminton Court",
-
-  // --- General Areas ---
   "University Entrance / Main Gate",
+];
+
+const ALL_LOCATIONS = [
+  ...Object.values(BLOCK_LOCATIONS).flat(),
+  ...COMMON_LOCATIONS,
 ];
 
 export {
   DB_NAME,
   USER_ROLES,
   DEPARTMENTS,
-  CAMPUS_LOCATIONS,
+  BLOCK_LOCATIONS,
+COMMON_LOCATIONS,
+ALL_LOCATIONS,
   COLORS,
   ITEM_STATUS,
   NOTIFICATION_TYPES,

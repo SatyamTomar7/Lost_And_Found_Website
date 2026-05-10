@@ -10,9 +10,6 @@ import {
   forgotPassword,
   verifyResetOTP,
   resetPassword,
-  adminForgotPassword,
-  adminVerifyResetOTP,
-  adminResetPassword,
   completeProfile,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
@@ -23,7 +20,6 @@ import {
   validateForgotPassword,
   validateVerifyResetOTP,
   validateResetPassword,
-  validateAdminForgotPassword,
   validateCompleteProfile,
 } from "../middlewares/validation.middleware.js";
 
@@ -61,18 +57,4 @@ router.post(
 );
 router.post("/verify-reset-otp", validateVerifyResetOTP, verifyResetOTP);
 router.post("/reset-password", validateResetPassword, resetPassword);
-
-router.post(
-  "/admin/forgot-password",
-  otpLimiter,
-  validateAdminForgotPassword,
-  adminForgotPassword
-);
-router.post(
-  "/admin/verify-reset-otp",
-  validateVerifyResetOTP,
-  adminVerifyResetOTP
-);
-router.post("/admin/reset-password", validateResetPassword, adminResetPassword);
-
 export default router;

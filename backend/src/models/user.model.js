@@ -33,7 +33,16 @@ const userSchema = new Schema(
     password: {
       type: String,
       required: [true, "Password is required"],
+      minlength: [6, "Password must be at least 6 characters"],
       select: false,
+
+validate: {
+  validator: function (v) {
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(v);
+  },
+  message:
+    "Password must include uppercase, lowercase, and a number",
+},
     },
     role: {
       type: String,
@@ -70,6 +79,12 @@ const userSchema = new Schema(
     block: {
       type: String,
       enum: ["A", "B", "C", "D", "E"],
+
+      required: function () {
+        return (
+          this.role === USER_ROLES.ADMIN || this.role === USER_ROLES.STUDENT
+        );
+      },
     },
     profileImage: {
       type: String,
@@ -100,15 +115,13 @@ const userSchema = new Schema(
 
     semester: {
       type: Number,
+      min: 1,
+      max: 8,
     },
     year: {
       type: String,
+      enum: ["1st Year", "2nd Year", "3rd Year", "4th Year"],
     },
-
-    section: {
-      type: String,
-    },
-
     profileCompleted: {
       type: Boolean,
       default: false,

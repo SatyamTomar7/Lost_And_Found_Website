@@ -20,8 +20,14 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     placeFound,
     brand,
     condition,
-    adminId: req.user.id,
-    block: req.user.block,
+
+    createdBy: req.user.id,
+
+    handledBy: req.user.role,
+
+    block: req.user.role === "admin" ? req.user.block : null,
+
+    originalBlock: req.user.role === "admin" ? req.user.block : null,
   };
   const foundItem = await FoundItem.create(foundItemData);
 
@@ -45,12 +51,18 @@ export const addFoundItem = asyncHandler(async (req, res) => {
             userId: match.lostItem.userId._id,
             type: NOTIFICATION_TYPES.MATCH_FOUND,
             title: "Your Lost Item Might Be Found!",
-            message: `We found a ${match.matchScore}% match for your lost ${match.lostItem.name} in ${req.user.block} block.`,
+            message: `We found a ${match.matchScore}% match for your lost ${
+              match.lostItem.name
+            }. ${
+              req.user.role === "admin"
+                ? `Item was found in Block ${req.user.block}.`
+                : "Item was found by university security department."
+            }`,
             data: {
               lostItemId: match.lostItem._id,
               foundItemId: foundItem._id,
               matchScore: match.matchScore,
-              adminId: req.user.id,
+              createdBy: req.user.id,
             },
             priority: match.matchScore > 85 ? "high" : "medium",
           });
@@ -61,7 +73,9 @@ export const addFoundItem = asyncHandler(async (req, res) => {
               match.lostItem.userId.name,
               match.lostItem,
               foundItem,
-              req.user.block
+              req.user.role === "admin"
+                ? `Block ${req.user.block}`
+                : "University Security department"
             )
             .catch((err) => console.error("Email Error:", err));
           if (io && match?.lostItem?.userId?._id) {
@@ -77,7 +91,10 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     ).filter(Boolean);
   }
 
-  const populatedItem = await foundItem.populate("adminId", "name block");
+  const populatedItem = await foundItem.populate(
+    "createdBy",
+    "name block role"
+  );
   res.status(201).json(
     new ApiResponse(
       201,
@@ -99,14 +116,22 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
   const { status } = req.query;
 
   const query = {
-    block: req.user.block,
     isActive: true,
   };
+
+  if (req.user.role === "admin") {
+    query.block = req.user.block;
+    query.handledBy = "admin";
+  }
+
+  if (req.user.role === "security") {
+    query.handledBy = "security";
+  }
   if (status) query.status = status;
 
   const [foundItems, total] = await Promise.all([
     FoundItem.find(query)
-      .populate("adminId", "name")
+      .populate("createdBy", "name role block")
       .populate({
         path: "matchedLostItemIds",
         select: "name userId status createdAt",
@@ -143,8 +168,8 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
         data: foundItems,
       },
       foundItems.length > 0
-        ? "block data fetched"
-        : "No items found for this block"
+        ? "Found items fetched successfully"
+        : "No found items available"
     )
   );
 });
@@ -155,10 +180,15 @@ export const getFoundItem = asyncHandler(async (req, res) => {
   const query = { _id: id };
   if (req.user.role === "admin") {
     query.block = req.user.block;
+    query.handledBy = "admin";
+  }
+
+  if (req.user.role === "security") {
+    query.handledBy = "security";
   }
 
   const foundItem = await FoundItem.findOne(query)
-    .populate("adminId", "name block")
+    .populate("createdBy", "name role block")
     .populate({
       path: "matchedLostItemIds",
       select: "name userId status createdAt",
@@ -209,14 +239,22 @@ export const updateFoundItem = asyncHandler(async (req, res) => {
   const foundItem = await FoundItem.findOneAndUpdate(
     {
       _id: id,
-      block: req.user.block,
+
+      ...(req.user.role === "admin"
+        ? {
+            block: req.user.block,
+            handledBy: "admin",
+          }
+        : {
+            handledBy: "security",
+          }),
     },
     { $set: updateData },
     {
       new: true,
       runValidators: true,
     }
-  ).populate("adminId", "name block");
+  ).populate("createdBy", "name role block");
 
   if (!foundItem) {
     throw new ApiError(
@@ -252,74 +290,57 @@ export const markAsReturned = asyncHandler(async (req, res) => {
 
   let foundItem;
   let claimant;
+  let affectedLostItems = [];
 
   try {
     claimant = await User.findById(claimedByUserId)
       .select(
-        `
-        name
-        email
-        enrollmentNumber
-        phoneNumber
-        course
-        branch
-        semester
-        block
-      `
+        "name email enrollmentNumber phoneNumber course branch semester block"
       )
       .session(session);
 
-    if (!claimant) {
-      throw new ApiError(404, "Claimant user not found");
-    }
+    if (!claimant) throw new ApiError(404, "Claimant user not found");
 
     foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
-        block: req.user.block,
         status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+
+        ...(req.user.role === "admin"
+          ? {
+              block: req.user.block,
+              handledBy: "admin",
+            }
+          : {
+              handledBy: "security",
+            }),
       },
       {
         $set: {
           status: ITEM_STATUS.RETURNED,
-
           claimedBy: {
             name: claimant.name || "Unknown User",
             email: claimant.email || "No Email",
-
             enrollmentNumber: claimant.enrollmentNumber || "N/A",
-
             phoneNumber: claimant.phoneNumber || "N/A",
-
             course: claimant.course || "N/A",
             branch: claimant.branch || "N/A",
-
             semester: claimant.semester || "N/A",
-
             block: claimant.block || "N/A",
           },
-
           matchedLostItemId: lostItemId,
           returnedAt: new Date(),
           matchedLostItemIds: [],
         },
       },
-      {
-        new: true,
-        session,
-        runValidators: true,
-      }
+      { new: true, session, runValidators: true }
     );
 
-    if (!foundItem) {
+    if (!foundItem)
       throw new ApiError(404, "Found item not found or access denied");
-    }
 
     const lostUpdate = await LostItem.findOneAndUpdate(
-      {
-        _id: lostItemId,
-        userId: claimedByUserId,
-      },
+      { _id: lostItemId, userId: claimedByUserId },
       {
         $set: {
           status: ITEM_STATUS.COLLECTED,
@@ -327,10 +348,7 @@ export const markAsReturned = asyncHandler(async (req, res) => {
           matchedFoundItemIds: [],
         },
       },
-      {
-        session,
-        new: true,
-      }
+      { session, new: true }
     );
 
     if (!lostUpdate) {
@@ -340,26 +358,57 @@ export const markAsReturned = asyncHandler(async (req, res) => {
       );
     }
 
+    // ── STEP 1: Capture affected lost items BEFORE the pull ───────────────
+    // Populate userId so we have name/email ready for notifications post-commit
+    const potentiallyAffected = await LostItem.find({
+      status: ITEM_STATUS.MATCHED,
+      matchedFoundItemIds: foundItem._id,
+      _id: { $ne: lostItemId },
+    })
+      .populate("userId", "name email")
+      .session(session);
+
+    // ── STEP 2: Pull foundItem._id from all those lost items ──────────────
     await LostItem.updateMany(
       {
         matchedFoundItemIds: foundItem._id,
+        _id: { $ne: lostItemId },
       },
-      {
-        $pull: {
-          matchedFoundItemIds: foundItem._id,
-        },
-      },
+      { $pull: { matchedFoundItemIds: foundItem._id } },
       { session }
     );
 
+    // ── STEP 3: Re-fetch those specific items after pull ──────────────────
+    // Only keep items that now have zero matches left (were single-matched)
+    const affectedIds = potentiallyAffected.map((i) => i._id);
+
+    if (affectedIds.length > 0) {
+      // re-fetch affected items
+      affectedLostItems = await LostItem.find({
+        _id: { $in: affectedIds },
+        status: ITEM_STATUS.MATCHED,
+      })
+        .populate("userId", "name email")
+        .session(session);
+
+      // keep only items with NO matches left
+      affectedLostItems = affectedLostItems.filter(
+        (item) => item.matchedFoundItemIds.length === 0
+      );
+
+      // reset status to pending
+      for (const item of affectedLostItems) {
+        item.status = ITEM_STATUS.PENDING;
+
+        await item.save({ session });
+      }
+    }
+
+    // ── STEP 4: Pull lostItemId from other found items ────────────────────
     await FoundItem.updateMany(
+      { matchedLostItemIds: lostItemId },
       {
-        matchedLostItemIds: lostItemId,
-      },
-      {
-        $pull: {
-          matchedLostItemIds: new mongoose.Types.ObjectId(lostItemId),
-        },
+        $pull: { matchedLostItemIds: new mongoose.Types.ObjectId(lostItemId) },
       },
       { session }
     );
@@ -367,9 +416,7 @@ export const markAsReturned = asyncHandler(async (req, res) => {
     await session.commitTransaction();
   } catch (error) {
     await session.abortTransaction();
-
     console.error("Handover Error:", error);
-
     throw new ApiError(
       error.statusCode || 500,
       error.message || "Internal Server Error during handover"
@@ -378,42 +425,101 @@ export const markAsReturned = asyncHandler(async (req, res) => {
     session.endSession();
   }
 
-  // Notifications after successful commit
+  // ── All notifications run AFTER commit ───────────────────────────────────
   const io = req.app.get("socketio");
 
-  const notification = await Notification.create({
-    userId: claimedByUserId,
+  // 1. Notify each affected user whose item went back to PENDING
+  for (const item of affectedLostItems) {
+    try {
+      if (!item.userId) {
+        console.warn(
+          `[markAsReturned] Skipping — no userId on lost item ${item._id}`
+        );
+        continue;
+      }
 
-    type: NOTIFICATION_TYPES.ITEM_RETURNED,
+      // Handle both populated object and raw ObjectId
+      const userId = item.userId._id || item.userId;
+      const userIdStr = userId.toString();
+      const userEmail = item.userId.email || null;
+      const userName = item.userId.name || "User";
 
-    title: "Item Returned Successfully",
+      const pendingNotification = await Notification.create({
+        userId,
+        type: NOTIFICATION_TYPES.MATCH_REMOVED,
+        title: "Match Removed",
+        message:
+          "A matched item was returned to its original owner. Your item is now back in pending status.",
+        data: {
+          lostItemId: item._id,
+          foundItemId: foundItem._id,
+        },
+        priority: "medium",
+      });
 
-    message: `Your lost item "${foundItem.name}" has been successfully returned.`,
+      if (io) {
+        io.sendNotificationToUser(userIdStr, {
+          ...pendingNotification.toObject(),
+        });
+      } else {
+        console.warn("[markAsReturned] Socket.io instance not found on app");
+      }
 
-    data: {
-      foundItemId: foundItem._id,
-      lostItemId,
-    },
-
-    priority: "high",
-  });
-
-  // realtime socket notification
-  if (io) {
-    io.sendNotificationToUser(claimedByUserId, {
-      ...notification.toObject(),
-    });
+      if (userEmail) {
+        emailService
+          .sendMatchRemovedNotification(
+            userEmail,
+            userName,
+            item.name,
+            req.user.role === "admin"
+              ? `Block ${req.user.block}`
+              : "University Security Department"
+          )
+          .catch((err) => console.error("Match Removed Email Error:", err));
+      } else {
+        console.warn(`[markAsReturned] No email found for user ${userIdStr}`);
+      }
+    } catch (err) {
+      console.error(
+        `[markAsReturned] Failed to notify user ${item.userId} for match removal:`,
+        err
+      );
+    }
   }
 
-  // email notification
-  emailService
-    .sendItemReturnedNotification(
-      claimant.email,
-      claimant.name,
-      foundItem.name,
-      req.user.block
-    )
-    .catch((err) => console.error("Email Error:", err));
+  // 2. Notify the claimant that their item was successfully returned
+  try {
+    const returnedNotification = await Notification.create({
+      userId: claimedByUserId,
+      type: NOTIFICATION_TYPES.ITEM_RETURNED,
+      title: "Item Returned Successfully",
+      message: `Your lost item "${foundItem.name}" has been successfully returned.`,
+      data: {
+        foundItemId: foundItem._id,
+        lostItemId,
+      },
+      priority: "high",
+    });
+
+    if (io) {
+      io.sendNotificationToUser(claimedByUserId.toString(), {
+        ...returnedNotification.toObject(),
+      });
+    }
+
+    emailService
+      .sendItemReturnedNotification(
+        claimant.email,
+        claimant.name,
+        foundItem.name,
+        req.user.role === "admin"
+          ? `Block ${req.user.block}`
+          : "University Security Department"
+      )
+      .catch((err) => console.error("Item Returned Email Error:", err));
+  } catch (err) {
+    console.error("[markAsReturned] Failed to notify claimant:", err);
+  }
 
   return res
     .status(200)
@@ -431,8 +537,16 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
   // Fetch before update — capture matched users for notifications
   const existingFoundItem = await FoundItem.findOne({
     _id: id,
-    block: req.user.block,
     status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+
+    ...(req.user.role === "admin"
+      ? {
+          block: req.user.block,
+          handledBy: "admin",
+        }
+      : {
+          handledBy: "security",
+        }),
   }).populate({
     path: "matchedLostItemIds",
     select: "userId name",
@@ -458,8 +572,18 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
     foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
-        block: req.user.block,
-        status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+        status: {
+          $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED],
+        },
+
+        ...(req.user.role === "admin"
+          ? {
+              block: req.user.block,
+              handledBy: "admin",
+            }
+          : {
+              handledBy: "security",
+            }),
       },
       {
         $set: {
@@ -479,7 +603,7 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
         session,
         runValidators: true,
       }
-    ).populate("adminId", "name block");
+    ).populate("createdBy", "name role block");
 
     if (!foundItem) {
       throw new ApiError(
@@ -572,7 +696,9 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
             lostItem.userId.email,
             lostItem.userId.name,
             existingFoundItem.name,
-            req.user.block
+            req.user.role === "admin"
+              ? `Block ${req.user.block}`
+              : "University Security Department"
           )
           .catch((err) => console.error("Email Error:", err));
       })
@@ -597,8 +723,16 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
   // Fetch before transaction
   const existingFoundItem = await FoundItem.findOne({
     _id: id,
-    block: req.user.block,
     status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+
+    ...(req.user.role === "admin"
+      ? {
+          block: req.user.block,
+          handledBy: "admin",
+        }
+      : {
+          handledBy: "security",
+        }),
   }).populate({
     path: "matchedLostItemIds",
     select: "userId name",
@@ -624,10 +758,18 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
-        block: req.user.block,
         status: {
           $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED],
         },
+
+        ...(req.user.role === "admin"
+          ? {
+              block: req.user.block,
+              handledBy: "admin",
+            }
+          : {
+              handledBy: "security",
+            }),
       },
       {
         $set: {
@@ -652,7 +794,7 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
         session,
         runValidators: true,
       }
-    ).populate("adminId", "name block");
+    ).populate("createdBy", "name role block");
 
     if (!foundItem) {
       throw new ApiError(
@@ -743,7 +885,9 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
             lostItem.userId.email,
             lostItem.userId.name,
             existingFoundItem.name,
-            req.user.block
+            req.user.role === "admin"
+              ? `Block ${req.user.block}`
+              : "University Security Department"
           )
           .catch((err) => console.error("Email Error:", err));
       })
@@ -761,14 +905,13 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     );
 });
 
-export const getMatchedLostItemsForItem = asyncHandler(
-  async (req, res) => {
-    const { id } = req.params;
+export const getMatchedLostItemsForItem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    // Role-based user detail visibility
-    const userSelect =
-      req.user.role === "admin"
-        ? `
+  // Role-based user detail visibility
+  const userSelect =
+    req.user.role === "admin"
+      ? `
             name
             email
             enrollmentNumber
@@ -778,22 +921,30 @@ export const getMatchedLostItemsForItem = asyncHandler(
             semester
             block
           `
-        : `
+      : `
             name
             branch
             semester
             block
           `;
 
-    const foundItem = await FoundItem.findOne({
-      _id: id,
-      block: req.user.block,
-    })
-      .select("matchedLostItemIds name")
-      .populate({
-        path: "matchedLostItemIds",
+  const foundItem = await FoundItem.findOne({
+    _id: id,
 
-        select: `
+    ...(req.user.role === "admin"
+      ? {
+          block: req.user.block,
+          handledBy: "admin",
+        }
+      : {
+          handledBy: "security",
+        }),
+  })
+    .select("matchedLostItemIds name")
+    .populate({
+      path: "matchedLostItemIds",
+
+      select: `
           name
           color
           placeLost
@@ -803,64 +954,52 @@ export const getMatchedLostItemsForItem = asyncHandler(
           images
         `,
 
-        populate: {
-          path: "userId",
-          select: userSelect,
-        },
-      })
-      .lean();
+      populate: {
+        path: "userId",
+        select: userSelect,
+      },
+    })
+    .lean();
 
-    if (!foundItem) {
-      throw new ApiError(
-        404,
-        "Found item not found or access denied"
-      );
-    }
-
-    if (
-      !foundItem.matchedLostItemIds ||
-      foundItem.matchedLostItemIds.length === 0
-    ) {
-      return res.status(200).json(
-        new ApiResponse(
-          200,
-          { data: [] },
-          "No matched lost items found"
-        )
-      );
-    }
-
-    // Only active matches
-    const activeMatches =
-      foundItem.matchedLostItemIds.filter(
-        (lostItem) =>
-          lostItem.status !==
-            ITEM_STATUS.RETURNED &&
-          lostItem.status !==
-            ITEM_STATUS.COLLECTED &&
-          lostItem.status !==
-            ITEM_STATUS.SELF_RESOLVED
-      );
-
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          count: activeMatches.length,
-
-          foundItem: {
-            id,
-            name: foundItem.name,
-          },
-
-          data: activeMatches,
-        },
-
-        "Matched lost items fetched successfully"
-      )
-    );
+  if (!foundItem) {
+    throw new ApiError(404, "Found item not found or access denied");
   }
-);
+
+  if (
+    !foundItem.matchedLostItemIds ||
+    foundItem.matchedLostItemIds.length === 0
+  ) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { data: [] }, "No matched lost items found"));
+  }
+
+  // Only active matches
+  const activeMatches = foundItem.matchedLostItemIds.filter(
+    (lostItem) =>
+      lostItem.status !== ITEM_STATUS.RETURNED &&
+      lostItem.status !== ITEM_STATUS.COLLECTED &&
+      lostItem.status !== ITEM_STATUS.SELF_RESOLVED
+  );
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        count: activeMatches.length,
+
+        foundItem: {
+          id,
+          name: foundItem.name,
+        },
+
+        data: activeMatches,
+      },
+
+      "Matched lost items fetched successfully"
+    )
+  );
+});
 export const deleteFoundItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -871,8 +1010,16 @@ export const deleteFoundItem = asyncHandler(async (req, res) => {
     const foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
-        block: req.user.block,
         isActive: true,
+
+        ...(req.user.role === "admin"
+          ? {
+              block: req.user.block,
+              handledBy: "admin",
+            }
+          : {
+              handledBy: "security",
+            }),
       },
       {
         $set: { isActive: false },
@@ -943,8 +1090,11 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
 
   if (req.user.role === "admin") {
     query.block = req.user.block;
-  } else if (block) {
-    query.block = block;
+    query.handledBy = "admin";
+  }
+
+  if (req.user.role === "security") {
+    query.handledBy = "security";
   }
 
   if (q) {
@@ -963,7 +1113,7 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
 
   const [foundItems, total] = await Promise.all([
     FoundItem.find(query)
-      .populate("adminId", "name block")
+      .populate("createdBy", "name role block")
       .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
       .limit(limit)
       .skip((page - 1) * limit),

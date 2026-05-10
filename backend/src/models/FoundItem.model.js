@@ -1,12 +1,8 @@
 import mongoose, { Schema } from "mongoose";
-import {
-  COLORS,
-  ITEM_STATUS,
-  ITEM_CONDITIONS_VALUES,
-} from "../constants.js";
+import { COLORS, ITEM_STATUS, ITEM_CONDITIONS_VALUES } from "../constants.js";
 const foundItemSchema = new Schema(
   {
-    adminId: {
+    createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
@@ -14,7 +10,20 @@ const foundItemSchema = new Schema(
     block: {
       type: String,
       enum: ["A", "B", "C", "D", "E"],
+      required: false,
+    },
+
+    originalBlock: {
+      type: String,
+      enum: ["A", "B", "C", "D", "E"],
+      required: false,
+    },
+
+    handledBy: {
+      type: String,
+      enum: ["admin", "security"],
       required: true,
+      default: "admin",
     },
     name: {
       type: String,
@@ -161,6 +170,8 @@ foundItemSchema.pre("save", function (next) {
     this.brand,
     this.placeFound,
     this.block,
+    this.originalBlock,
+    this.handledBy,
     ...(this.tags || []),
   ]
     .filter(Boolean)
@@ -181,6 +192,11 @@ foundItemSchema.index({
   name: 1,
   color: 1,
   isActive: 1,
+  status: 1,
+});
+foundItemSchema.index({
+  handledBy: 1,
+  block: 1,
   status: 1,
 });
 foundItemSchema.index({ block: 1, createdAt: -1 });

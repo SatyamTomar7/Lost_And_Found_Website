@@ -116,7 +116,13 @@ export const submitLostItem = asyncHandler(async (req, res) => {
             userId: req.user.id,
             type: NOTIFICATION_TYPES.MATCH_FOUND,
             title: "Potential Match Found",
-            message: `We found a ${match.matchScore}% match for your lost ${lostItem.name} in ${match.foundItem.block} block.`,
+            message: `We found a ${match.matchScore}% match for your lost ${
+              lostItem.name
+            }. ${
+              match.foundItem.handledBy === "admin"
+                ? `Item was found in Block ${match.foundItem.block}.`
+                : "Item was found by university security department."
+            }`,
             data: {
               lostItemId: lostItem._id,
               foundItemId: match.foundItem._id,
@@ -131,7 +137,9 @@ export const submitLostItem = asyncHandler(async (req, res) => {
               req.user.name,
               lostItem,
               match.foundItem,
-              match.foundItem.block
+              match.foundItem.handledBy === "admin"
+                ? `Block ${match.foundItem.block}`
+                : "University Security Department"
             )
             .catch((err) => console.error("Match Email Failed:", err));
 
@@ -176,8 +184,11 @@ export const getMyLostItems = asyncHandler(async (req, res) => {
 
       .populate({
         path: "matchedFoundItemIds",
-        select: "name block adminId status",
-        populate: { path: "adminId", select: "name block" },
+        select: "name block createdBy status",
+        populate: {
+          path: "createdBy",
+          select: "name role block",
+        },
       })
       .sort({ createdAt: -1 })
       .limit(limit)
@@ -212,7 +223,7 @@ export const getLostItem = asyncHandler(async (req, res) => {
 
   const query = { _id: id };
 
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "security") {
     query.userId = req.user.id;
   }
 
@@ -232,8 +243,11 @@ export const getLostItem = asyncHandler(async (req, res) => {
     )
     .populate({
       path: "matchedFoundItemIds",
-      select: "name block adminId status createdAt",
-      populate: { path: "adminId", select: "name block" },
+      select: "name block createdBy status createdAt",
+      populate: {
+        path: "createdBy",
+        select: "name role block",
+      },
     })
     .lean();
   if (!lostItem) {
@@ -253,14 +267,7 @@ export const getLostItem = asyncHandler(async (req, res) => {
 export const updateLostItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const {
-    name,
-    color,
-    condition,
-    dateLost,
-    placeLost,
-    description,
-  } = req.body;
+  const { name, color, condition, dateLost, placeLost, description } = req.body;
 
   const updateData = {
     name,
@@ -273,9 +280,7 @@ export const updateLostItem = asyncHandler(async (req, res) => {
 
   // remove undefined fields
   Object.keys(updateData).forEach(
-    (key) =>
-      updateData[key] === undefined &&
-      delete updateData[key]
+    (key) => updateData[key] === undefined && delete updateData[key]
   );
 
   const session = await mongoose.startSession();
@@ -325,25 +330,19 @@ export const updateLostItem = asyncHandler(async (req, res) => {
       },
       {
         $pull: {
-          matchedLostItemIds:
-            new mongoose.Types.ObjectId(
-              lostItem._id
-            ),
+          matchedLostItemIds: new mongoose.Types.ObjectId(lostItem._id),
         },
       },
       { session }
     );
 
     // Re-run matching
-    const matches =
-      await matchingService.findMatchesForLostItem(
-        lostItem._id,
-        70
-      );
-
-    const matchedFoundItemIds = matches.map(
-      (match) => match.foundItem._id
+    const matches = await matchingService.findMatchesForLostItem(
+      lostItem._id,
+      70
     );
+
+    const matchedFoundItemIds = matches.map((match) => match.foundItem._id);
 
     // Update reverse side (FoundItem)
     if (matchedFoundItemIds.length > 0) {
@@ -355,8 +354,7 @@ export const updateLostItem = asyncHandler(async (req, res) => {
         },
         {
           $addToSet: {
-            matchedLostItemIds:
-              lostItem._id,
+            matchedLostItemIds: lostItem._id,
           },
 
           $set: {
@@ -414,8 +412,7 @@ export const updateLostItem = asyncHandler(async (req, res) => {
 
     throw new ApiError(
       error.statusCode || 500,
-      error.message ||
-        "Failed to update lost item"
+      error.message || "Failed to update lost item"
     );
   } finally {
     session.endSession();
@@ -507,7 +504,7 @@ export const searchLostItems = asyncHandler(async (req, res) => {
 
   // Role-based user detail visibility
   const userSelect =
-    req.user.role === "admin"
+    req.user.role === "admin" || req.user.role === "security"
       ? `
           name
           email
@@ -661,4 +658,3 @@ export const selfResolveLostItem = asyncHandler(async (req, res) => {
     session.endSession();
   }
 });
-

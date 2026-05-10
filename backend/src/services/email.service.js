@@ -478,6 +478,67 @@ class EmailService {
       return false;
     }
   }
+
+
+  // ─── Match Removed Notification Email ────────────────────────────────────
+async sendMatchRemovedNotification(email, userName, itemName, block) {
+  try {
+    const safeUserName = sanitize(userName);
+    const safeItemName = sanitize(itemName);
+    const safeBlock = sanitize(block);
+
+    await sendEmail({
+      to: email,
+      subject: "Match Update: Item No Longer Available - Amity Lost & Found",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #b45309, #f59e0b); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Match Update</h1>
+            <p style="color: white; margin: 5px 0;">Regarding your lost item report</p>
+          </div>
+          <div style="padding: 30px; background: #f8fafc;">
+            <h2 style="color: #b45309;">Your Item Match Has Been Removed</h2>
+            <p>Hello <strong>${safeUserName}</strong>,</p>
+            <p>
+              We wanted to let you know that a previously matched found item for
+              <strong>${safeItemName}</strong> from the
+              <strong>${safeBlock} Block</strong> has been collected by its original owner,
+              so it is no longer available for you.
+            </p>
+            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <p style="margin: 0;">
+                <strong>What this means:</strong><br><br>
+                Your lost item report is still <strong>active</strong> and back to
+                <strong>Pending</strong> status. We will continue searching for other matches
+                and notify you immediately if a new one is found.
+              </p>
+            </div>
+            <div style="background: white; border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+              <h3 style="color: #1e40af; margin-top: 0;">What you can do</h3>
+              <ul style="color: #374151; line-height: 1.8;">
+                <li>Your report is still active — no action needed</li>
+                <li>Visit the ${safeBlock} Block office if you have additional details about your item</li>
+                <li>Check the portal regularly for new matches</li>
+              </ul>
+            </div>
+            <p>We apologize for the inconvenience and will continue to do our best to help you.</p>
+            <hr style="border: 1px solid #e5e7eb; margin: 30px 0;">
+            <p style="color: #6b7280; font-size: 12px;">
+              This notification was sent automatically by the Amity Lost &amp; Found System.
+              Please do not reply to this email.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+
+    console.log(`Match removed notification sent to ${email}`);
+    return true;
+  } catch (error) {
+    console.error("Match removed email error:", error);
+    return false;
+  }
+}
 }
 
 const emailService = new EmailService();

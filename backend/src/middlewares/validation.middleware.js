@@ -2,10 +2,9 @@ import { body, validationResult, param, query } from "express-validator";
 import { ApiError } from "../utils/ApiError.js";
 import {
   COLORS,
-  DEPARTMENTS,
   ITEM_CONDITIONS,
   ITEM_NAME,
-  CAMPUS_LOCATIONS,
+  ALL_LOCATIONS
 } from "../constants.js";
 
 const handleValidationErrors = (req, res, next) => {
@@ -40,7 +39,7 @@ const validateUserRegistration = [
   body("password")
     .isLength({ min: 6, max: 100 })
     .withMessage("Password must be at least 6 characters long")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
     .withMessage("Password must include uppercase, lowercase, and a number"),
 
   handleValidationErrors,
@@ -65,26 +64,20 @@ const validateLogin = [
     .isEmail()
     .normalizeEmail()
     .withMessage("Valid email required"),
+
   body("password").notEmpty().withMessage("Password is required"),
+
   handleValidationErrors,
 ];
-
 
 const validateForgotPassword = [
   body("email")
     .isEmail()
     .withMessage("Please provide a valid email")
-    .matches(/^[\w.-]+@s\.amity\.edu$/)
-    .withMessage("Email must be an Amity student email (@s.amity.edu)")
-    .normalizeEmail(),
-  handleValidationErrors,
-];
-const validateAdminForgotPassword = [
-  body("email")
-    .isEmail()
-    .withMessage("Please provide a valid email")
-    .matches(/^[\w.-]+@gwa\.amity\.edu$/)
-    .withMessage("Email must be an Amity admin email (@gwa.amity.edu)")
+    .matches(/^[\w.-]+@(s|gwa)\.amity\.edu$/)
+    .withMessage(
+      "Email must be a valid Amity email (@s.amity.edu or @gwa.amity.edu)"
+    )
     .normalizeEmail(),
   handleValidationErrors,
 ];
@@ -103,7 +96,7 @@ const validateResetPassword = [
   body("newPassword")
     .isLength({ min: 6, max: 100 })
     .withMessage("Password must be at least 6 characters long")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
     .withMessage("Password must include uppercase, lowercase, and a number"),
   body("confirmPassword")
     .notEmpty()
@@ -150,8 +143,8 @@ const validateLostItem = [
     }),
 
   body("placeLost")
-    .isIn(CAMPUS_LOCATIONS)
-    .withMessage("Please select a valid campus location"),
+    .isIn(ALL_LOCATIONS)
+    .withMessage("Please select a valid ALL location"),
 
   body("contactInfo.phone")
     .optional({ checkFalsy: true })
@@ -193,7 +186,7 @@ const validateFoundItem = [
     }),
 
   body("placeFound")
-    .isIn(CAMPUS_LOCATIONS)
+    .isIn(ALL_LOCATIONS)
     .withMessage("Please select a valid campus location"),
 
   body("storageLocation")
@@ -250,19 +243,18 @@ const validateCompleteProfile = [
     .withMessage("Branch name too long"),
 
   body("year")
-    .isInt({ min: 1, max: 4 })
-    .withMessage("Year must be between 1 and 4")
-    .toInt(),
+    .isIn(["1st Year", "2nd Year", "3rd Year", "4th Year"])
+    .withMessage("Invalid year selected"),
 
   body("semester")
     .isInt({ min: 1, max: 8 })
     .withMessage("Semester must be between 1 and 8")
     .toInt(),
 
-body("section")
-  .trim()
-  .isIn(["A", "B", "C", "D", "E"])
-  .withMessage("Section must be A, B, C, D, or E"),
+  body("section")
+    .trim()
+    .isIn(["A", "B", "C", "D", "E"])
+    .withMessage("Section must be A, B, C, D, or E"),
 
   handleValidationErrors,
 ];
@@ -271,7 +263,6 @@ export {
   validateUserRegistration,
   validateOTPVerification,
   validateLogin,
-  // validateAdminLogin,
   validateForgotPassword,
   validateVerifyResetOTP,
   validateResetPassword,
@@ -279,6 +270,5 @@ export {
   validateFoundItem,
   validateObjectId,
   validatePagination,
-  validateAdminForgotPassword,
-  validateCompleteProfile
+  validateCompleteProfile,
 };

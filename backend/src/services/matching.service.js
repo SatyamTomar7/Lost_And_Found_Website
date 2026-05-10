@@ -11,7 +11,7 @@ import mongoose from "mongoose";
 const WEIGHTS = Object.freeze({
   name: 0.45, // GATE + highest weight (fixed dropdown = reliable)
   color: 0.3, // GATE + second highest (fixed dropdown = reliable)
-  date: 0.1, // GATE + booster (±3 days window)
+  date: 0.1, // GATE + booster (±7 days window)
   place: 0.1, // booster only
   brand: 0.05, // booster only (optional field)
 });
@@ -60,7 +60,7 @@ class MatchingService {
   }
 
   // ---------------------------------------------------------------------------
-  // DATE: ±3 DAYS WINDOW (hard gate)
+  // DATE: ±7 DAYS WINDOW (hard gate)
   // ---------------------------------------------------------------------------
   // NEW
   checkDateProximity(dateLost, dateFound) {
@@ -70,7 +70,7 @@ class MatchingService {
 
     if (diffDays > 7) return 0; // Hard cutoff
 
-    // Linear decay: same day = 1.0, day 7 = 0.0
+  // Linear decay: same day = 1.0, day 7 ≈ 0.13
     return Math.round((1 - diffDays / 8) * 100) / 100;
   }
 
@@ -119,7 +119,7 @@ class MatchingService {
    * GATES (all must pass or score = 0):
    *   1. Name similarity  ≥ 0.85  (same fixed dropdown)
    *   2. Color similarity ≥ 0.85  (same fixed dropdown)
-   *   3. Date within ±3 days
+   *   3. Date within ±7 days
    *
    * BOOSTERS (improve score, no penalty if missing):
    *   - Place similarity
@@ -146,7 +146,7 @@ class MatchingService {
       const colorGate = eitherAmbiguous ? 0.15 : 0.85;
       if (colorSim < colorGate) return 0;
 
-      // ── GATE 3: Date ±3 days ──
+      // ── GATE 3: Date ±7 days ──
       const dateScore = this.checkDateProximity(
         lostItem.dateLost,
         foundItem.dateFound
@@ -228,13 +228,29 @@ class MatchingService {
       // FOUND and MATCHED found items both eligible for matching
       const colorFilter = { $in: [lostItem.color, ...AMBIGUOUS_COLORS] };
 
+      const minDate = new Date(lostItem.dateLost);
+      minDate.setDate(minDate.getDate() - 7);
+
+      const maxDate = new Date(lostItem.dateLost);
+      maxDate.setDate(maxDate.getDate() + 7);
+
       const foundItems = await FoundItem.find({
         isActive: true,
-        status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+
+        status: {
+          $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED],
+        },
+
         name: lostItem.name,
+
         color: colorFilter,
+
+        dateFound: {
+          $gte: minDate,
+          $lte: maxDate,
+        },
       })
-        .populate("adminId", "name department")
+        .populate("createdBy", "name role block")
         .session(session);
 
       const matches = [];
@@ -309,11 +325,27 @@ class MatchingService {
       // PENDING and MATCHED lost items both eligible for matching
       const colorFilter = { $in: [foundItem.color, ...AMBIGUOUS_COLORS] };
 
+      const minDate = new Date(foundItem.dateFound);
+      minDate.setDate(minDate.getDate() - 7);
+
+      const maxDate = new Date(foundItem.dateFound);
+      maxDate.setDate(maxDate.getDate() + 7);
+
       const lostItems = await LostItem.find({
         isActive: true,
-        status: { $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED] },
+
+        status: {
+          $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED],
+        },
+
         name: foundItem.name,
+
         color: colorFilter,
+
+        dateLost: {
+          $gte: minDate,
+          $lte: maxDate,
+        },
       })
         .populate("userId", "name email")
         .session(session);
@@ -398,7 +430,7 @@ class MatchingService {
         dateLost: lostItem.dateLost,
         dateFound: foundItem.dateFound,
         diffDays,
-        withinWindow: diffDays <= 3,
+        withinWindow: diffDays <= 7,
       },
       placeMatch: {
         score: Math.round(
