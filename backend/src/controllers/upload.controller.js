@@ -3,18 +3,40 @@ import {
   uploadSingle,
   uploadMultiple,
   deleteImage,
+  getThumbnailUrl,
 } from "../services/cloudinary.service.js";
 import { PendingUpload } from "../models/PendingUpload.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+/**
+ * Promisify an Express middleware so it can be awaited inside asyncHandler.
+ */
 const runMiddleware = (req, res, fn) =>
   new Promise((resolve, reject) => {
     fn(req, res, (err) => (err ? reject(err) : resolve()));
   });
 
+/**
+ * Normalize a multer file object into a consistent response shape.
+ * Uses the cloudinary service helper for thumbnail — no fragile URL hacking.
+ */
+const normalizeFile = (file) => ({
+  url: file.path,
+  publicId: file.filename,
+  thumbnail: getThumbnailUrl(file.filename),
+  originalName: file.originalname,
+  size: file.size ?? 0,                          // `size` is the correct multer field
+  format: file.mimetype?.split("/")[1] ?? null,
+});
+
+// ─── Controllers ──────────────────────────────────────────────────────────────
+
 export const uploadSingleImage = asyncHandler(async (req, res) => {
+  // Run multer middleware
   try {
     await runMiddleware(req, res, uploadSingle);
   } catch (err) {
@@ -23,31 +45,23 @@ export const uploadSingleImage = asyncHandler(async (req, res) => {
 
   if (!req.file) throw new ApiError(400, "No image file provided");
 
-  const publicId = req.file.filename;
-  const url = req.file.path;
+  const { filename: publicId, path: url } = req.file;
 
-  // Save a pending record so the cleanup job can find orphans
-  await PendingUpload.create({ publicId, url, userId: req.user.id });
+  // Track as pending so the cleanup job can find orphans.
+  // If tracking fails, delete the already-uploaded file to prevent orphans.
+  try {
+    await PendingUpload.create({ publicId, url, userId: req.user.id });
+  } catch (dbErr) {
+    await deleteImage(publicId).catch(() => {}); // best-effort cleanup
+    throw new ApiError(500, "Failed to track upload — please try again");
+  }
 
-  const thumbnail = url.includes("/upload/")
-    ? url.replace("/upload/", "/upload/w_200,h_200,c_fill,g_auto,f_auto/")
-    : url;
-
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        url,
-        publicId,
-        thumbnail,
-        originalName: req.file.originalname,
-        size: req.file.bytes || req.file.size || 0,
-        format: req.file.mimetype?.split("/")[1],
-      },
-      "Image uploaded successfully"
-    )
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, normalizeFile(req.file), "Image uploaded successfully"));
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const uploadMultipleImages = asyncHandler(async (req, res) => {
   try {
@@ -58,70 +72,63 @@ export const uploadMultipleImages = asyncHandler(async (req, res) => {
 
   if (!req.files?.length) throw new ApiError(400, "No image files provided");
 
-  // Save all as pending in one shot
   const pendingDocs = req.files.map((f) => ({
     publicId: f.filename,
     url: f.path,
     userId: req.user.id,
   }));
-  await PendingUpload.insertMany(pendingDocs);
 
-  const images = req.files.map((file) => {
-    const thumbnail = file.path.includes("/upload/")
-      ? file.path.replace(
-          "/upload/",
-          "/upload/w_200,h_200,c_fill,g_auto,f_auto/"
-        )
-      : file.path;
-    return {
-      url: file.path,
-      publicId: file.filename,
-      thumbnail,
-      originalName: file.originalname,
-      size: file.bytes || file.size || 0,
-      format: file.mimetype?.split("/")[1] ?? file.format,
-    };
-  });
+  // If DB tracking fails, roll back ALL uploaded files to prevent orphans.
+  try {
+    await PendingUpload.insertMany(pendingDocs, { ordered: false });
+  } catch (dbErr) {
+    await Promise.allSettled(
+      req.files.map((f) => deleteImage(f.filename))
+    );
+    throw new ApiError(500, "Failed to track uploads — please try again");
+  }
+
+  const images = req.files.map(normalizeFile);
 
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        { images },
+        { images, count: images.length },
         `${images.length} image(s) uploaded successfully`
       )
     );
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const deleteUploadedImage = asyncHandler(async (req, res) => {
-  const publicId = decodeURIComponent(req.params.path);
+  // Public IDs can contain slashes (e.g. "folder/item_123").
+  // Use a wildcard route param — register this route as:
+  //   router.delete("/image/*", deleteUploadedImage)
+  // Then req.params[0] captures the full path including slashes.
+  const rawId = req.params[0] ?? req.body.publicId;
+  const publicId = rawId ? decodeURIComponent(rawId).trim() : null;
 
   if (!publicId) throw new ApiError(400, "Image public ID is required");
 
   // Only let the owner delete their own pending upload
-  const pending = await PendingUpload.findOne({
-    publicId,
-    userId: req.user.id,
-  });
+  const pending = await PendingUpload.findOne({ publicId, userId: req.user.id });
   if (!pending) throw new ApiError(403, "Not found or not authorized");
 
-  const result = await deleteImage(publicId);
-  const ok = result.result === "ok" || result.result === "not found";
-  if (!ok)
-    throw new ApiError(400, "Cloud storage could not process the deletion");
+  const result = await deleteImage(publicId); // already throws ApiError on failure
 
+  // deleteImage in the service throws on hard failures; "not found" is treated as success.
   await PendingUpload.deleteOne({ publicId });
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { publicId },
-        result.result === "not found"
-          ? "Image was already removed"
-          : "Image deleted successfully"
-      )
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { publicId },
+      result.result === "not found"
+        ? "Image was already removed"
+        : "Image deleted successfully"
+    )
+  );
 });
