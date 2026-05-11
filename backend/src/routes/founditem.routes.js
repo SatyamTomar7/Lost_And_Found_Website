@@ -17,6 +17,7 @@ import {
   validateFoundItem,
   validateObjectId,
   validatePagination,
+  validateOfflineReturn
 } from "../middlewares/validation.middleware.js";
 router.use(protect, isAdmin);
 router.post("/", validateFoundItem, addFoundItem);
@@ -26,7 +27,7 @@ router.get("/:id", validateObjectId, getFoundItem);
 router.put("/:id", validateObjectId, validateFoundItem, updateFoundItem);
 router.put("/:id/returned", validateObjectId, markAsReturned);
 
-router.put("/:id/collected-offline", validateObjectId, markAsCollectedOffline);
+router.put("/:id/collected-offline", validateObjectId,validateOfflineReturn,markAsCollectedOffline);
 router.put("/:id/unclaimed", validateObjectId, markAsUnclaimed);
 router.get("/:id/matched-lost-items", validateObjectId,getMatchedLostItemsForItem);
 

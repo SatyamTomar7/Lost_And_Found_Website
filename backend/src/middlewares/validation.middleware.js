@@ -4,7 +4,7 @@ import {
   COLORS,
   ITEM_CONDITIONS,
   ITEM_NAME,
-  ALL_LOCATIONS
+  ALL_LOCATIONS,
 } from "../constants.js";
 
 const handleValidationErrors = (req, res, next) => {
@@ -225,8 +225,10 @@ const validateCompleteProfile = [
 
   body("phoneNumber")
     .trim()
-    .matches(/^[0-9]{10}$/)
-    .withMessage("Please enter a valid 10-digit phone number"),
+    .notEmpty()
+    .withMessage("Phone number is required")
+    .matches(/^[6-9]\d{9}$/)
+    .withMessage("Enter a valid 10-digit Indian mobile number"),
 
   body("course")
     .trim()
@@ -247,9 +249,11 @@ const validateCompleteProfile = [
     .withMessage("Invalid year selected"),
 
   body("semester")
-    .isInt({ min: 1, max: 8 })
-    .withMessage("Semester must be between 1 and 8")
-    .toInt(),
+    .trim()
+    .notEmpty()
+    .withMessage("Semester is required")
+    .isInt({ min: 1, max: 12 })
+    .withMessage("Semester must be a number between 1 and 12"),
 
   body("section")
     .trim()
@@ -258,7 +262,67 @@ const validateCompleteProfile = [
 
   handleValidationErrors,
 ];
+const validateOfflineReturn = [
+  param("id").isMongoId().withMessage("Invalid ID format"),
 
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Name is required")
+    .isLength({ max: 100 })
+    .withMessage("Name is too long"),
+
+  body("email")
+    .trim()
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Invalid email address"),
+
+  body("enrollmentNumber")
+    .trim()
+    .notEmpty()
+    .withMessage("Enrollment number is required")
+    .isLength({ max: 50 })
+    .withMessage("Enrollment number is too long"),
+
+  body("phoneNumber")
+    .trim()
+    .notEmpty()
+    .withMessage("Phone number is required")
+    .isMobilePhone("en-IN")
+    .withMessage("Invalid phone number"),
+
+  body("course")
+    .trim()
+    .notEmpty()
+    .withMessage("Course is required")
+    .isLength({ max: 100 })
+    .withMessage("Course name is too long"),
+
+  body("branch")
+    .trim()
+    .notEmpty()
+    .withMessage("Branch is required")
+    .isLength({ max: 100 })
+    .withMessage("Branch name is too long"),
+
+  body("semester")
+    .trim()
+    .notEmpty()
+    .withMessage("Semester is required")
+    .isLength({ max: 20 })
+    .withMessage("Semester value is too long"),
+
+  body("block")
+    .trim()
+    .notEmpty()
+    .withMessage("Block is required")
+    .isLength({ max: 20 })
+    .withMessage("Block value is too long"),
+
+  handleValidationErrors,
+];
 export {
   validateUserRegistration,
   validateOTPVerification,
@@ -271,4 +335,5 @@ export {
   validateObjectId,
   validatePagination,
   validateCompleteProfile,
+  validateOfflineReturn,
 };

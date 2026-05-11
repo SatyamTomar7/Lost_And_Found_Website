@@ -188,7 +188,7 @@ foundItemSchema.index({
   placeFound: "text",
   searchKeywords: "text",
 });
-FoundItemSchema.index({
+foundItemSchema.index({
   name: 1,
   color: 1,
   dateFound: 1,

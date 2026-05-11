@@ -720,12 +720,24 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
 
 export const markAsCollectedOffline = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { collectorName, collectorContact } = req.body;
 
-  // Fetch before transaction
+  const {
+    name,
+    email,
+    enrollmentNumber,
+    phoneNumber,
+    course,
+    branch,
+    semester,
+    block,
+  } = req.body;
+
+  // Fetch existing item before transaction
   const existingFoundItem = await FoundItem.findOne({
     _id: id,
-    status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+    status: {
+      $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED],
+    },
 
     ...(req.user.role === "admin"
       ? {
@@ -754,12 +766,14 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
   let foundItem;
 
   const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
+    session.startTransaction();
+
     foundItem = await FoundItem.findOneAndUpdate(
       {
         _id: id,
+
         status: {
           $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED],
         },
@@ -782,8 +796,15 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
           matchedLostItemIds: [],
 
           claimedBy: {
-            name: collectorName || "Unknown",
-            contact: collectorContact || "N/A",
+            name: name || "Unknown",
+            email: email || "N/A",
+            enrollmentNumber: enrollmentNumber || "N/A",
+            phoneNumber: phoneNumber || "N/A",
+            course: course || "N/A",
+            branch: branch || "N/A",
+            semester: semester || "N/A",
+            block: block || "N/A",
+            isOffline: true,
           },
         },
 
@@ -809,7 +830,9 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     await LostItem.updateMany(
       {
         _id: {
-          $in: existingFoundItem.matchedLostItemIds.map((l) => l._id),
+          $in: existingFoundItem.matchedLostItemIds.map(
+            (l) => l._id
+          ),
         },
 
         status: ITEM_STATUS.MATCHED,
@@ -841,16 +864,18 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
 
     throw new ApiError(
       error.statusCode || 500,
-      error.message || "Failed to mark item as collected offline"
+      error.message ||
+        "Failed to mark item as collected offline"
     );
   } finally {
     session.endSession();
   }
 
-  // Notifications after commit
+  // Notifications after successful commit
   const io = req.app.get("socketio");
 
-  const previousMatches = existingFoundItem.matchedLostItemIds || [];
+  const previousMatches =
+    existingFoundItem.matchedLostItemIds || [];
 
   if (previousMatches.length > 0) {
     await Promise.all(
@@ -874,14 +899,17 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
           priority: "medium",
         });
 
-        // realtime socket notification
+        // Realtime socket notification
         if (io) {
-          io.sendNotificationToUser(lostItem.userId._id, {
-            ...notification.toObject(),
-          });
+          io.sendNotificationToUser(
+            lostItem.userId._id,
+            {
+              ...notification.toObject(),
+            }
+          );
         }
 
-        // email notification
+        // Email notification
         emailService
           .sendItemUnavailableNotification(
             lostItem.userId.email,
@@ -891,20 +919,22 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
               ? `Block ${req.user.block}`
               : "University Security Department"
           )
-          .catch((err) => console.error("Email Error:", err));
+          .catch((err) =>
+            console.error("Email Error:", err)
+          );
       })
     );
   }
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { data: foundItem },
-        `Item marked as collected offline. ${previousMatches.length} user(s) notified.`
-      )
-    );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        data: foundItem,
+      },
+      `Item marked as collected offline. ${previousMatches.length} user(s) notified.`
+    )
+  );
 });
 
 export const getMatchedLostItemsForItem = asyncHandler(async (req, res) => {

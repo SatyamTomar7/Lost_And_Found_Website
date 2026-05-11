@@ -15,7 +15,7 @@ import notificationRoutes from "./routes/notification.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 import managementRoutes from "./routes/management.routes.js";
 const app = express();
-startTransferOldItemsJob();
+
 app.set("trust proxy", 1);
 const httpServer = createServer(app);
 

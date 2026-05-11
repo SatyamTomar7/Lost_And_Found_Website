@@ -120,7 +120,7 @@ lostItemSchema.index({
   placeLost: "text",
   searchKeywords: "text",
 });
-LostItemSchema.index({
+lostItemSchema.index({
   name: 1,
   color: 1,
   dateLost: 1,
