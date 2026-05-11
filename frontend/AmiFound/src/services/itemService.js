@@ -21,7 +21,7 @@ export const submitLostItem = async (itemData) => {
         headers: { Authorization: `Bearer ${token}` }, // No Content-Type — browser sets it for FormData
         body: uploadData,
       },
-      UPLOAD_TIMEOUT
+      UPLOAD_TIMEOUT,
     );
 
     itemData = {
@@ -69,7 +69,7 @@ export const updateFoundItemStatus = async (
   itemId,
   status,
   lostItemId,
-  claimedByUserId
+  claimedByUserId,
 ) => {
   if (status === "Returned") {
     return apiFetch(`${API_URL}/founditems/${itemId}/returned`, {
@@ -95,15 +95,11 @@ export const getMatchedLostItemsForFoundItem = async (foundItemId) =>
     headers: getAuthHeaders(),
   });
 
-export const markItemCollectedOffline = async (
-  itemId,
-  collectorName,
-  collectorContact
-) =>
+export const markItemCollectedOffline = async (itemId, claimedBy) =>
   apiFetch(`${API_URL}/founditems/${itemId}/collected-offline`, {
     method: "PUT",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ collectorName, collectorContact }),
+    body: JSON.stringify({ ...claimedBy }),
   });
 
 // ==================== MATCHES ====================

@@ -168,11 +168,14 @@ const foundItemSchema = z.object({
 });
 
 const collectOfflineSchema = z.object({
-  collectorName: z.string().min(1, "Collector name is required"),
-  collectorContact: z
-    .string()
-    .min(1, "Enrollment / contact is required")
-    .max(30, "Too long"),
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email"),
+  enrollmentNumber: z.string().min(1, "Enrollment required"),
+  phoneNumber: z.string().min(1, "Phone required"),
+  course: z.string().min(1, "Course required"),
+  branch: z.string().min(1, "Branch required"),
+  semester: z.string().min(1, "Semester required"),
+  block: z.string().min(1, "Block required"),
 });
 
 const foundItemResolver = zodResolver(foundItemSchema);
@@ -426,7 +429,16 @@ const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(collectOfflineSchema),
-    defaultValues: { collectorName: "", collectorContact: "" },
+    defaultValues: {
+      name: "",
+      email: "",
+      enrollmentNumber: "",
+      phoneNumber: "",
+      course: "",
+      branch: "",
+      semester: "",
+      block: "",
+    },
   });
   return (
     <div className="return-modal-overlay" onClick={onClose}>
@@ -457,13 +469,15 @@ const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => {
             <strong>{item.name}</strong> — {item.color} • {item.placeFound}
           </p>
         </div>
-        <form
-          onSubmit={handleSubmit((d) =>
-            onConfirm(item._id, d.collectorName, d.collectorContact),
-          )}
-          noValidate
-        >
-          <div className="return-modal__body" style={{ paddingBottom: 0 }}>
+        <form onSubmit={handleSubmit((d) => onConfirm(item._id, d))} noValidate>
+          <div
+            className="return-modal__body"
+            style={{
+              paddingBottom: 0,
+              maxHeight: "55vh", 
+              overflowY: "auto", 
+            }}
+          >
             <p
               style={{
                 fontSize: "13px",
@@ -475,76 +489,57 @@ const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => {
               Record who collected this item in person so it can be referenced
               later.
             </p>
-            <div className="form-group">
-              <label htmlFor="collectorName" className="form-label">
-                Collector Name *
-              </label>
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <FaUser
+            {[
+              ["name", "Name", FaUser, "Full Name"],
+              ["email", "Email", FaEnvelope, "example@gmail.com"],
+              [
+                "enrollmentNumber",
+                "Enrollment Number",
+                FaIdCard,
+                "A2305214118",
+              ],
+              ["phoneNumber", "Phone Number", FaPhone, "9876543210"],
+              ["course", "Course", FaBox, "B.Tech"],
+              ["branch", "Branch", FaLink, "CSE"],
+              ["semester", "Semester", FaClock, "6"],
+              ["block", "Block", FaMapMarkerAlt, "A"],
+            ].map(([field, label, Icon, placeholder]) => (
+              <div className="form-group" key={field}>
+                <label className="form-label">{label} *</label>
+
+                <div
                   style={{
-                    position: "absolute",
-                    left: "12px",
-                    color: "var(--text-muted)",
-                    fontSize: "13px",
-                    pointerEvents: "none",
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
                   }}
-                />
-                <input
-                  id="collectorName"
-                  {...register("collectorName")}
-                  className={`form-control ${errors.collectorName ? "is-invalid" : ""}`}
-                  placeholder="Full name"
-                  disabled={isLoading}
-                  style={{ paddingLeft: "34px" }}
-                />
-              </div>
-              {errors.collectorName && (
-                <div className="error-message">
-                  {errors.collectorName.message}
+                >
+                  <Icon
+                    style={{
+                      position: "absolute",
+                      left: "12px",
+                      color: "var(--text-muted)",
+                      fontSize: "13px",
+                      pointerEvents: "none",
+                    }}
+                  />
+
+                  <input
+                    {...register(field)}
+                    className={`form-control ${
+                      errors[field] ? "is-invalid" : ""
+                    }`}
+                    placeholder={placeholder}
+                    disabled={isLoading}
+                    style={{ paddingLeft: "34px" }}
+                  />
                 </div>
-              )}
-            </div>
-            <div className="form-group">
-              <label htmlFor="collectorContact" className="form-label">
-                Enrollment No. / Contact *
-              </label>
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <FaIdCard
-                  style={{
-                    position: "absolute",
-                    left: "12px",
-                    color: "var(--text-muted)",
-                    fontSize: "13px",
-                    pointerEvents: "none",
-                  }}
-                />
-                <input
-                  id="collectorContact"
-                  {...register("collectorContact")}
-                  className={`form-control ${errors.collectorContact ? "is-invalid" : ""}`}
-                  placeholder="e.g. A2305214118"
-                  disabled={isLoading}
-                  style={{ paddingLeft: "34px" }}
-                />
+
+                {errors[field] && (
+                  <div className="error-message">{errors[field]?.message}</div>
+                )}
               </div>
-              {errors.collectorContact && (
-                <div className="error-message">
-                  {errors.collectorContact.message}
-                </div>
-              )}
-            </div>
+            ))}
           </div>
           <div className="return-modal__footer">
             <button
@@ -597,6 +592,7 @@ const OfflineCollectedDetailsModal = ({ item, onClose }) => (
           <FaWalking className="return-modal__icon" />
           <h3 id="offline-modal-title">Collected Offline</h3>
         </div>
+
         <button
           className="return-modal__close"
           onClick={onClose}
@@ -605,18 +601,24 @@ const OfflineCollectedDetailsModal = ({ item, onClose }) => (
           <FaTimes />
         </button>
       </div>
+
       <div className="return-details__body">
+        {/* Item Details */}
         <div className="return-details__section">
           <p className="return-details__section-label">Item</p>
+
           <div className="return-details__item-card">
             <div className="return-details__item-name">{item.name}</div>
+
             <div className="item-meta">
               <span>
                 <FaPalette /> {item.color}
               </span>
+
               <span>
                 <FaMapMarkerAlt /> {item.placeFound}
               </span>
+
               <span>
                 <FaCalendarAlt />{" "}
                 {new Date(item.dateFound).toLocaleDateString()}
@@ -624,27 +626,45 @@ const OfflineCollectedDetailsModal = ({ item, onClose }) => (
             </div>
           </div>
         </div>
+
+        {/* Student Details */}
         <div className="return-details__section">
           <p className="return-details__section-label">Collected By</p>
-          <div className="return-details__claimant-card">
-            <div className="return-details__avatar">
-              <FaUser />
-            </div>
-            <div className="return-details__claimant-info">
-              <div className="return-details__claimant-name">
-                {item.claimedBy?.name || "N/A"}
+
+          <div className="return-details__claimant-grid">
+            {[
+              [FaUser, "Name", item.claimedBy?.name],
+              [FaEnvelope, "Email", item.claimedBy?.email],
+              [FaIdCard, "Enrollment No.", item.claimedBy?.enrollmentNumber],
+              [FaPhone, "Mobile", item.claimedBy?.phoneNumber],
+              [FaBox, "Course", item.claimedBy?.course],
+              [FaLink, "Branch", item.claimedBy?.branch],
+              [FaClock, "Semester", item.claimedBy?.semester],
+              [FaMapMarkerAlt, "Block", item.claimedBy?.block],
+            ].map(([Icon, label, value]) => (
+              <div key={label} className="return-details__claimant-row">
+                <span className="return-details__claimant-icon">
+                  <Icon />
+                </span>
+
+                <span className="return-details__claimant-field">{label}</span>
+
+                <span className="return-details__claimant-val">
+                  {value || "N/A"}
+                </span>
               </div>
-              <div className="return-details__claimant-email">
-                <FaIdCard /> {item.claimedBy?.contact || "N/A"}
-              </div>
-            </div>
+            ))}
           </div>
         </div>
+
+        {/* Collection Date */}
         {item.returnedAt && (
           <div className="return-details__section">
             <p className="return-details__section-label">Collected On</p>
+
             <div className="return-details__date">
               <FaCalendarAlt />
+
               <span>
                 {new Date(item.returnedAt).toLocaleDateString("en-US", {
                   year: "numeric",
@@ -656,6 +676,7 @@ const OfflineCollectedDetailsModal = ({ item, onClose }) => (
           </div>
         )}
       </div>
+
       <div className="return-modal__footer">
         <button className="btn btn--primary" onClick={onClose}>
           Close
@@ -1801,11 +1822,16 @@ function OperationalView({
   });
 
   const collectedOfflineMutation = useMutation({
-    mutationFn: ({ itemId, collectorName, collectorContact }) =>
-      markItemCollectedOffline(itemId, collectorName, collectorContact),
-    onMutate: async ({ itemId, collectorName, collectorContact }) => {
-      await queryClient.cancelQueries({ queryKey: OP_QUERY_KEYS.foundItems });
+    mutationFn: ({ itemId, claimedBy }) =>
+      markItemCollectedOffline(itemId, claimedBy),
+
+    onMutate: async ({ itemId, claimedBy }) => {
+      await queryClient.cancelQueries({
+        queryKey: OP_QUERY_KEYS.foundItems,
+      });
+
       const prev = queryClient.getQueryData(OP_QUERY_KEYS.foundItems);
+
       queryClient.setQueryData(OP_QUERY_KEYS.foundItems, (old = []) =>
         old.map((item) =>
           item._id === itemId
@@ -1813,31 +1839,47 @@ function OperationalView({
                 ...item,
                 status: "offline returned",
                 matchedLostItemIds: [],
-                claimedBy: { name: collectorName, contact: collectorContact },
+                claimedBy,
               }
             : item,
         ),
       );
+
       setLoading(true);
-      return { previousFoundItems: prev };
+
+      return {
+        previousFoundItems: prev,
+      };
     },
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.foundItems });
-      queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.matches });
+      queryClient.invalidateQueries({
+        queryKey: OP_QUERY_KEYS.foundItems,
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: OP_QUERY_KEYS.matches,
+      });
+
       setCollectOfflineItem(null);
+
       showMessage("Item marked as collected offline.", "success");
     },
+
     onError: (error, _vars, context) => {
-      if (context?.previousFoundItems)
+      if (context?.previousFoundItems) {
         queryClient.setQueryData(
           OP_QUERY_KEYS.foundItems,
           context.previousFoundItems,
         );
+      }
+
       showMessage(
         error?.message || "Failed to mark item as collected offline.",
         "error",
       );
     },
+
     onSettled: () => setLoading(false),
   });
 
@@ -1871,11 +1913,10 @@ function OperationalView({
     [],
   );
   const handleOfflineConfirm = useCallback(
-    (itemId, name, contact) =>
+    (itemId, claimedBy) =>
       collectedOfflineMutation.mutate({
         itemId,
-        collectorName: name,
-        collectorContact: contact,
+        claimedBy,
       }),
     [collectedOfflineMutation],
   );
