@@ -6,7 +6,6 @@ import { errorHandler } from "./middlewares/errorHandler.middlewares.js";
 import { socketHandler } from "./utils/socketHandler.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
-
 // Routes
 import authRoutes from "./routes/auth.routes.js";
 import lostItemRoutes from "./routes/lostitem.routes.js";
@@ -16,6 +15,7 @@ import notificationRoutes from "./routes/notification.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
 import managementRoutes from "./routes/management.routes.js";
 const app = express();
+startTransferOldItemsJob();
 app.set("trust proxy", 1);
 const httpServer = createServer(app);
 

@@ -1,6 +1,6 @@
 import { User } from "../models/user.model.js";
 import mongoose from "mongoose";
-import { ITEM_STATUS, NOTIFICATION_TYPES } from "../constants.js";
+import { ITEM_STATUS, NOTIFICATION_TYPES ,COMMON_LOCATIONS} from "../constants.js";
 import { FoundItem } from "../models/FoundItem.model.js";
 import { LostItem } from "../models/LostItem.model.js";
 import { emailService } from "../services/email.service.js";
@@ -51,13 +51,15 @@ export const addFoundItem = asyncHandler(async (req, res) => {
             userId: match.lostItem.userId._id,
             type: NOTIFICATION_TYPES.MATCH_FOUND,
             title: "Your Lost Item Might Be Found!",
-            message: `We found a ${match.matchScore}% match for your lost ${
-              match.lostItem.name
-            }. ${
-              req.user.role === "admin"
-                ? `Item was found in Block ${req.user.block}.`
-                : "Item was found by university security department."
-            }`,
+message: `We found a ${match.matchScore}% match for your lost ${
+  match.lostItem.name
+}. ${
+  COMMON_LOCATIONS.includes(match.foundItem.placeFound)
+    ? `The item was found at ${match.foundItem.placeFound}.`
+    : req.user.role === "admin"
+      ? `The item was found in ${match.foundItem.placeFound}.`
+      : `The item was found by the university security department at ${match.foundItem.placeFound}.`
+}`,
             data: {
               lostItemId: match.lostItem._id,
               foundItemId: foundItem._id,

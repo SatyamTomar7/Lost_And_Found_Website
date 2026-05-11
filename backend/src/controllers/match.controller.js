@@ -6,32 +6,61 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { ITEM_STATUS } from "../constants.js";
+
+// ---------------------------------------------------------------------------
+// HELPERS
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract block prefix from a place string.
+ * "Block A - Library" → "Block A"
+ * "Main Ground"       → null
+ */
+const extractBlock = (place) => {
+  if (!place) return null;
+  const match = place.match(/^(Block [A-Z])\s*-/i);
+  return match ? match[1] : null;
+};
+
+/**
+ * Normalize a populated userId object into a safe user response shape.
+ * Works whether userId is a plain object (lean) or a Mongoose doc.
+ */
+const normalizeUser = (owner) => {
+  if (!owner || typeof owner !== "object") return null;
+  return {
+    id: owner._id ?? "N/A",
+    name: owner.name ?? "Unknown User",
+    email: owner.email ?? "No Email",
+    enrollmentNumber: owner.enrollmentNumber ?? "N/A",
+    phoneNumber: owner.phoneNumber ?? "N/A",
+    course: owner.course ?? "N/A",
+    branch: owner.branch ?? "N/A",
+    semester: owner.semester ?? "N/A",
+    block: owner.block ?? "N/A",
+  };
+};
+
+// ---------------------------------------------------------------------------
+// CHECK MATCHES FOR A LOST ITEM  (student / staff view)
+// ---------------------------------------------------------------------------
 export const checkLostItemMatches = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const threshold = Math.min(
-    100,
-    Math.max(0, parseInt(req.query.threshold) || 60)
-  );
+  const threshold = Math.min(100, Math.max(0, parseInt(req.query.threshold) || 60));
 
   const lostItem = await LostItem.findById(id).lean();
-
-  if (!lostItem) {
-    throw new ApiError(404, "Lost item not found");
-  }
+  if (!lostItem) throw new ApiError(404, "Lost item not found");
 
   const isOwner = lostItem.userId.toString() === req.user.id;
   const isStaff = req.user.role === "admin" || req.user.role === "security";
 
   if (!isOwner && !isStaff) {
-      throw new ApiError(
-        403,
-        "Access denied. You can only view matches for your own items."
-      );
-    }
+    throw new ApiError(403, "Access denied. You can only view matches for your own items.");
+  }
 
   const matches = await matchingService.findMatchesForLostItem(id, threshold);
 
-  res.status(200).json(
+  return res.status(200).json(
     new ApiResponse(
       200,
       {
@@ -40,6 +69,7 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
           id: lostItem._id,
           name: lostItem.name,
           color: lostItem.color,
+          placeLost: lostItem.placeLost,
           images: lostItem.images,
         },
         matches: matches.map((match) => ({
@@ -50,6 +80,7 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
             block: match.foundItem.block,
             dateFound: match.foundItem.dateFound,
             placeFound: match.foundItem.placeFound,
+            handledBy: match.foundItem.handledBy,
           },
           matchScore: match.matchScore,
           matchDetails: match.matchDetails,
@@ -59,36 +90,47 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
     )
   );
 });
+
+// ---------------------------------------------------------------------------
+// CHECK MATCHES FOR A FOUND ITEM  (staff only)
+//
+// Auth rules (viewing):
+//   Admin   → can view any found item in their own block (regardless of handledBy),
+//             AND any item where handledBy === "security" (for awareness after transfer)
+//   Security → can view any found item where handledBy === "security"
+//
+// Matching scope is enforced inside matchingService.findMatchesForFoundItem
+// via the location filter — NOT in the controller auth check.
+// ---------------------------------------------------------------------------
 export const checkFoundItemMatches = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const threshold = Math.min(
-    100,
-    Math.max(0, parseInt(req.query.threshold) || 60)
-  );
+  const threshold = Math.min(100, Math.max(0, parseInt(req.query.threshold) || 60));
 
   const foundItem = await FoundItem.findById(id).lean();
-
   if (!foundItem) throw new ApiError(404, "Found item not found");
 
-  if (
-    req.user.role === "admin" &&
-    (foundItem.block !== req.user.block || foundItem.handledBy !== "admin")
-  ) {
-    throw new ApiError(
-      403,
-      "Access denied. This item belongs to another block."
-    );
-  }
-  if (req.user.role === "security" && foundItem.handledBy !== "security") {
-    throw new ApiError(403, "Access denied.");
+  const foundItemBlock = extractBlock(foundItem.placeFound);
+
+  if (req.user.role === "admin") {
+    // Admin can access their own block's items.
+    // They cannot access another block's admin items — but they CAN view
+    // security items (those items are global, not block-owned).
+    const isOwnBlock = foundItemBlock === `Block ${req.user.block}`;
+    const isSecurityItem = foundItem.handledBy === "security";
+    if (!isOwnBlock && !isSecurityItem) {
+      throw new ApiError(403, "Access denied. This item belongs to another block.");
+    }
+  } else if (req.user.role === "security") {
+    // Security can only access items they handle
+    if (foundItem.handledBy !== "security") {
+      throw new ApiError(403, "Access denied. This item is handled by block admin.");
+    }
   }
 
   const matches = await matchingService.findMatchesForFoundItem(id, threshold);
 
   const mappedMatches = matches.map((match) => {
-    const lostItem = match.lostItem || {};
-    const owner = lostItem.userId || {};
-
+    const lostItem = match.lostItem ?? {};
     return {
       lostItem: {
         id: lostItem._id,
@@ -97,28 +139,14 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
         dateLost: lostItem.dateLost,
         placeLost: lostItem.placeLost,
         images: lostItem.images,
-        user: {
-          id: owner._id || "N/A",
-          name: owner.name || "Unknown User",
-          email: owner.email || "No Email",
-
-          enrollmentNumber: owner.enrollmentNumber || "N/A",
-          phoneNumber: owner.phoneNumber || "N/A",
-
-          course: owner.course || "N/A",
-          branch: owner.branch || "N/A",
-
-          semester: owner.semester || "N/A",
-
-          block: owner.block || "N/A",
-        },
+        user: normalizeUser(lostItem.userId),
       },
       matchScore: match.matchScore,
       matchDetails: match.matchDetails,
     };
   });
 
-  res.status(200).json(
+  return res.status(200).json(
     new ApiResponse(
       200,
       {
@@ -127,7 +155,12 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
           id: foundItem._id,
           name: foundItem.name,
           color: foundItem.color,
-          block: foundItem.block,
+          placeFound: foundItem.placeFound,
+          handledBy: foundItem.handledBy,
+          matchScope:
+            foundItem.handledBy === "security"
+              ? "global"
+              : `block-local (${foundItemBlock ?? "common"})`,
         },
         matches: mappedMatches,
       },
@@ -135,18 +168,72 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
     )
   );
 });
+
+// ---------------------------------------------------------------------------
+// TRANSFER FOUND ITEM TO SECURITY + GLOBAL RE-MATCH
+//
+// Called when an admin transfers a found item to security (handledBy changes).
+// The service clears old matches, reverts statuses, and runs a fresh global match.
+// ---------------------------------------------------------------------------
+export const transferToSecurityAndRematch = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const threshold = Math.min(100, Math.max(0, parseInt(req.query.threshold) || 60));
+
+  const foundItem = await FoundItem.findById(id);
+  if (!foundItem) throw new ApiError(404, "Found item not found");
+
+  // Only admins from the same block can initiate a transfer
+  const foundItemBlock = extractBlock(foundItem.placeFound);
+  if (req.user.role !== "admin") {
+    throw new ApiError(403, "Only block admins can transfer items to security.");
+  }
+  if (foundItemBlock !== `Block ${req.user.block}`) {
+    throw new ApiError(403, "You can only transfer items from your own block.");
+  }
+  if (foundItem.handledBy === "security") {
+    throw new ApiError(400, "Item is already handled by security.");
+  }
+
+  // Update handledBy BEFORE calling rematch so the scope resolver sees "security"
+  await FoundItem.findByIdAndUpdate(id, { $set: { handledBy: "security" } });
+
+  const newMatches = await matchingService.rematchAfterTransferToSecurity(id, threshold);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        foundItemId: id,
+        newMatchCount: newMatches.length,
+        matches: newMatches.map((match) => ({
+          lostItem: {
+            id: match.lostItem._id,
+            name: match.lostItem.name,
+            color: match.lostItem.color,
+            placeLost: match.lostItem.placeLost,
+            user: normalizeUser(match.lostItem.userId),
+          },
+          matchScore: match.matchScore,
+          matchDetails: match.matchDetails,
+        })),
+      },
+      `Item transferred to security. ${newMatches.length} new global match(es) found.`
+    )
+  );
+});
+
+// ---------------------------------------------------------------------------
+// MATCHING STATS  (staff dashboard)
+// ---------------------------------------------------------------------------
 export const getMatchingStats = asyncHandler(async (req, res) => {
+  // FoundItem query scoped by role
   const foundItemQuery =
     req.user.role === "admin"
-      ? {
-          block: req.user.block,
-          handledBy: "admin",
-        }
+      ? { block: req.user.block, handledBy: "admin" }
       : req.user.role === "security"
-        ? {
-            handledBy: "security",
-          }
+        ? { handledBy: "security" }
         : {};
+
   const [
     totalLostItems,
     totalFoundItems,
@@ -156,43 +243,22 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     foundItems,
     lostItems,
   ] = await Promise.all([
-    // Total active lost items — NO block filter (LostItem has no block field)
-    LostItem.countDocuments({
-      isActive: true,
-    }),
+    LostItem.countDocuments({ isActive: true }),
 
-    // Total active found items
-    FoundItem.countDocuments({
-      isActive: true,
-      ...foundItemQuery,
-    }),
+    FoundItem.countDocuments({ isActive: true, ...foundItemQuery }),
 
-    // Matched lost items count — NO block filter
-    LostItem.countDocuments({
-      status: ITEM_STATUS.MATCHED,
-    }),
+    LostItem.countDocuments({ status: ITEM_STATUS.MATCHED }),
 
-    // Returned found items count
-    FoundItem.countDocuments({
-      status: ITEM_STATUS.RETURNED,
-      ...foundItemQuery,
-    }),
+    FoundItem.countDocuments({ status: ITEM_STATUS.RETURNED, ...foundItemQuery }),
 
-    // Per-item breakdown — NO block filter on LostItem aggregate
     LostItem.aggregate([
-      {
-        $match: {
-          isActive: true,
-        },
-      },
+      { $match: { isActive: true } },
       {
         $group: {
           _id: "$name",
           total: { $sum: 1 },
           matched: {
-            $sum: {
-              $cond: [{ $eq: ["$status", ITEM_STATUS.MATCHED] }, 1, 0],
-            },
+            $sum: { $cond: [{ $eq: ["$status", ITEM_STATUS.MATCHED] }, 1, 0] },
           },
         },
       },
@@ -213,19 +279,15 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
       { $sort: { total: -1 } },
     ]),
 
-    // Active found items — block filter stays (FoundItem HAS block field)
     FoundItem.find({
       isActive: true,
       status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
       ...foundItemQuery,
     }).lean(),
 
-    // Active lost items — NO block filter (LostItem has no block field)
     LostItem.find({
       isActive: true,
-      status: {
-        $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED],
-      },
+      status: { $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED] },
     }).lean(),
   ]);
 
@@ -239,37 +301,24 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
       ? ((returnedCount / totalFoundItems) * 100).toFixed(2)
       : 0;
 
-  // Batch fetch users for all lost items in one query — avoids N+1
+  // Batch fetch users — avoids N+1
   const userIds = [...new Set(lostItems.map((l) => l.userId.toString()))];
-  const users = await User.find({
-    _id: { $in: userIds },
-  }).select(`
-  name
-  email
-  enrollmentNumber
-  phoneNumber
-  course
-  branch
-  semester
-  block
-`);
+  const users = await User.find({ _id: { $in: userIds } }).select(
+    "name email enrollmentNumber phoneNumber course branch semester block"
+  );
   const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
-  // Build matches display list using already-stored matchedFoundItemIds
+  // Build matches list from stored matchedFoundItemIds
+  const foundItemMap = new Map(foundItems.map((f) => [f._id.toString(), f]));
   const matches = [];
 
-  const foundItemMap = new Map(foundItems.map((f) => [f._id.toString(), f]));
   for (const lostItem of lostItems) {
-    if (
-      !lostItem.matchedFoundItemIds ||
-      lostItem.matchedFoundItemIds.length === 0
-    )
-      continue;
+    if (!lostItem.matchedFoundItemIds?.length) continue;
 
-    const user = userMap[lostItem.userId.toString()] || null;
+    const user = userMap[lostItem.userId.toString()] ?? null;
+
     for (const foundItemRef of lostItem.matchedFoundItemIds) {
       const foundItem = foundItemMap.get(foundItemRef.toString());
-
       if (!foundItem) continue;
 
       matches.push({
@@ -278,8 +327,13 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           name: foundItem.name,
           color: foundItem.color,
           block: foundItem.block,
-          dateFound: foundItem.dateFound,
           placeFound: foundItem.placeFound,
+          handledBy: foundItem.handledBy,
+          dateFound: foundItem.dateFound,
+          matchScope:
+            foundItem.handledBy === "security"
+              ? "global"
+              : `block-local (${extractBlock(foundItem.placeFound) ?? "common"})`,
         },
         lostItem: {
           id: lostItem._id,
@@ -290,19 +344,7 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           description: lostItem.description,
           images: lostItem.images,
         },
-        user: user
-          ? {
-              id: user._id || "N/A",
-              name: user.name || "Unknown User",
-              email: user.email || "No Email",
-              enrollmentNumber: user.enrollmentNumber || "N/A",
-              phoneNumber: user.phoneNumber || "N/A",
-              course: user.course || "N/A",
-              branch: user.branch || "N/A",
-              semester: user.semester || "N/A",
-              block: user.block || "N/A",
-            }
-          : null,
+        user: normalizeUser(user),
         similarity: matchingService.calculateMatchScore(lostItem, foundItem),
       });
     }
