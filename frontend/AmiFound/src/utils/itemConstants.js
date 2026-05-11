@@ -198,31 +198,23 @@ export const YEAR_OPTIONS = ["1", "2", "3", "4"];
 export const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
 export const BLOCK_OPTIONS = ["A", "B", "C", "D", "E"];
 export const getLocationsByRole = (role, block) => {
-  // Student → all locations
-  if (role === "student") {
-    return [
-      ...Object.values(BLOCK_LOCATIONS).flat(),
-      ...COMMON_LOCATIONS,
-    ];
+  const allLocations = [
+    ...Object.values(BLOCK_LOCATIONS).flat(),
+    ...COMMON_LOCATIONS,
+  ];
+
+  // Security → all campus locations
+  if (role === "security") {
+    return allLocations;
   }
 
-  // Admin → own block + common locations
-  if (role === "admin") {
+  // Student + Admin → own block + common locations
+  if (role === "student" || role === "admin") {
     return [
       ...(BLOCK_LOCATIONS[block] || []),
       ...COMMON_LOCATIONS,
     ];
   }
-
-  // Security → all locations
-  if (role === "security") {
-    return [
-      ...Object.values(BLOCK_LOCATIONS).flat(),
-      ...COMMON_LOCATIONS,
-    ];
-  }
-
-
 
   return [];
 };
