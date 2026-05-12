@@ -1032,79 +1032,58 @@ const FoundItemCard = React.memo(
     const statusLower = item.status.toLowerCase();
     const statusClass = statusLower.replace(/\s+/g, "-");
     return (
-      <div className="item-card">
-        <div className="item-header">
-          <div className="item-info">
-            <h4>{item.name}</h4>
-            <div className="item-meta">
-              <span>
-                <FaPalette /> {item.color}
-              </span>
-              <span>
-                <FaCalendarAlt />{" "}
-                {new Date(item.dateFound).toLocaleDateString()}
-              </span>
-              <span>
-                <FaMapMarkerAlt /> {item.placeFound}
-              </span>
-            </div>
-            {(statusLower === "found" || statusLower === "matched") &&
-              item.matchedLostItemIds?.length > 0 && (
-                <div className="item-match-badge">
-                  <FaLink /> {item.matchedLostItemIds.length} match
-                  {item.matchedLostItemIds.length > 1 ? "es" : ""} found
-                </div>
-              )}
-          </div>
-          <span className={`status status--${statusClass}`}>{item.status}</span>
+  <div className="item-card">
+  <div className="item-header">
+    <div className="item-info">
+      <h4>{item.name}</h4>
+
+      {item.handledBy === "security" && item.originalBlock && (
+        <div
+          style={{
+            marginTop: "8px",
+            marginBottom: "8px",
+            padding: "6px 10px",
+            background: "#fef3c7",
+            color: "#92400e",
+            borderRadius: "8px",
+            fontSize: "13px",
+            fontWeight: "600",
+            display: "inline-block",
+          }}
+        >
+          🔄 Transferred from Block {item.originalBlock}
         </div>
-        <div className="item-actions">
-          {statusLower === "returned" && (
-            <button
-              className="btn btn--sm btn--info"
-              onClick={() => onViewDetails(item)}
-            >
-              <FaInfoCircle /> View Details
-            </button>
-          )}
-          {statusLower === "offline returned" && (
-            <button
-              className="btn btn--sm btn--info"
-              onClick={() => onViewOfflineDetails(item)}
-            >
-              <FaInfoCircle /> View Details
-            </button>
-          )}
-          {(statusLower === "found" || statusLower === "matched") && (
-            <>
-              <button
-                className="btn btn--sm btn--secondary"
-                onClick={() => onMarkReturned(item)}
-                disabled={isUpdating}
-              >
-                <FaCheck /> Mark as Returned
-              </button>
-              {currentUser?.role === "security" && (
-                <button
-                  className="btn btn--sm btn--outline"
-                  onClick={() => onUpdateStatus(item._id, "Unclaimed")}
-                  disabled={isUpdating}
-                >
-                  <FaClock /> Mark as Unclaimed
-                </button>
-              )}
-              <button
-                className="btn btn--sm btn--collected-offline"
-                onClick={() => onMarkCollectedOffline(item)}
-                disabled={isUpdating}
-                title="Student collected in person"
-              >
-                <FaWalking /> Collected Offline
-              </button>
-            </>
-          )}
-        </div>
+      )}
+
+      <div className="item-meta">
+        <span>
+          <FaPalette /> {item.color}
+        </span>
+
+        <span>
+          <FaCalendarAlt />{" "}
+          {new Date(item.dateFound).toLocaleDateString()}
+        </span>
+
+        <span>
+          <FaMapMarkerAlt /> {item.placeFound}
+        </span>
       </div>
+
+      {(statusLower === "found" || statusLower === "matched") &&
+        item.matchedLostItemIds?.length > 0 && (
+          <div className="item-match-badge">
+            <FaLink /> {item.matchedLostItemIds.length} match
+            {item.matchedLostItemIds.length > 1 ? "es" : ""} found
+          </div>
+        )}
+    </div>
+
+    <span className={`status status--${statusClass}`}>
+      {item.status}
+    </span>
+  </div>
+</div>
     );
   },
 );
