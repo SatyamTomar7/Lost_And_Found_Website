@@ -93,7 +93,7 @@ const FOUND_STATUSES = [
   { value: "matched", label: "Matched" },
   { value: "returned", label: "Returned" },
   { value: "unclaimed", label: "Unclaimed" },
-  { value: "collected offline", label: "Collected offline" },
+  { value: "offline returned", label: "Collected offline" },
 ];
 
 const PILL_CLASS = {
