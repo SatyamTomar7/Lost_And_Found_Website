@@ -365,7 +365,6 @@ export const completeProfile = asyncHandler(async (req, res) => {
     section,
     block,
   } = req.body;
-  console.log(req.body);
   // find user
   const user = await User.findById(userId);
 
