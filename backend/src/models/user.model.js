@@ -36,13 +36,12 @@ const userSchema = new Schema(
       minlength: [6, "Password must be at least 6 characters"],
       select: false,
 
-validate: {
-  validator: function (v) {
-    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(v);
-  },
-  message:
-    "Password must include uppercase, lowercase, and a number",
-},
+      validate: {
+        validator: function (v) {
+          return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(v);
+        },
+        message: "Password must include uppercase, lowercase, and a number",
+      },
     },
     role: {
       type: String,
@@ -55,6 +54,10 @@ validate: {
     },
     passwordResetOTP: { type: String, default: null, select: false },
     passwordResetOTPExpiry: {
+      type: Date,
+      default: null,
+    },
+    passwordResetOTPLastSentAt: {
       type: Date,
       default: null,
     },
@@ -73,6 +76,11 @@ validate: {
     },
     emailVerificationOTPUsed: { type: Boolean, default: false },
     emailVerificationExpire: {
+      type: Date,
+      default: null,
+    },
+
+    otpLastSentAt: {
       type: Date,
       default: null,
     },
@@ -110,6 +118,9 @@ validate: {
     },
 
     branch: {
+      type: String,
+    },
+    section: {
       type: String,
     },
 
@@ -171,14 +182,18 @@ userSchema.methods.generateEmailVerificationOTP = async function () {
   const otp = crypto.randomInt(100000, 1000000).toString();
   this.emailVerificationOTP = await bcrypt.hash(otp, 10);
   this.emailVerificationOTPUsed = false;
+  this.otpLastSentAt = new Date();
   const expireMinutes = parseInt(process.env.OTP_EXPIRE) || 10;
-  this.emailVerificationExpire = Date.now() + expireMinutes * 60 * 1000;
+  this.emailVerificationExpire = new Date(
+    Date.now() + expireMinutes * 60 * 1000
+  );
   return otp;
 };
 userSchema.methods.generatePasswordResetOTP = async function () {
   const otp = crypto.randomInt(100000, 1000000).toString();
   this.passwordResetOTP = await bcrypt.hash(otp, 10);
   this.passwordResetOTPUsed = false;
+  this.passwordResetOTPLastSentAt = new Date();
   const expireMinutes = parseInt(process.env.OTP_EXPIRE) || 10;
   this.passwordResetOTPExpiry = new Date(
     Date.now() + expireMinutes * 60 * 1000

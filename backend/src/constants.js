@@ -90,6 +90,7 @@ const NOTIFICATION_TYPES = {
   ITEM_CLAIMED: "item_claimed",
   SYSTEM_ALERT: "system_alert",
   ITEM_UNAVAILABLE: "item_unavailable",
+  MATCH_REMOVED: "match_removed",
 };
 
 const ITEM_CONDITIONS = {

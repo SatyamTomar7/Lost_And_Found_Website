@@ -227,54 +227,6 @@ export const getFoundItem = asyncHandler(async (req, res) => {
       )
     );
 });
-export const updateFoundItem = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  const { name, color, condition, dateFound, placeFound, brand } = req.body;
-
-  const updateData = { name, color, condition, dateFound, placeFound, brand };
-
-  Object.keys(updateData).forEach(
-    (key) => updateData[key] === undefined && delete updateData[key]
-  );
-
-  const foundItem = await FoundItem.findOneAndUpdate(
-    {
-      _id: id,
-
-      ...(req.user.role === "admin"
-        ? {
-            block: req.user.block,
-            handledBy: "admin",
-          }
-        : {
-            handledBy: "security",
-          }),
-    },
-    { $set: updateData },
-    {
-      new: true,
-      runValidators: true,
-    }
-  ).populate("createdBy", "name role block");
-
-  if (!foundItem) {
-    throw new ApiError(
-      404,
-      "Found item not found or you lack permission to update it"
-    );
-  }
-
-  res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { data: foundItem },
-        "Found Item updated successfully"
-      )
-    );
-});
 
 export const markAsReturned = asyncHandler(async (req, res) => {
   const { id } = req.params;

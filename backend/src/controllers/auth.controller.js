@@ -27,10 +27,11 @@ export const register = asyncHandler(async (req, res) => {
     }
 
     // Exists but unverified → update their details and resend OTP
+    const cooldown = 2 * 60 * 1000;
+
     if (
-      existingUser.emailVerificationExpire &&
-      existingUser.emailVerificationExpire >
-        new Date(Date.now() + 2 * 60 * 1000)
+      existingUser.otpLastSentAt &&
+      Date.now() - existingUser.otpLastSentAt.getTime() < cooldown
     ) {
       throw new ApiError(429, "Please wait 2 minutes before trying again.");
     }
@@ -111,6 +112,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     $unset: {
       emailVerificationOTP: "",
       emailVerificationExpire: "",
+      otpLastSentAt: "",
     },
   });
 
@@ -176,9 +178,11 @@ export const resendOTP = asyncHandler(async (req, res) => {
         )
       );
   }
+  const cooldown = 2 * 60 * 1000;
+
   if (
-    user.emailVerificationExpire &&
-    user.emailVerificationExpire > new Date(Date.now() + 2 * 60 * 1000)
+    user.otpLastSentAt &&
+    Date.now() - user.otpLastSentAt.getTime() < cooldown
   ) {
     throw new ApiError(
       429,
@@ -221,9 +225,11 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   }
 
   // Rate limit: block if OTP was sent less than 2 minutes ago
+  const cooldown = 2 * 60 * 1000;
+
   if (
-    user.passwordResetOTPExpiry &&
-    user.passwordResetOTPExpiry > new Date(Date.now() + 2 * 60 * 1000)
+    user.passwordResetOTPLastSentAt &&
+    Date.now() - user.passwordResetOTPLastSentAt.getTime() < cooldown
   ) {
     throw new ApiError(
       429,
@@ -275,7 +281,13 @@ export const verifyResetOTP = asyncHandler(async (req, res) => {
 
   // Mark OTP used so it cannot be reused
   await User.findByIdAndUpdate(user._id, {
-    passwordResetOTPUsed: true,
+    $set: {
+      passwordResetOTPUsed: true,
+    },
+    $unset: {
+      passwordResetOTP: "",
+      passwordResetOTPExpiry: "",
+    },
   });
 
   // Issue short-lived reset token (10 min window to set password)
@@ -326,6 +338,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   user.passwordResetOTP = null;
   user.passwordResetOTPExpiry = null;
   user.passwordResetOTPUsed = false;
+  user.passwordResetOTPLastSentAt = null;
   await user.save();
 
   emailService
@@ -443,16 +456,17 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (!user.isActive) {
-    throw new ApiError(
-      403,
-      "Account deactivated. Please contact support."
-    );
+    throw new ApiError(403, "Account deactivated. Please contact support.");
   }
 
   // Email verification only for students
+if (user.role === USER_ROLES.STUDENT && !user.isEmailVerified) {
+
+  const cooldown = 2 * 60 * 1000;
+
   if (
-    user.role === USER_ROLES.STUDENT &&
-    !user.isEmailVerified
+    !user.otpLastSentAt ||
+    Date.now() - user.otpLastSentAt.getTime() >= cooldown
   ) {
     const otp = await user.generateEmailVerificationOTP();
 
@@ -460,30 +474,27 @@ export const login = asyncHandler(async (req, res) => {
 
     emailService
       .sendOTPVerification(user.email, user.name, otp)
-      .catch((err) =>
-        console.error("Email sending failed:", err)
-      );
-
-    return res.status(200).json(
-      new ApiResponse(
-        200,
-        {
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        },
-        "ACCOUNT_NOT_VERIFIED"
-      )
-    );
+      .catch((err) => console.error("Email sending failed:", err));
   }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+      "ACCOUNT_NOT_VERIFIED"
+    )
+  );
+}
 
   const lastLoginDate = new Date();
 
   User.findByIdAndUpdate(user._id, {
     $set: { lastLogin: lastLoginDate },
-  }).catch((err) =>
-    console.error("Last login update failed:", err)
-  );
+  }).catch((err) => console.error("Last login update failed:", err));
 
   const token = user.getJWTToken();
 
