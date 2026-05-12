@@ -59,7 +59,7 @@ export const authorize = (...roles) => {
     next();
   };
 };
-
+export const isSecurity = authorize(USER_ROLES.SECURITY);
 export const isStudent = authorize(USER_ROLES.STUDENT);
 export const isAdmin = authorize(USER_ROLES.ADMIN,USER_ROLES.SECURITY);
 export const isManagement = authorize(USER_ROLES.SECURITY,USER_ROLES.DIRECTOR);
