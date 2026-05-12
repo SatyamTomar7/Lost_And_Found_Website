@@ -151,12 +151,15 @@ const BLOCK_LOCATIONS = {
 
 const COMMON_LOCATIONS = [
   "Main Ground (Open Field)",
-  "Mini Cricket Ground",
+  "Cricket Ground (Match Play)",
   "Cricket Practice Nets",
   "Volleyball Court",
   "Basketball Court",
   "Badminton Court",
+  "Administrative Office",
   "University Entrance / Main Gate",
+  "Main Garden / Open Area",
+  "Cafeteria (Main)",
 ];
 
 const ALL_LOCATIONS = [
