@@ -107,8 +107,8 @@ export const deleteUploadedImage = asyncHandler(async (req, res) => {
   // Public IDs can contain slashes (e.g. "folder/item_123").
   // Use a wildcard route param — register this route as:
   //   router.delete("/image/*", deleteUploadedImage)
-  // Then req.params[0] captures the full path including slashes.
-  const rawId = req.params[0] ?? req.body.publicId;
+  // req.params.path captures the full wildcard path
+  const rawId = req.params.path ?? req.body.publicId;
   const publicId = rawId ? decodeURIComponent(rawId).trim() : null;
 
   if (!publicId) throw new ApiError(400, "Image public ID is required");

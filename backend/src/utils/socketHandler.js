@@ -7,8 +7,8 @@ import { USER_ROLES } from "../constants.js";
 // multiple instances. If horizontal scaling is needed, migrate to Redis adapter.
 const connectedUsers = new Map();
 
-const normalizeDepartment = (department) =>
-  department.replace(/ /g, "_").toLowerCase();
+const normalizeBlock = (block) =>
+  block.replace(/ /g, "_").toLowerCase();
 
 export const socketHandler = (io) => {
   io.use(async (socket, next) => {
@@ -41,8 +41,8 @@ export const socketHandler = (io) => {
     socket.join(`user_${socket.user._id}`);
 
     // Admins auto-join their department room
-    if (socket.user.role === USER_ROLES.ADMIN && socket.user.department) {
-      socket.join(`dept_${normalizeDepartment(socket.user.department)}`);
+    if (socket.user.role === USER_ROLES.ADMIN && socket.user.block) {
+      socket.join(`dept_${normalizeBlock(socket.user.block)}`);
     }
 
     // Only allow joining own user room — prevents room hijacking
@@ -115,8 +115,8 @@ export const socketHandler = (io) => {
     io.to(`user_${userId}`).emit("new_notification", notification);
   };
 
-  io.sendNotificationToDepartment = (department, notification) => {
-    const roomName = `dept_${normalizeDepartment(department)}`;
+  io.sendNotificationToDepartment = (block, notification) => {
+    const roomName = `dept_${normalizeBlock(block)}`;
     io.to(roomName).emit("department_notification", notification);
   };
 
@@ -133,7 +133,7 @@ export const socketHandler = (io) => {
       userId: conn.user._id,
       userName: conn.user.name,
       role: conn.user.role,
-      department: conn.user.department,
+      block: conn.user.block,
       status: conn.status || "online",
     }));
   };

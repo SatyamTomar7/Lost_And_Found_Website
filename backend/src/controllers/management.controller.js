@@ -56,7 +56,7 @@ export const getAllLostItems = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(parseInt(req.query.limit) || 10, 100);
 
-  const { status, block, search } = req.query;
+  const { status, search } = req.query;
 
   const query = {
     isActive: true,
@@ -65,11 +65,6 @@ export const getAllLostItems = asyncHandler(async (req, res) => {
   // Filter by status
   if (status) {
     query.status = status;
-  }
-
-  // Filter by block
-  if (block) {
-    query.block = block;
   }
 
   // Search by item name

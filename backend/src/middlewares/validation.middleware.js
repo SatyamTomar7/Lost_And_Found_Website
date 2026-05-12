@@ -252,7 +252,7 @@ const validateCompleteProfile = [
     .trim()
     .notEmpty()
     .withMessage("Semester is required")
-    .isInt({ min: 1, max: 12 })
+    .isInt({ min: 1, max: 8 })
     .withMessage("Semester must be a number between 1 and 12"),
 
   body("section")

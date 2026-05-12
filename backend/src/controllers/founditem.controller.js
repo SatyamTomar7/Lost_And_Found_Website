@@ -9,7 +9,9 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Notification } from "../models/Notification.model.js";
-
+import {
+  reconcileLostItemStatus,
+} from "../utils/reconcileMatchStatus.js";
 export const addFoundItem = asyncHandler(async (req, res) => {
   const { name, color, dateFound, placeFound, brand, condition } = req.body;
 
@@ -351,11 +353,12 @@ export const markAsReturned = asyncHandler(async (req, res) => {
       );
 
       // reset status to pending
-      for (const item of affectedLostItems) {
-        item.status = ITEM_STATUS.PENDING;
-
-        await item.save({ session });
-      }
+for (const item of affectedLostItems) {
+  await reconcileLostItemStatus(
+    item._id,
+    session
+  );
+}
     }
 
     // ── STEP 4: Pull lostItemId from other found items ────────────────────
@@ -566,35 +569,30 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
       );
     }
 
-    // Remove this found item from all lost item match arrays
-    await LostItem.updateMany(
-      {
-        matchedFoundItemIds: id,
-      },
-      {
-        $pull: {
-          matchedFoundItemIds: new mongoose.Types.ObjectId(id),
-        },
-      },
-      { session }
-    );
-
-    // Revert matched lost items back to pending
-    await LostItem.updateMany(
-      {
-        _id: {
-          $in: existingFoundItem.matchedLostItemIds.map((l) => l._id),
-        },
-
-        status: ITEM_STATUS.MATCHED,
-      },
-      {
-        $set: {
-          status: ITEM_STATUS.PENDING,
-        },
-      },
-      { session }
-    );
+const affectedLostItems = await LostItem.find(
+  {
+    matchedFoundItemIds: id,
+  },
+  "_id",
+  { session }
+);
+await LostItem.updateMany(
+  {
+    matchedFoundItemIds: id,
+  },
+  {
+    $pull: {
+      matchedFoundItemIds: new mongoose.Types.ObjectId(id),
+    },
+  },
+  { session }
+);
+for (const lostItem of affectedLostItems) {
+  await reconcileLostItemStatus(
+    lostItem._id,
+    session
+  );
+}
 
     await session.commitTransaction();
   } catch (error) {
@@ -779,36 +777,32 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     }
 
     // Revert matched lost items back to pending
-    await LostItem.updateMany(
-      {
-        _id: {
-          $in: existingFoundItem.matchedLostItemIds.map(
-            (l) => l._id
-          ),
-        },
+const affectedLostItems = await LostItem.find(
+  {
+    matchedFoundItemIds: id,
+  },
+  "_id",
+  { session }
+);
 
-        status: ITEM_STATUS.MATCHED,
-      },
-      {
-        $set: {
-          status: ITEM_STATUS.PENDING,
-        },
-      },
-      { session }
-    );
+await LostItem.updateMany(
+  {
+    matchedFoundItemIds: id,
+  },
+  {
+    $pull: {
+      matchedFoundItemIds: new mongoose.Types.ObjectId(id),
+    },
+  },
+  { session }
+);
 
-    // Remove this found item from all lost item match arrays
-    await LostItem.updateMany(
-      {
-        matchedFoundItemIds: id,
-      },
-      {
-        $pull: {
-          matchedFoundItemIds: new mongoose.Types.ObjectId(id),
-        },
-      },
-      { session }
-    );
+for (const lostItem of affectedLostItems) {
+  await reconcileLostItemStatus(
+    lostItem._id,
+    session
+  );
+}
 
     await session.commitTransaction();
   } catch (error) {
@@ -1021,33 +1015,32 @@ export const deleteFoundItem = asyncHandler(async (req, res) => {
       );
     }
 
-    // Revert matched lost items back to PENDING
-    // IMPORTANT: must run BEFORE pull
-    await LostItem.updateMany(
-      {
-        matchedFoundItemIds: id,
-        status: ITEM_STATUS.MATCHED,
-      },
-      {
-        $set: {
-          status: ITEM_STATUS.PENDING,
-        },
-      },
-      { session }
-    );
+    const affectedLostItems = await LostItem.find(
+  {
+    matchedFoundItemIds: id,
+  },
+  "_id",
+  { session }
+);
 
-    // Remove this found item from all lost item match arrays
-    await LostItem.updateMany(
-      {
-        matchedFoundItemIds: id,
-      },
-      {
-        $pull: {
-          matchedFoundItemIds: new mongoose.Types.ObjectId(id),
-        },
-      },
-      { session }
-    );
+
+await LostItem.updateMany(
+  {
+    matchedFoundItemIds: id,
+  },
+  {
+    $pull: {
+      matchedFoundItemIds: new mongoose.Types.ObjectId(id),
+    },
+  },
+  { session }
+);
+for (const lostItem of affectedLostItems) {
+  await reconcileLostItemStatus(
+    lostItem._id,
+    session
+  );
+}
 
     await session.commitTransaction();
 

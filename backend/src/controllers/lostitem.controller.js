@@ -51,7 +51,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
       dateLost,
       placeLost,
       description,
-      category,
+      brand
     } = req.body;
     lostItem = await LostItem.create({
       name,
@@ -60,7 +60,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
       dateLost,
       placeLost,
       description,
-      category,
+      brand,
       userId: req.user.id,
       images,
     });

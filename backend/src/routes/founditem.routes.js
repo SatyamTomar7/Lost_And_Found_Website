@@ -7,7 +7,6 @@ import {
   markAsReturned,
   markAsUnclaimed,
   searchFoundItems,
-  updateFoundItem,
   getMatchedLostItemsForItem,
   markAsCollectedOffline,
 } from "../controllers/founditem.controller.js";
@@ -24,7 +23,6 @@ router.post("/", validateFoundItem, addFoundItem);
 router.get("/department", validatePagination, getDepartmentFoundItems);
 router.get("/search", searchFoundItems);
 router.get("/:id", validateObjectId, getFoundItem);
-router.put("/:id", validateObjectId, validateFoundItem, updateFoundItem);
 router.put("/:id/returned", validateObjectId, markAsReturned);
 
 router.put("/:id/collected-offline", validateObjectId,validateOfflineReturn,markAsCollectedOffline);

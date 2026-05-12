@@ -78,11 +78,6 @@ const lostItemSchema = new Schema(
       ref: "FoundItem",
       default: null,
     },
-
-    contactInfo: {
-      phone: { type: String, trim: true },
-      alternateEmail: { type: String, trim: true, lowercase: true },
-    },
     isActive: {
       type: Boolean,
       default: true,

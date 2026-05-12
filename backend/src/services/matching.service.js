@@ -535,17 +535,12 @@ async findMatchesForLostItem(lostItemId, threshold = 60) {
           { matchedFoundItemIds: 1, status: 1 }
         ).session(session);
 
-        const toRevertIds = prevLostItems
-          .filter((l) => l.matchedFoundItemIds.length === 0)
-          .map((l) => l._id);
-
-        if (toRevertIds.length > 0) {
-          await LostItem.updateMany(
-            { _id: { $in: toRevertIds } },
-            { $set: { status: ITEM_STATUS.PENDING } },
-            { session }
-          );
-        }
+for (const lostItem of prevLostItems) {
+  await reconcileLostItemStatus(
+    lostItem._id,
+    session
+  );
+}
       }
 
       await session.commitTransaction();
