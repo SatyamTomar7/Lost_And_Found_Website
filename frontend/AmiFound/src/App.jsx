@@ -1,4 +1,3 @@
-
 import {
   useEffect,
   useState,
@@ -29,7 +28,6 @@ import LoadingOverlay from "./components/LoadingOverlay";
 const HomePage = lazy(() => import("./pages/HomePage"));
 const UnifiedAuthPage = lazy(() => import("./pages/Auth"));
 const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
-// const AdminDashboard    = lazy(() => import("./pages/AdminDashboard"));
 const ManagementDashboard = lazy(() => import("./pages/ManagementDashboard"));
 const CompleteProfile = lazy(() => import("./pages/CompleteProfile"));
 
@@ -133,23 +131,27 @@ function AppContent() {
     let isMounted = true;
 
     checkCurrentUser()
-      .then((user) => {
+      .then((result) => {
         if (!isMounted) return;
-        if (user) {
-          setCurrentUser(user);
-        } else {
+
+        if (result.shouldLogout) {
           localStorage.removeItem("authToken");
           localStorage.removeItem("userRole");
+          setCurrentUser(null);
+          return;
+        }
+
+        if (result.user) {
+          setCurrentUser(result.user);
         }
       })
-      .catch(() => {
-        if (!isMounted) return;
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("userRole");
-        setCurrentUser(null);
+      .catch((error) => {
+        console.error("[Session Recovery]", error);
       })
       .finally(() => {
-        if (isMounted) setAuthChecking(false);
+        if (isMounted) {
+          setAuthChecking(false);
+        }
       });
 
     return () => {
@@ -165,13 +167,38 @@ function AppContent() {
   }, []);
 
   // ── Callbacks ─────────────────────────────────────────────────────────────────
-  const showMessage = useCallback((text, type = "info") => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setMessage({ text, type, show: true });
-    toastTimerRef.current = setTimeout(() => {
-      setMessage((prev) => ({ ...prev, show: false }));
-    }, 4000);
-  }, []);
+const showMessage = useCallback((text, type = "info") => {
+  if (toastTimerRef.current) {
+    clearTimeout(toastTimerRef.current);
+  }
+
+  let normalizedText = "";
+
+  if (typeof text === "string") {
+    normalizedText = text;
+  } else if (text?.message && typeof text.message === "string") {
+    normalizedText = text.message;
+  } else {
+    try {
+      normalizedText = JSON.stringify(text);
+    } catch {
+      normalizedText = "Something went wrong";
+    }
+  }
+
+  setMessage({
+    text: normalizedText,
+    type,
+    show: true,
+  });
+
+  toastTimerRef.current = setTimeout(() => {
+    setMessage((prev) => ({
+      ...prev,
+      show: false,
+    }));
+  }, 4000);
+}, []);
 
   const handleCloseMessage = useCallback(() => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);

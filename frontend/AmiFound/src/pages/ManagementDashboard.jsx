@@ -310,7 +310,7 @@ const SubmitConfirmModal = React.memo(
           </button>
           <button
             className="btn btn--primary"
-            onClick={onCkonfirm}
+            onClick={onConfirm}
             disabled={isLoading}
           >
             {isLoading ? (

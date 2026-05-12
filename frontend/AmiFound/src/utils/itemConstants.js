@@ -63,7 +63,6 @@ export const ITEM_CONDITIONS = {
   USED: "Used",
 };
 
-
 export const BLOCK_LOCATIONS = {
   A: [
     "Block A - Classrooms",
@@ -149,7 +148,7 @@ export const COURSES = [
   "M.Des",
   "B.Arch",
   "M.Plan",
-  "PhD"
+  "PhD",
 ];
 
 export const BRANCHES = [
@@ -182,18 +181,15 @@ export const BRANCHES = [
   "Political Science",
   "History",
   "Biology",
-  "Pharmacy"
+  "Pharmacy",
 ];
-export const SEMESTER_OPTIONS = [
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-];
+export const SEMESTER_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8"];
+export const NOTIFICATION_TYPES = {
+  MATCH_FOUND: "match_found",
+  ITEM_RETURNED: "item_returned",
+  ITEM_UNAVAILABLE: "item_unavailable",
+  MATCH_REMOVED: "match_removed",
+};
 export const YEAR_OPTIONS = ["1", "2", "3", "4"];
 export const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];
 export const BLOCK_OPTIONS = ["A", "B", "C", "D", "E"];
@@ -210,10 +206,7 @@ export const getLocationsByRole = (role, block) => {
 
   // Student + Admin → own block + common locations
   if (role === "student" || role === "admin") {
-    return [
-      ...(BLOCK_LOCATIONS[block] || []),
-      ...COMMON_LOCATIONS,
-    ];
+    return [...(BLOCK_LOCATIONS[block] || []), ...COMMON_LOCATIONS];
   }
 
   return [];

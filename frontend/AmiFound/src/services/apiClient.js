@@ -1,7 +1,7 @@
 // services/apiClient.js
 
 export const DEFAULT_TIMEOUT = 10000; // 10 seconds — standard API calls
-export const UPLOAD_TIMEOUT  = 30000; // 30 seconds — file uploads on slow connections
+export const UPLOAD_TIMEOUT = 30000; // 30 seconds — file uploads on slow connections
 
 /**
  * Core fetch helper shared across all service files.
@@ -21,7 +21,11 @@ export const UPLOAD_TIMEOUT  = 30000; // 30 seconds — file uploads on slow con
  *   import { apiFetch, UPLOAD_TIMEOUT } from "./apiClient";
  *   const data = await apiFetch(url, options, UPLOAD_TIMEOUT);
  */
-export const apiFetch = async (url, options = {}, timeout = DEFAULT_TIMEOUT) => {
+export const apiFetch = async (
+  url,
+  options = {},
+  timeout = DEFAULT_TIMEOUT,
+) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 
@@ -32,15 +36,32 @@ export const apiFetch = async (url, options = {}, timeout = DEFAULT_TIMEOUT) => 
     });
 
     if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      const error = new Error(
-        body.message || `Request failed: ${response.status}`
-      );
+      const contentType = response.headers.get("content-type");
+
+      let body = {};
+
+      if (contentType?.includes("application/json")) {
+        body = await response.json().catch(() => ({}));
+      } else {
+        body = await response.text().catch(() => "");
+      }
+ const errorMessage =
+  typeof body === "string"
+    ? body
+    : body.message || `Request failed: ${response.status}`;
+
+const error = new Error(errorMessage);
       error.status = response.status;
       throw error;
     }
 
-    return response.json();
+    const contentType = response.headers.get("content-type");
+
+    if (contentType?.includes("application/json")) {
+      return response.json();
+    }
+
+    return null;
   } catch (err) {
     if (err.name === "AbortError") {
       const error = new Error("Request timed out. Please try again.");

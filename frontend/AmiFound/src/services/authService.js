@@ -48,13 +48,6 @@ export const login = async (email, password) =>
     body: JSON.stringify({ email, password }),
   });
 
-export const adminLogin = async (email, password) =>
-  apiFetch(`${API_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-
 export const logout = async () => {
   // Best-effort — clear token regardless of server response or timeout
   try {
@@ -62,20 +55,34 @@ export const logout = async () => {
       method: "POST",
       headers: getAuthHeaders(),
     });
-    const data = await response.json();
+    let data = null;
+
+    try {
+      data = await response.json();
+    } catch {
+      data = { success: true };
+    }
     localStorage.removeItem("authToken");
+    localStorage.removeItem("userRole");
     return data;
   } catch (err) {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("userRole");
     throw err;
   }
 };
 
 export const checkCurrentUser = async () => {
   const token = localStorage.getItem("authToken");
-  if (!token) return null;
 
-  // Shorter timeout — don't block app startup too long
+  if (!token) {
+    return {
+      success: false,
+      shouldLogout: true,
+      user: null,
+    };
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
 
@@ -85,19 +92,43 @@ export const checkCurrentUser = async () => {
       signal: controller.signal,
     });
 
+    // REAL invalid token
     if (response.status === 401) {
       localStorage.removeItem("authToken");
       localStorage.removeItem("userRole");
-      return null;
+
+      return {
+        success: false,
+        shouldLogout: true,
+        user: null,
+      };
     }
 
-    if (!response.ok) return null;
+    // Other server errors
+    if (!response.ok) {
+      return {
+        success: false,
+        shouldLogout: false,
+        user: null,
+      };
+    }
 
     const result = await response.json();
-    return result.data || null;
-  } catch {
-    // Network failure or timeout → treat as logged out, never throw
-    return null;
+
+    return {
+      success: true,
+      shouldLogout: false,
+      user: result.data || null,
+    };
+  } catch (error) {
+    // Network error / timeout
+    console.error("Session recovery failed:", error);
+
+    return {
+      success: false,
+      shouldLogout: false,
+      user: null,
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -128,33 +159,6 @@ export const verifyResetOTP = async (email, otp) =>
 
 export const resetPassword = async (resetToken, newPassword, confirmPassword) =>
   apiFetch(`${API_URL}/auth/reset-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resetToken, newPassword, confirmPassword }),
-  });
-
-// ==================== ADMIN PASSWORD RESET ====================
-
-export const adminForgotPassword = async (email) =>
-  apiFetch(`${API_URL}/auth/admin/forgot-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-
-export const adminVerifyResetOTP = async (email, otp) =>
-  apiFetch(`${API_URL}/auth/admin/verify-reset-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
-  });
-
-export const adminResetPassword = async (
-  resetToken,
-  newPassword,
-  confirmPassword
-) =>
-  apiFetch(`${API_URL}/auth/admin/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ resetToken, newPassword, confirmPassword }),

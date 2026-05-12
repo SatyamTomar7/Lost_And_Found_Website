@@ -29,6 +29,7 @@ import {
   ITEM_NAME,
   ITEM_CONDITIONS,
   getLocationsByRole,
+  NOTIFICATION_TYPES
 } from "../utils/itemConstants";
 import {
   submitLostItem,
@@ -356,7 +357,11 @@ const NotificationItem = React.memo(({ notification, onClick }) => (
   >
     <div className="notification-content">
       <div className="notification-icon">
-        {notification.type === "match" ? <FaLink /> : <FaSearch />}
+        {notification.type === NOTIFICATION_TYPES.MATCH_FOUND ? (
+          <FaLink />
+        ) : (
+          <FaSearch />
+        )}
       </div>
       <div className="notification-text">
         <h4>{notification.title}</h4>
