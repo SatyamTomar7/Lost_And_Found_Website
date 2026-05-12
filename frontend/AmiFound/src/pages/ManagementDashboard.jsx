@@ -311,7 +311,7 @@ const SubmitConfirmModal = React.memo(
           </button>
           <button
             className="btn btn--primary"
-            onClick={onConfirm}
+            onClick={onCkonfirm}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -474,8 +474,8 @@ const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => {
             className="return-modal__body"
             style={{
               paddingBottom: 0,
-              maxHeight: "55vh", 
-              overflowY: "auto", 
+              maxHeight: "55vh",
+              overflowY: "auto",
             }}
           >
             <p
@@ -1022,6 +1022,7 @@ MultiMatchSummaryCard.displayName = "MultiMatchSummaryCard";
 const FoundItemCard = React.memo(
   ({
     item,
+    currentUser,
     onMarkReturned,
     onUpdateStatus,
     onMarkCollectedOffline,
@@ -1084,13 +1085,15 @@ const FoundItemCard = React.memo(
               >
                 <FaCheck /> Mark as Returned
               </button>
-              <button
-                className="btn btn--sm btn--outline"
-                onClick={() => onUpdateStatus(item._id, "Unclaimed")}
-                disabled={isUpdating}
-              >
-                <FaClock /> Mark as Unclaimed
-              </button>
+              {currentUser?.role === "security" && (
+                <button
+                  className="btn btn--sm btn--outline"
+                  onClick={() => onUpdateStatus(item._id, "Unclaimed")}
+                  disabled={isUpdating}
+                >
+                  <FaClock /> Mark as Unclaimed
+                </button>
+              )}
               <button
                 className="btn btn--sm btn--collected-offline"
                 onClick={() => onMarkCollectedOffline(item)}
@@ -2194,6 +2197,7 @@ function OperationalView({
                       <FoundItemCard
                         key={item._id}
                         item={item}
+                        currentUser={currentUser}
                         onMarkReturned={handleMarkReturned}
                         onUpdateStatus={handleUpdateStatus}
                         onMarkCollectedOffline={handleMarkOffline}
