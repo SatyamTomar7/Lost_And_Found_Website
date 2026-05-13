@@ -89,9 +89,17 @@ const userSchema = new Schema(
       enum: ["A", "B", "C", "D", "E"],
 
       required: function () {
-        return (
-          this.role === USER_ROLES.ADMIN || this.role === USER_ROLES.STUDENT
-        );
+        // Admin always needs block
+        if (this.role === USER_ROLES.ADMIN) {
+          return true;
+        }
+
+        // Student needs block only after profile completion
+        if (this.role === USER_ROLES.STUDENT && this.profileCompleted) {
+          return true;
+        }
+
+        return false;
       },
     },
     profileImage: {
@@ -131,7 +139,7 @@ const userSchema = new Schema(
     },
     year: {
       type: String,
-      enum: ["1st Year", "2nd Year", "3rd Year", "4th Year"],
+      enum: ["1", "2", "3", "4"],
     },
     profileCompleted: {
       type: Boolean,

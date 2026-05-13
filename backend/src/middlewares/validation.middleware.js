@@ -266,15 +266,15 @@ const validateCompleteProfile = [
     .withMessage("Branch name too long"),
 
   body("year")
-    .isIn(["1st Year", "2nd Year", "3rd Year", "4th Year"])
+    .trim()
+    .isIn(["1", "2", "3", "4"])
     .withMessage("Invalid year selected"),
-
   body("semester")
     .trim()
     .notEmpty()
     .withMessage("Semester is required")
     .isInt({ min: 1, max: 8 })
-    .withMessage("Semester must be a number between 1 and 12"),
+    .withMessage("Semester must be a number between 1 and 8"),
 
   body("section")
     .trim()
