@@ -158,8 +158,12 @@ const CompleteProfile = ({ currentUser, setCurrentUser }) => {
     setShowModal(true);
   };
 
-  const handleConfirm = () => mutation.mutate(pendingData);
+const handleConfirm = () => {
 
+  console.log("SENDING DATA:", pendingData);
+
+  mutation.mutate(pendingData);
+};
   const selectedYear = watch("year");
   useEffect(() => {
     setValue("semester", "");

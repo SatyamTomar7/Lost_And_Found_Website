@@ -1039,6 +1039,9 @@ const FoundItemCard = React.memo(
   }) => {
     const statusLower = item.status.toLowerCase();
     const statusClass = statusLower.replace(/\s+/g, "-");
+    const isActiveItem = statusLower === "found" || statusLower === "matched";
+    const isReturnedItem = statusLower === "returned";
+    const isOfflineCollectedItem = statusLower === "offline returned";
     return (
   <div className="item-card">
   <div className="item-header">
@@ -1090,6 +1093,59 @@ const FoundItemCard = React.memo(
     <span className={`status status--${statusClass}`}>
       {item.status}
     </span>
+  </div>
+  {item.description && (
+    <p className="item-description">{item.description}</p>
+  )}
+
+  <div className="item-actions">
+    {isActiveItem && (
+      <>
+        <button
+          className="btn btn--sm btn--primary"
+          onClick={() => onMarkReturned(item)}
+          disabled={isUpdating}
+        >
+          <FaCheck /> Mark Returned
+        </button>
+
+        <button
+          className="btn btn--sm btn--outline"
+          onClick={() => onMarkCollectedOffline(item)}
+          disabled={isUpdating}
+        >
+          <FaWalking /> Collected Offline
+        </button>
+
+        {currentUser?.role === "security" && (
+          <button
+            className="btn btn--sm btn--outline"
+            onClick={() => onUpdateStatus(item._id, "Unclaimed")}
+            disabled={isUpdating}
+          >
+            <FaTimes /> Mark Unclaimed
+          </button>
+        )}
+      </>
+    )}
+
+    {isReturnedItem && (
+      <button
+        className="btn btn--sm btn--outline"
+        onClick={() => onViewDetails(item)}
+      >
+        <FaInfoCircle /> View Return Details
+      </button>
+    )}
+
+    {isOfflineCollectedItem && (
+      <button
+        className="btn btn--sm btn--outline"
+        onClick={() => onViewOfflineDetails(item)}
+      >
+        <FaInfoCircle /> View Collection Details
+      </button>
+    )}
   </div>
 </div>
     );
