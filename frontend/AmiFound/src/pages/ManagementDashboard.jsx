@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-
+// Add import at the top
+import NotificationPanel from "../components/NotificationPanel";
 // ── Icons ─────────────────────────────────────────────────────────────────────
 import {
   FaPalette,
@@ -31,6 +32,7 @@ import {
   FaIdCard,
   FaPhone,
   FaChartBar,
+  FaBell,
 } from "react-icons/fa";
 import {
   LuUsers,
@@ -71,14 +73,18 @@ import {
   getDirectorFoundItems,
 } from "../services/managementService";
 
+import {
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationAsRead,
+} from "../services/notificationService";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 1 — Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
 const today = new Date().toISOString().split("T")[0];
-const minSelectableDate = new Date(
-  Date.now() - 6 * 24 * 60 * 60 * 1000
-)
+const minSelectableDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
   .toISOString()
   .split("T")[0];
 
@@ -151,8 +157,8 @@ const MGMT_STAT_CARDS = (a) => [
 const OP_QUERY_KEYS = {
   foundItems: ["foundItems"],
   matches: ["matches"],
+  notifications: ["admin-notifications"],
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 2 — Zod schemas
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1043,111 +1049,109 @@ const FoundItemCard = React.memo(
     const isReturnedItem = statusLower === "returned";
     const isOfflineCollectedItem = statusLower === "offline returned";
     return (
-  <div className="item-card">
-  <div className="item-header">
-    <div className="item-info">
-      <h4>{item.name}</h4>
+      <div className="item-card">
+        <div className="item-header">
+          <div className="item-info">
+            <h4>{item.name}</h4>
 
-      {item.handledBy === "security" && item.originalBlock && (
-        <div
-          style={{
-            marginTop: "8px",
-            marginBottom: "8px",
-            padding: "6px 10px",
-            background: "#fef3c7",
-            color: "#92400e",
-            borderRadius: "8px",
-            fontSize: "13px",
-            fontWeight: "600",
-            display: "inline-block",
-          }}
-        >
-          🔄 Transferred from Block {item.originalBlock}
-        </div>
-      )}
+            {item.handledBy === "security" && item.originalBlock && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  marginBottom: "8px",
+                  padding: "6px 10px",
+                  background: "#fef3c7",
+                  color: "#92400e",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  display: "inline-block",
+                }}
+              >
+                🔄 Transferred from Block {item.originalBlock}
+              </div>
+            )}
 
-      <div className="item-meta">
-        <span>
-          <FaPalette /> {item.color}
-        </span>
+            <div className="item-meta">
+              <span>
+                <FaPalette /> {item.color}
+              </span>
 
-        <span>
-          <FaCalendarAlt />{" "}
-          {new Date(item.dateFound).toLocaleDateString()}
-        </span>
+              <span>
+                <FaCalendarAlt />{" "}
+                {new Date(item.dateFound).toLocaleDateString()}
+              </span>
 
-        <span>
-          <FaMapMarkerAlt /> {item.placeFound}
-        </span>
-      </div>
+              <span>
+                <FaMapMarkerAlt /> {item.placeFound}
+              </span>
+            </div>
 
-      {(statusLower === "found" || statusLower === "matched") &&
-        item.matchedLostItemIds?.length > 0 && (
-          <div className="item-match-badge">
-            <FaLink /> {item.matchedLostItemIds.length} match
-            {item.matchedLostItemIds.length > 1 ? "es" : ""} found
+            {(statusLower === "found" || statusLower === "matched") &&
+              item.matchedLostItemIds?.length > 0 && (
+                <div className="item-match-badge">
+                  <FaLink /> {item.matchedLostItemIds.length} match
+                  {item.matchedLostItemIds.length > 1 ? "es" : ""} found
+                </div>
+              )}
           </div>
+
+          <span className={`status status--${statusClass}`}>{item.status}</span>
+        </div>
+        {item.description && (
+          <p className="item-description">{item.description}</p>
         )}
-    </div>
 
-    <span className={`status status--${statusClass}`}>
-      {item.status}
-    </span>
-  </div>
-  {item.description && (
-    <p className="item-description">{item.description}</p>
-  )}
+        <div className="item-actions">
+          {isActiveItem && (
+            <>
+              <button
+                className="btn btn--sm btn--primary"
+                onClick={() => onMarkReturned(item)}
+                disabled={isUpdating}
+              >
+                <FaCheck /> Mark Returned
+              </button>
 
-  <div className="item-actions">
-    {isActiveItem && (
-      <>
-        <button
-          className="btn btn--sm btn--primary"
-          onClick={() => onMarkReturned(item)}
-          disabled={isUpdating}
-        >
-          <FaCheck /> Mark Returned
-        </button>
+              <button
+                className="btn btn--sm btn--outline"
+                onClick={() => onMarkCollectedOffline(item)}
+                disabled={isUpdating}
+              >
+                <FaWalking /> Collected Offline
+              </button>
 
-        <button
-          className="btn btn--sm btn--outline"
-          onClick={() => onMarkCollectedOffline(item)}
-          disabled={isUpdating}
-        >
-          <FaWalking /> Collected Offline
-        </button>
+              {currentUser?.role === "security" && (
+                <button
+                  className="btn btn--sm btn--outline"
+                  onClick={() => onUpdateStatus(item._id, "Unclaimed")}
+                  disabled={isUpdating}
+                >
+                  <FaTimes /> Mark Unclaimed
+                </button>
+              )}
+            </>
+          )}
 
-        {currentUser?.role === "security" && (
-          <button
-            className="btn btn--sm btn--outline"
-            onClick={() => onUpdateStatus(item._id, "Unclaimed")}
-            disabled={isUpdating}
-          >
-            <FaTimes /> Mark Unclaimed
-          </button>
-        )}
-      </>
-    )}
+          {isReturnedItem && (
+            <button
+              className="btn btn--sm btn--outline"
+              onClick={() => onViewDetails(item)}
+            >
+              <FaInfoCircle /> View Return Details
+            </button>
+          )}
 
-    {isReturnedItem && (
-      <button
-        className="btn btn--sm btn--outline"
-        onClick={() => onViewDetails(item)}
-      >
-        <FaInfoCircle /> View Return Details
-      </button>
-    )}
-
-    {isOfflineCollectedItem && (
-      <button
-        className="btn btn--sm btn--outline"
-        onClick={() => onViewOfflineDetails(item)}
-      >
-        <FaInfoCircle /> View Collection Details
-      </button>
-    )}
-  </div>
-</div>
+          {isOfflineCollectedItem && (
+            <button
+              className="btn btn--sm btn--outline"
+              onClick={() => onViewOfflineDetails(item)}
+            >
+              <FaInfoCircle /> View Collection Details
+            </button>
+          )}
+        </div>
+      </div>
     );
   },
 );
@@ -1764,6 +1768,7 @@ function OperationalView({
   const [offlineDetailsModalItem, setOfflineDetailsModalItem] = useState(null);
   const [collectOfflineItem, setCollectOfflineItem] = useState(null);
   const [pendingFormData, setPendingFormData] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
   const queryClient = useQueryClient();
 
   const {
@@ -1810,6 +1815,24 @@ function OperationalView({
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
+
+  const { data: notificationData = { notifications: [], unreadCount: 0 } } =
+    useQuery({
+      queryKey: OP_QUERY_KEYS.notifications,
+      queryFn: async () => {
+        const result = await getNotifications();
+        return {
+          notifications: result.data.notifications || [],
+          unreadCount: result.data.unreadCount || 0,
+        };
+      },
+      staleTime: 0,
+      refetchInterval: 10000,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: true,
+    });
+
+  const { notifications, unreadCount } = notificationData;
 
   // Mutations
   const submitMutation = useMutation({
@@ -1927,7 +1950,17 @@ function OperationalView({
 
     onSettled: () => setLoading(false),
   });
+  const markReadMutation = useMutation({
+    mutationFn: (notificationId) => markNotificationAsRead(notificationId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.notifications }),
+  });
 
+  const markAllReadMutation = useMutation({
+    mutationFn: () => markAllNotificationAsRead(),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.notifications }),
+  });
   // Callbacks
   const handleUpdateStatus = useCallback(
     (itemId, newStatus) => updateStatusMutation.mutate({ itemId, newStatus }),
@@ -1974,6 +2007,15 @@ function OperationalView({
     if (pendingFormData) submitMutation.mutate(pendingFormData);
   }, [pendingFormData, submitMutation]);
   const handleEditBack = useCallback(() => setPendingFormData(null), []);
+  const handleNotificationClick = useCallback(
+    (notificationId) => markReadMutation.mutate(notificationId),
+    [markReadMutation],
+  );
+
+  const handleCloseNotifications = useCallback(() => {
+    setShowNotifications(false);
+    markAllReadMutation.mutate();
+  }, [markAllReadMutation]);
 
   const groupedMatches = useMemo(
     () =>
@@ -2011,16 +2053,28 @@ function OperationalView({
               </h3>
             </div>
           </div>
-          {/* Security: button to open management view */}
-          {role === "security" && onViewDashboard && (
+
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            {role === "security" && onViewDashboard && (
+              <button
+                className="btn btn--outline btn--sm"
+                onClick={onViewDashboard}
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <FaChartBar /> View Dashboard
+              </button>
+            )}
             <button
-              className="btn btn--outline btn--sm"
-              onClick={onViewDashboard}
-              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              onClick={() => setShowNotifications((p) => !p)}
+              className="notification-btn"
+              aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
             >
-              <FaChartBar /> View Dashboard
+              <FaBell size={20} />
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount}</span>
+              )}
             </button>
-          )}
+          </div>
         </header>
 
         {/* Nav */}
@@ -2337,6 +2391,13 @@ function OperationalView({
           isLoading={submitMutation.isPending}
         />
       )}
+
+      <NotificationPanel
+        isOpen={showNotifications}
+        notifications={notifications}
+        onClose={handleCloseNotifications}
+        onNotificationClick={handleNotificationClick}
+      />
     </div>
   );
 }

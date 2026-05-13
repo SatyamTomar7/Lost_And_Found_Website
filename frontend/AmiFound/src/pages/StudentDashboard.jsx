@@ -41,6 +41,8 @@ import {
   markNotificationAsRead,
   markAllNotificationAsRead,
 } from "../services/notificationService";
+// Add import at the top
+import NotificationPanel from "../components/NotificationPanel";
 
 // ─── Zod Schema ───────────────────────────────────────────────────────────────
 const today = new Date().toISOString().split("T")[0];
@@ -919,42 +921,12 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
       </div>
 
       {/* Notifications panel */}
-      <aside
-        className={`notifications-panel ${showNotifications ? "open" : ""}`}
-        aria-label="Notifications panel"
-        aria-hidden={!showNotifications}
-      >
-        <div className="notifications-header">
-          <h3>
-            <FaBell /> Notifications
-          </h3>
-          <button
-            onClick={handleCloseNotifications}
-            className="close-btn"
-            aria-label="Close notifications"
-            tabIndex={showNotifications ? 0 : -1}
-          >
-            <FaTimes />
-          </button>
-        </div>
-        <div className="notifications-list">
-          {notifications.length === 0 ? (
-            <EmptyState
-              icon={FaBell}
-              title="Clear!"
-              description="No new notifications."
-            />
-          ) : (
-            notifications.map((n) => (
-              <NotificationItem
-                key={n._id}
-                notification={n}
-                onClick={handleNotificationClick}
-              />
-            ))
-          )}
-        </div>
-      </aside>
+  <NotificationPanel
+  isOpen={showNotifications}
+  notifications={notifications}
+  onClose={handleCloseNotifications}
+  onNotificationClick={handleNotificationClick}
+/>
 
       {/* ── Submit Confirm Modal ── */}
       {pendingFormData && (
