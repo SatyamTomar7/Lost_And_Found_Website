@@ -44,6 +44,11 @@ import {
 
 // ─── Zod Schema ───────────────────────────────────────────────────────────────
 const today = new Date().toISOString().split("T")[0];
+const minSelectableDate = new Date(
+  Date.now() - 6 * 24 * 60 * 60 * 1000
+)
+  .toISOString()
+  .split("T")[0];
 
 const lostItemSchema = z.object({
   name: z.string().min(1, "Please select a name"),
@@ -55,6 +60,9 @@ const lostItemSchema = z.object({
   dateLost: z
     .string()
     .min(1, "Date is required")
+    .refine((d) => d >= minSelectableDate, {
+      message: "Date must be within the last 7 days",
+    })
     .refine((d) => d <= today, { message: "Date cannot be in the future" }),
   placeLost: z.string().min(1, "Please select a location"),
   description: z
@@ -785,6 +793,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
                       <input
                         id="dateLost"
                         type="date"
+                        min={minSelectableDate}
                         max={today}
                         {...register("dateLost")}
                         className={`form-control ${errors.dateLost ? "is-invalid" : ""}`}

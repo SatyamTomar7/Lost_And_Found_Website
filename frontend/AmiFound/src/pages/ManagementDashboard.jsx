@@ -76,6 +76,11 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const today = new Date().toISOString().split("T")[0];
+const minSelectableDate = new Date(
+  Date.now() - 6 * 24 * 60 * 60 * 1000
+)
+  .toISOString()
+  .split("T")[0];
 
 const BLOCKS = ["A", "B", "C", "D", "E"];
 
@@ -162,6 +167,9 @@ const foundItemSchema = z.object({
   dateFound: z
     .string()
     .min(1, "Date is required")
+    .refine((d) => d >= minSelectableDate, {
+      message: "Date must be within the last 7 days",
+    })
     .refine((d) => d <= today, { message: "Date cannot be in the future" }),
   placeFound: z.string().min(1, "Please select a location"),
 });
@@ -2124,6 +2132,7 @@ function OperationalView({
                       <input
                         id="dateFound"
                         type="date"
+                        min={minSelectableDate}
                         max={today}
                         {...register("dateFound")}
                         className={`form-control ${errors.dateFound ? "is-invalid" : ""}`}
