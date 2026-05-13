@@ -1,11 +1,7 @@
 import cron from "node-cron";
 import { FoundItem } from "../models/FoundItem.model.js";
 import { Notification } from "../models/Notification.model.js";
-import {
-  ITEM_STATUS,
-  NOTIFICATION_TYPES,
-  USER_ROLES,
-} from "../constants.js";
+import { ITEM_STATUS, NOTIFICATION_TYPES, USER_ROLES } from "../constants.js";
 import { emailService } from "../services/email.service.js";
 import matchingService from "../services/matching.service.js";
 import { buildMatchNotificationMessage } from "../utils/matchNotificationMessage.js";
@@ -29,9 +25,7 @@ export const startTransferOldItemsJob = (io = null) => {
     async () => {
       const jobStart = Date.now();
 
-      console.log(
-        `[TransferJob] Starting at ${new Date().toISOString()}`
-      );
+      console.log(`[TransferJob] Starting at ${new Date().toISOString()}`);
 
       try {
         const sevenDaysAgo = new Date();
@@ -72,6 +66,25 @@ export const startTransferOldItemsJob = (io = null) => {
                 block: null,
               },
             });
+
+            if (item.createdBy) {
+              const adminNotification = await Notification.create({
+                userId: item.createdBy, // admin's userId
+                type: NOTIFICATION_TYPES.ITEM_TRANSFERRED,
+                title: "Item Transferred to Security",
+                message: `"${item.name}" (${item.color}, found at ${item.placeFound}) has been held for 7 days and transferred to the Security office. Please ensure the item is physically handed over to security staff.`,
+                data: {
+                  foundItemId: item._id,
+                },
+                priority: "high",
+              });
+
+              if (socketIo) {
+                socketIo.sendNotificationToUser(item.createdBy, {
+                  ...adminNotification.toObject(),
+                });
+              }
+            }
 
             // Re-run matching after transfer
             const newMatches =
@@ -119,13 +132,10 @@ export const startTransferOldItemsJob = (io = null) => {
                     );
 
                   if (socketIo) {
-                    socketIo.sendNotificationToUser(
-                      match.lostItem.userId._id,
-                      {
-                        ...notification.toObject(),
-                        foundItem: match.foundItem,
-                      }
-                    );
+                    socketIo.sendNotificationToUser(match.lostItem.userId._id, {
+                      ...notification.toObject(),
+                      foundItem: match.foundItem,
+                    });
                   }
 
                   return notification;
@@ -148,10 +158,7 @@ export const startTransferOldItemsJob = (io = null) => {
           }
         }
 
-        const elapsed = (
-          (Date.now() - jobStart) /
-          1000
-        ).toFixed(2);
+        const elapsed = ((Date.now() - jobStart) / 1000).toFixed(2);
 
         console.log(
           `[TransferJob] Done in ${elapsed}s - ` +
@@ -162,10 +169,7 @@ export const startTransferOldItemsJob = (io = null) => {
               : "")
         );
       } catch (error) {
-        console.error(
-          "[TransferJob] Fatal error - job aborted:",
-          error
-        );
+        console.error("[TransferJob] Fatal error - job aborted:", error);
       }
     },
     {
