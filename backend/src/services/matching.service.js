@@ -2,6 +2,7 @@ import { LostItem } from "../models/LostItem.model.js";
 import { FoundItem } from "../models/FoundItem.model.js";
 import { ITEM_STATUS, COMMON_LOCATIONS } from "../constants.js";
 import mongoose from "mongoose";
+import { reconcileLostItemStatus } from "../utils/reconcileMatchStatus.js";
 
 /**
  * Weights are used to determine the importance of each matching factor.
