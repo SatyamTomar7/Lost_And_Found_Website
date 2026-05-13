@@ -1,6 +1,6 @@
 import { User } from "../models/user.model.js";
 import mongoose from "mongoose";
-import { ITEM_STATUS, NOTIFICATION_TYPES ,COMMON_LOCATIONS} from "../constants.js";
+import { ITEM_STATUS, NOTIFICATION_TYPES } from "../constants.js";
 import { FoundItem } from "../models/FoundItem.model.js";
 import { LostItem } from "../models/LostItem.model.js";
 import { emailService } from "../services/email.service.js";
@@ -12,6 +12,9 @@ import { Notification } from "../models/Notification.model.js";
 import {
   reconcileLostItemStatus,
 } from "../utils/reconcileMatchStatus.js";
+import {
+  buildMatchNotificationMessage,
+} from "../utils/matchNotificationMessage.js";
 export const addFoundItem = asyncHandler(async (req, res) => {
   const { name, color, dateFound, placeFound, brand, condition } = req.body;
 
@@ -53,15 +56,11 @@ export const addFoundItem = asyncHandler(async (req, res) => {
             userId: match.lostItem.userId._id,
             type: NOTIFICATION_TYPES.MATCH_FOUND,
             title: "Your Lost Item Might Be Found!",
-message: `We found a ${match.matchScore}% match for your lost ${
-  match.lostItem.name
-}. ${
-  COMMON_LOCATIONS.includes(match.foundItem.placeFound)
-    ? `The item was found at ${match.foundItem.placeFound}.`
-    : req.user.role === "admin"
-      ? `The item was found in ${match.foundItem.placeFound}.`
-      : `The item was found by the university security department at ${match.foundItem.placeFound}.`
-}`,
+            message: buildMatchNotificationMessage(
+              match.lostItem.name,
+              match.matchScore,
+              match.foundItem
+            ),
             data: {
               lostItemId: match.lostItem._id,
               foundItemId: foundItem._id,
@@ -76,10 +75,7 @@ message: `We found a ${match.matchScore}% match for your lost ${
               match.lostItem.userId.email,
               match.lostItem.userId.name,
               match.lostItem,
-              foundItem,
-              req.user.role === "admin"
-                ? `Block ${req.user.block}`
-                : "University Security department"
+              foundItem
             )
             .catch((err) => console.error("Email Error:", err));
           if (io && match?.lostItem?.userId?._id) {

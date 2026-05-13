@@ -118,4 +118,5 @@ app.use((req, res) => {
 // 8. ERROR HANDLING - Always last
 app.use(errorHandler);
 
+export { io };
 export default httpServer;

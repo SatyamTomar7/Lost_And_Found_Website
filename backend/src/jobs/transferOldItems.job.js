@@ -1,17 +1,27 @@
 import cron from "node-cron";
 import { FoundItem } from "../models/FoundItem.model.js";
+import { Notification } from "../models/Notification.model.js";
+import {
+  ITEM_STATUS,
+  NOTIFICATION_TYPES,
+  USER_ROLES,
+} from "../constants.js";
+import { emailService } from "../services/email.service.js";
 import matchingService from "../services/matching.service.js";
-import { ITEM_STATUS, USER_ROLES } from "../constants.js";
+import { buildMatchNotificationMessage } from "../utils/matchNotificationMessage.js";
 
 // Track scheduled task
 let transferJob = null;
+let socketIo = null;
 
-export const startTransferOldItemsJob = () => {
+export const startTransferOldItemsJob = (io = null) => {
   // Prevent duplicate cron jobs
   if (transferJob) {
     console.log("[TransferJob] Already running");
     return;
   }
+
+  socketIo = io;
 
   // Runs every day at midnight (India time)
   transferJob = cron.schedule(
@@ -64,19 +74,73 @@ export const startTransferOldItemsJob = () => {
             });
 
             // Re-run matching after transfer
-            await matchingService.rematchAfterTransferToSecurity(
-              item._id,
-              70
-            );
+            const newMatches =
+              await matchingService.rematchAfterTransferToSecurity(
+                item._id,
+                70
+              );
+
+            const topMatches = newMatches.slice(0, 5);
+
+            if (topMatches.length > 0) {
+              await Promise.all(
+                topMatches.map(async (match) => {
+                  if (!match?.lostItem?.userId?._id) {
+                    return null;
+                  }
+
+                  const notification = await Notification.create({
+                    userId: match.lostItem.userId._id,
+                    type: NOTIFICATION_TYPES.MATCH_FOUND,
+                    title: "Your Lost Item Might Be Found!",
+                    message: buildMatchNotificationMessage(
+                      match.lostItem.name,
+                      match.matchScore,
+                      match.foundItem
+                    ),
+                    data: {
+                      lostItemId: match.lostItem._id,
+                      foundItemId: match.foundItem._id,
+                      matchScore: match.matchScore,
+                      createdBy: match.foundItem.createdBy,
+                    },
+                    priority: match.matchScore > 85 ? "high" : "medium",
+                  });
+
+                  emailService
+                    .sendMatchNotification(
+                      match.lostItem.userId.email,
+                      match.lostItem.userId.name,
+                      match.lostItem,
+                      match.foundItem
+                    )
+                    .catch((err) =>
+                      console.error("[TransferJob] Email Error:", err)
+                    );
+
+                  if (socketIo) {
+                    socketIo.sendNotificationToUser(
+                      match.lostItem.userId._id,
+                      {
+                        ...notification.toObject(),
+                        foundItem: match.foundItem,
+                      }
+                    );
+                  }
+
+                  return notification;
+                })
+              );
+            }
 
             console.log(
-              `[TransferJob] ✓ Transferred & re-matched item ${item._id}`
+              `[TransferJob] Transferred and re-matched item ${item._id}`
             );
 
             results.success++;
           } catch (err) {
             console.error(
-              `[TransferJob] ✗ Failed item ${item._id}: ${err.message}`
+              `[TransferJob] Failed item ${item._id}: ${err.message}`
             );
 
             results.failed++;
@@ -90,7 +154,7 @@ export const startTransferOldItemsJob = () => {
         ).toFixed(2);
 
         console.log(
-          `[TransferJob] Done in ${elapsed}s — ` +
+          `[TransferJob] Done in ${elapsed}s - ` +
             `success: ${results.success}, ` +
             `failed: ${results.failed}` +
             (results.failedIds.length
@@ -99,7 +163,7 @@ export const startTransferOldItemsJob = () => {
         );
       } catch (error) {
         console.error(
-          "[TransferJob] Fatal error — job aborted:",
+          "[TransferJob] Fatal error - job aborted:",
           error
         );
       }
@@ -110,7 +174,7 @@ export const startTransferOldItemsJob = () => {
   );
 
   console.log(
-    "[TransferJob] Scheduled — runs daily at midnight (Asia/Kolkata)"
+    "[TransferJob] Scheduled - runs daily at midnight (Asia/Kolkata)"
   );
 };
 
@@ -121,6 +185,7 @@ export const stopTransferOldItemsJob = () => {
   if (transferJob) {
     transferJob.stop();
     transferJob = null;
+    socketIo = null;
 
     console.log("[TransferJob] Stopped");
   }

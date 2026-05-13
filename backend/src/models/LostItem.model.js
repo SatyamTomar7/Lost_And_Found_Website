@@ -37,10 +37,20 @@ const lostItemSchema = new Schema(
       type: Date,
       required: [true, "Date lost is required"],
       validate: {
-        validator: function (date) {
-          return date <= new Date();
-        },
-        message: "Date lost can not be in the future",
+validator: function (date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const minDate = new Date();
+  minDate.setHours(0, 0, 0, 0);
+  minDate.setDate(minDate.getDate() - 6);
+
+  const inputDate = new Date(date);
+  inputDate.setHours(0, 0, 0, 0);
+
+  return inputDate >= minDate && inputDate <= today;
+},
+        message: "Date lost must be within the last 7 days and cannot be in the future",
       },
     },
     placeLost: {

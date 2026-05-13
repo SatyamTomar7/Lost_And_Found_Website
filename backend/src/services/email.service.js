@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { getMatchCollectionLocation } from "../utils/matchNotificationMessage.js";
 
 // ─── Sanitizer ────────────────────────────────────────────────────────────────
 const sanitize = (str) =>
@@ -105,16 +106,16 @@ class EmailService {
   }
 
   // ─── Match Notification Email ────────────────────────────────────────────
-  async sendMatchNotification(userEmail, userName, lostItem, foundItem, block) {
+  async sendMatchNotification(userEmail, userName, lostItem, foundItem) {
     try {
       const safeUserName = sanitize(userName);
-      const safeBlock = sanitize(block);
+      const collectionLocation = getMatchCollectionLocation(foundItem);
+      const safeCollectionLocation = sanitize(collectionLocation);
       const safeLostName = sanitize(lostItem.name);
       const safeLostColor = sanitize(lostItem.color);
       const safeLostPlace = sanitize(lostItem.placeLost);
       const safeFoundName = sanitize(foundItem.name);
       const safeFoundColor = sanitize(foundItem.color);
-      const safeFoundPlace = sanitize(foundItem.placeFound);
 
       await sendEmail({
         to: userEmail,
@@ -141,13 +142,12 @@ class EmailService {
                 <p><strong>Name:</strong> ${safeFoundName}</p>
                 <p><strong>Color:</strong> ${safeFoundColor}</p>
                 <p><strong>Date Found:</strong> ${new Date(foundItem.dateFound).toLocaleDateString()}</p>
-                <p><strong>Place Found:</strong> ${safeFoundPlace}</p>
-                <p><strong>Block:</strong> ${safeBlock}</p>
+                <p><strong>Verify and Collect At:</strong> ${safeCollectionLocation}</p>
               </div>
               <div style="text-align: center; margin: 30px 0;">
                 <p style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #fbbf24;">
                   <strong>Next Steps:</strong><br>
-                  Please visit the ${safeBlock} Block Lost &amp; Found office to verify and collect your item.
+                  Please visit the ${safeCollectionLocation} to verify and collect your item.
                   Bring a valid ID and be prepared to provide additional details about the item.
                 </p>
               </div>

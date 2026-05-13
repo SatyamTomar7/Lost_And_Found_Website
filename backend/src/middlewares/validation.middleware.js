@@ -7,6 +7,13 @@ import {
   ALL_LOCATIONS,
 } from "../constants.js";
 
+const getMinAllowedDate = () => {
+  const minDate = new Date();
+  minDate.setHours(0, 0, 0, 0);
+  minDate.setDate(minDate.getDate() - 6);
+  return minDate;
+};
+
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -136,6 +143,13 @@ const validateLostItem = [
     .isISO8601()
     .withMessage("Valid date is required")
     .custom((value) => {
+      const inputDate = new Date(value);
+      inputDate.setHours(0, 0, 0, 0);
+
+      if (inputDate < getMinAllowedDate()) {
+        throw new Error("Date lost must be within the last 7 days");
+      }
+
       if (new Date(value) > new Date()) {
         throw new Error("Date lost cannot be in the future");
       }
@@ -179,6 +193,13 @@ const validateFoundItem = [
     .isISO8601()
     .withMessage("Valid date is required")
     .custom((value) => {
+      const inputDate = new Date(value);
+      inputDate.setHours(0, 0, 0, 0);
+
+      if (inputDate < getMinAllowedDate()) {
+        throw new Error("Date found must be within the last 7 days");
+      }
+
       if (new Date(value) > new Date()) {
         throw new Error("Date found cannot be in the future");
       }

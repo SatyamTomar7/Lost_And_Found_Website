@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 import { FoundItem } from "../models/FoundItem.model.js";
 import { deleteImage } from "../services/cloudinary.service.js";
 import { PendingUpload } from "../models/PendingUpload.model.js";
+import { buildMatchNotificationMessage } from "../utils/matchNotificationMessage.js";
 
 export const submitLostItem = asyncHandler(async (req, res) => {
   if (!req.user.profileCompleted) {
@@ -116,13 +117,11 @@ export const submitLostItem = asyncHandler(async (req, res) => {
             userId: req.user.id,
             type: NOTIFICATION_TYPES.MATCH_FOUND,
             title: "Potential Match Found",
-            message: `We found a ${match.matchScore}% match for your lost ${
-              lostItem.name
-            }. ${
-              match.foundItem.handledBy === "admin"
-                ? `Item was found in Block ${match.foundItem.block}.`
-                : "Item was found by university security department."
-            }`,
+            message: buildMatchNotificationMessage(
+              lostItem.name,
+              match.matchScore,
+              match.foundItem
+            ),
             data: {
               lostItemId: lostItem._id,
               foundItemId: match.foundItem._id,
@@ -136,10 +135,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
               req.user.email,
               req.user.name,
               lostItem,
-              match.foundItem,
-              match.foundItem.handledBy === "admin"
-                ? `Block ${match.foundItem.block}`
-                : "University Security Department"
+              match.foundItem
             )
             .catch((err) => console.error("Match Email Failed:", err));
 

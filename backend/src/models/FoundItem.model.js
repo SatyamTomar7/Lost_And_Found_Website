@@ -55,10 +55,20 @@ const foundItemSchema = new Schema(
       type: Date,
       required: [true, "Date found is required"],
       validate: {
-        validator: function (date) {
-          return date <= new Date();
-        },
-        message: "Date found cannot be in the future",
+validator: function (date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const minDate = new Date();
+  minDate.setHours(0, 0, 0, 0);
+  minDate.setDate(minDate.getDate() - 6);
+
+  const inputDate = new Date(date);
+  inputDate.setHours(0, 0, 0, 0);
+
+  return inputDate >= minDate && inputDate <= today;
+},
+        message: "Date found must be within the last 7 days and cannot be in the future",
       },
     },
     placeFound: {
@@ -203,6 +213,6 @@ foundItemSchema.index({
 
 foundItemSchema.index({ block: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
-foundItemSchema.index({ adminId: 1 });
+foundItemSchema.index({ createdBy: 1 });
 foundItemSchema.index({ matchedLostItemIds: 1 });
 export const FoundItem = mongoose.model("FoundItem", foundItemSchema);

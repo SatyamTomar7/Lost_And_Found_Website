@@ -2,7 +2,7 @@ import "../config/env.js";
 import mongoose from "mongoose";
 
 import connectDB from "./db/connection.js";
-import httpServer from "./app.js";
+import httpServer, { io } from "./app.js";
 
 import {
   startTransferOldItemsJob,
@@ -135,7 +135,7 @@ connectDB()
       );
 
       // Start scheduled cron jobs
-      startTransferOldItemsJob();
+      startTransferOldItemsJob(io);
     });
   })
   .catch((err) => {
