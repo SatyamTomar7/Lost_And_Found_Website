@@ -45,13 +45,21 @@ export const apiFetch = async (
       } else {
         body = await response.text().catch(() => "");
       }
- const errorMessage =
-  typeof body === "string"
-    ? body
-    : body.message || `Request failed: ${response.status}`;
+      const errorMessage =
+        typeof body === "string"
+          ? body
+          : body.message || `Request failed: ${response.status}`;
 
-const error = new Error(errorMessage);
+      const error = new Error(errorMessage);
+
       error.status = response.status;
+
+      // preserve backend validation details
+      if (typeof body === "object" && body !== null) {
+        error.errors = body.errors;
+        error.response = body;
+      }
+
       throw error;
     }
 

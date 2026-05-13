@@ -2786,39 +2786,39 @@ input[type="radio"] {
 
 /* ── CSS Variables ─────────────────────────────────────────── */
 :root {
-  --cp-bg: #0d0f14;
-  --cp-card-bg: #13161d;
-  --cp-card-border: rgba(255, 255, 255, 0.07);
-  --cp-card-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  --cp-bg: transparent;
+  --cp-card-bg: rgba(255, 255, 255, 0.96);
+  --cp-card-border: rgba(255, 255, 255, 0.36);
+  --cp-card-shadow: var(--shadow-xl);
 
-  --cp-accent: #6c63ff;
-  --cp-accent-hover: #574fd6;
-  --cp-accent-glow: rgba(108, 99, 255, 0.25);
+  --cp-accent: var(--navy);
+  --cp-accent-hover: var(--navy-dark);
+  --cp-accent-glow: rgba(30, 80, 142, 0.18);
 
-  --cp-text-primary: #f0f0f5;
-  --cp-text-secondary: #8a8fa8;
-  --cp-text-muted: #50546a;
+  --cp-text-primary: var(--navy);
+  --cp-text-secondary: var(--text-secondary);
+  --cp-text-muted: var(--text-muted);
 
-  --cp-input-bg: #1a1d27;
-  --cp-input-border: rgba(255, 255, 255, 0.1);
-  --cp-input-border-focus: rgba(108, 99, 255, 0.7);
+  --cp-input-bg: rgba(255, 255, 255, 0.92);
+  --cp-input-border: rgba(30, 80, 142, 0.18);
+  --cp-input-border-focus: rgba(30, 80, 142, 0.5);
   --cp-input-border-error: rgba(255, 80, 80, 0.7);
-  --cp-input-text: #e8e8f0;
-  --cp-input-placeholder: #50546a;
+  --cp-input-text: var(--text-primary);
+  --cp-input-placeholder: #7b8794;
 
-  --cp-error: #ff6060;
+  --cp-error: var(--color-error);
 
-  --cp-badge-bg: rgba(108, 99, 255, 0.15);
-  --cp-badge-border: rgba(108, 99, 255, 0.4);
-  --cp-badge-text: #a09bff;
+  --cp-badge-bg: rgba(242, 184, 7, 0.14);
+  --cp-badge-border: rgba(242, 184, 7, 0.35);
+  --cp-badge-text: var(--navy);
 
-  --cp-modal-bg: #16191f;
-  --cp-modal-border: rgba(255, 255, 255, 0.08);
-  --cp-modal-row-border: rgba(255, 255, 255, 0.05);
-  --cp-modal-key: #8a8fa8;
-  --cp-modal-val: #f0f0f5;
+  --cp-modal-bg: rgba(255, 255, 255, 0.98);
+  --cp-modal-border: rgba(255, 255, 255, 0.42);
+  --cp-modal-row-border: rgba(30, 80, 142, 0.08);
+  --cp-modal-key: var(--text-secondary);
+  --cp-modal-val: var(--text-primary);
 
-  --cp-overlay-bg: rgba(6, 7, 10, 0.85);
+  --cp-overlay-bg: rgba(17, 24, 39, 0.45);
 
   --cp-radius-sm: 8px;
   --cp-radius-md: 12px;
@@ -2831,48 +2831,20 @@ input[type="radio"] {
 
 /* ── Page / Layout ─────────────────────────────────────────── */
 .cp-page {
-  min-height: 100vh;
-  background-color: var(--cp-bg);
+  min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 16px;
+  padding: 0;
   font-family: var(--cp-font);
   position: relative;
-  overflow: hidden;
+  z-index: 1;
 }
 
-/* Background decorative blobs */
-.cp-bg-accent {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(90px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.cp-bg-accent--1 {
-  width: 480px;
-  height: 480px;
-  background: radial-gradient(
-    circle,
-    rgba(108, 99, 255, 0.12) 0%,
-    transparent 70%
-  );
-  top: -120px;
-  right: -80px;
-}
-
-.cp-bg-accent--2 {
-  width: 360px;
-  height: 360px;
-  background: radial-gradient(
-    circle,
-    rgba(80, 150, 255, 0.08) 0%,
-    transparent 70%
-  );
-  bottom: -100px;
-  left: -60px;
+.cp-hero {
+  min-height: 100vh;
+  padding-top: var(--sp-48);
+  padding-bottom: var(--sp-48);
 }
 
 /* ── Card ──────────────────────────────────────────────────── */
@@ -2882,11 +2854,22 @@ input[type="radio"] {
   width: 100%;
   max-width: 640px;
   background: var(--cp-card-bg);
-  border: 1px solid var(--cp-card-border);
-  border-radius: var(--cp-radius-lg);
+  border: 2px solid var(--cp-card-border);
+  border-radius: var(--r-2xl);
   box-shadow: var(--cp-card-shadow);
   overflow: hidden;
+  backdrop-filter: blur(12px);
   animation: cp-fade-up 0.4s ease both;
+}
+
+.cp-card::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--r-2xl) + 2px);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--navy) 100%);
+  z-index: -1;
+  opacity: 0.75;
 }
 
 /* ── Card Header ───────────────────────────────────────────── */
@@ -2895,7 +2878,8 @@ input[type="radio"] {
   border-bottom: 1px solid var(--cp-card-border);
   background: linear-gradient(
     135deg,
-    rgba(108, 99, 255, 0.06) 0%,
+    rgba(242, 184, 7, 0.12) 0%,
+    rgba(30, 80, 142, 0.08) 45%,
     transparent 60%
   );
 }
@@ -2917,7 +2901,8 @@ input[type="radio"] {
 
 .cp-title {
   font-size: 26px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: var(--fw-bold);
   color: var(--cp-text-primary);
   margin: 0 0 8px;
   letter-spacing: -0.3px;
@@ -3029,7 +3014,7 @@ input[type="radio"] {
 }
 
 .cp-select option {
-  background: #1a1d27;
+  background: #ffffff;
   color: var(--cp-input-text);
 }
 
@@ -3059,13 +3044,15 @@ input[type="radio"] {
 }
 
 .cp-btn-primary {
-  background: var(--cp-accent);
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
   color: #fff;
+  box-shadow: var(--shadow-gold);
 }
 
 .cp-btn-primary:hover:not(:disabled) {
-  background: var(--cp-accent-hover);
-  box-shadow: 0 4px 20px var(--cp-accent-glow);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--navy);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-1px);
 }
 
@@ -3074,14 +3061,15 @@ input[type="radio"] {
 }
 
 .cp-btn-secondary {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--cp-text-secondary);
-  border: 1px solid var(--cp-card-border);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--navy);
+  border: 1px solid rgba(30, 80, 142, 0.12);
+  box-shadow: var(--shadow-sm);
 }
 
 .cp-btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--cp-text-primary);
+  background: #fff;
+  color: var(--navy-dark);
 }
 
 .cp-btn-full {
@@ -3128,8 +3116,8 @@ input[type="radio"] {
   max-width: 480px;
   background: var(--cp-modal-bg);
   border: 1px solid var(--cp-modal-border);
-  border-radius: var(--cp-radius-lg);
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+  border-radius: var(--r-2xl);
+  box-shadow: var(--shadow-xl);
   overflow: hidden;
   animation: cp-slide-up 0.25s ease both;
 }
@@ -3140,7 +3128,8 @@ input[type="radio"] {
   border-bottom: 1px solid var(--cp-modal-row-border);
   background: linear-gradient(
     135deg,
-    rgba(108, 99, 255, 0.07) 0%,
+    rgba(242, 184, 7, 0.12) 0%,
+    rgba(30, 80, 142, 0.06) 45%,
     transparent 60%
   );
 }

@@ -12,7 +12,7 @@ import {
   SECTION_OPTIONS,
   BLOCK_OPTIONS,
 } from "../utils/itemConstants.js";
-/* ─── Zod Schema ─────────────────────────────────────────────────────── */
+
 const profileSchema = z.object({
   enrollmentNumber: z
     .string()
@@ -30,13 +30,11 @@ const profileSchema = z.object({
   block: z.enum(["A", "B", "C", "D", "E"]),
 });
 
-/* ─── Helpers ────────────────────────────────────────────────────────── */
 const getSemestersForYear = (year) => {
   const map = { 1: ["1", "2"], 2: ["3", "4"], 3: ["5", "6"], 4: ["7", "8"] };
   return map[year] || ["1", "2", "3", "4", "5", "6", "7", "8"];
 };
 
-/* ─── Sub-components ─────────────────────────────────────────────────── */
 const Field = ({ label, error, required, children }) => (
   <div className="cp-field">
     <label className="cp-label">
@@ -67,7 +65,7 @@ const ConfirmModal = ({ data, onConfirm, onCancel, isLoading, error }) => {
           <div className="cp-modal-icon">✦</div>
           <h3 className="cp-modal-title">Confirm Your Details</h3>
           <p className="cp-modal-subtitle">
-            Please review carefully — this information will be linked to your
+            Please review carefully - this information will be linked to your
             account.
           </p>
         </div>
@@ -83,7 +81,7 @@ const ConfirmModal = ({ data, onConfirm, onCancel, isLoading, error }) => {
 
         {error && (
           <div className="cp-modal-error">
-            <span>⚠</span> {error}
+            <span>!</span> {error}
           </div>
         )}
 
@@ -93,7 +91,7 @@ const ConfirmModal = ({ data, onConfirm, onCancel, isLoading, error }) => {
             className="cp-btn cp-btn-secondary"
             disabled={isLoading}
           >
-            ← Edit Details
+            Back To Edit
           </button>
           <button
             onClick={onConfirm}
@@ -103,10 +101,10 @@ const ConfirmModal = ({ data, onConfirm, onCancel, isLoading, error }) => {
             {isLoading ? (
               <>
                 <span className="cp-spinner" />
-                Saving…
+                Saving...
               </>
             ) : (
-              "Confirm & Submit ✓"
+              "Confirm & Submit"
             )}
           </button>
         </div>
@@ -115,7 +113,6 @@ const ConfirmModal = ({ data, onConfirm, onCancel, isLoading, error }) => {
   );
 };
 
-/* ─── Main Component ─────────────────────────────────────────────────── */
 const CompleteProfile = ({ currentUser, setCurrentUser }) => {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
@@ -158,172 +155,158 @@ const CompleteProfile = ({ currentUser, setCurrentUser }) => {
     setShowModal(true);
   };
 
-const handleConfirm = () => {
+  const handleConfirm = () => mutation.mutate(pendingData);
 
-  console.log("SENDING DATA:", pendingData);
-
-  mutation.mutate(pendingData);
-};
   const selectedYear = watch("year");
   useEffect(() => {
     setValue("semester", "");
   }, [selectedYear, setValue]);
+
   const semesterOptions = selectedYear
     ? getSemestersForYear(selectedYear)
     : ["1", "2", "3", "4", "5", "6", "7", "8"];
 
   return (
-    <div className="cp-page">
-      <div className="cp-bg-accent cp-bg-accent--1" />
-      <div className="cp-bg-accent cp-bg-accent--2" />
+    <div className="page active">
+      <section className="hero cp-hero">
+        <div className="container">
+          <div className="cp-page">
+            <div className="cp-card">
+              <div className="cp-card-header">
+                <div className="cp-badge">AMIFOUND</div>
+                <h1 className="cp-title">Complete Your Profile</h1>
+                <p className="cp-subtitle">
+                  Fill in your academic details to get started with AmiFound.
+                </p>
+              </div>
 
-      <div className="cp-card">
-        {/* Header */}
-        <div className="cp-card-header">
-          <div className="cp-badge">AMIFOUND</div>
-          <h1 className="cp-title">Complete Your Profile</h1>
-          <p className="cp-subtitle">
-            Fill in your academic details to get started with AmiFound.
-          </p>
+              <form onSubmit={handleSubmit(onSubmit)} noValidate className="cp-form">
+                <div className="cp-grid cp-grid--2">
+                  <Field
+                    label="Enrollment Number"
+                    error={errors.enrollmentNumber?.message}
+                    required
+                  >
+                    <input
+                      className={`cp-input${errors.enrollmentNumber ? " cp-input--error" : ""}`}
+                      placeholder="e.g. A12345678090"
+                      {...register("enrollmentNumber")}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Phone Number"
+                    error={errors.phoneNumber?.message}
+                    required
+                  >
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      className={`cp-input${errors.phoneNumber ? " cp-input--error" : ""}`}
+                      placeholder="10-digit mobile number"
+                      maxLength={10}
+                      {...register("phoneNumber")}
+                    />
+                  </Field>
+                </div>
+
+                <div className="cp-grid cp-grid--2">
+                  <Field label="Course" error={errors.course?.message} required>
+                    <select
+                      className={`cp-select${errors.course ? " cp-input--error" : ""}`}
+                      {...register("course")}
+                    >
+                      <option value="">Select Course</option>
+                      {COURSES.map((course) => (
+                        <option key={course} value={course}>
+                          {course}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Branch" error={errors.branch?.message} required>
+                    <select
+                      className={`cp-select${errors.branch ? " cp-input--error" : ""}`}
+                      {...register("branch")}
+                    >
+                      <option value="">Select Branch</option>
+                      {BRANCHES.map((branch) => (
+                        <option key={branch} value={branch}>
+                          {branch}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <div className="cp-grid cp-grid--3">
+                  <Field label="Year" error={errors.year?.message} required>
+                    <select
+                      className={`cp-select${errors.year ? " cp-input--error" : ""}`}
+                      {...register("year")}
+                    >
+                      <option value="">Year</option>
+                      {YEAR_OPTIONS.map((y) => (
+                        <option key={y} value={y}>
+                          Year {y}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Semester" error={errors.semester?.message} required>
+                    <select
+                      className={`cp-select${errors.semester ? " cp-input--error" : ""}`}
+                      {...register("semester")}
+                    >
+                      <option value="">Semester</option>
+                      {semesterOptions.map((s) => (
+                        <option key={s} value={s}>
+                          Semester {s}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Section" error={errors.section?.message} required>
+                    <select
+                      className={`cp-select${errors.section ? " cp-input--error" : ""}`}
+                      {...register("section")}
+                    >
+                      <option value="">Section</option>
+                      {SECTION_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          Section {s}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <Field label="Block" error={errors.block?.message} required>
+                  <select
+                    className={`cp-select${errors.block ? " cp-input--error" : ""}`}
+                    {...register("block")}
+                  >
+                    <option value="">Select Block</option>
+                    {BLOCK_OPTIONS.map((b) => (
+                      <option key={b} value={b}>
+                        Block {b}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <button type="submit" className="cp-btn cp-btn-primary cp-btn-full">
+                  Review & Complete Profile
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
+      </section>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="cp-form">
-          <div className="cp-grid cp-grid--2">
-            {/* Enrollment Number */}
-            <Field
-              label="Enrollment Number"
-              error={errors.enrollmentNumber?.message}
-              required
-            >
-              <input
-                className={`cp-input${errors.enrollmentNumber ? " cp-input--error" : ""}`}
-                placeholder="e.g. A12345678090"
-                {...register("enrollmentNumber")}
-              />
-            </Field>
-
-            {/* Phone Number */}
-            <Field
-              label="Phone Number"
-              error={errors.phoneNumber?.message}
-              required
-            >
-<input
-  type="tel"
-  inputMode="numeric"
-  className={`cp-input${errors.phoneNumber ? " cp-input--error" : ""}`}
-  placeholder="10-digit mobile number"
-  maxLength={10}
-  {...register("phoneNumber")}
-/>
-            </Field>
-          </div>
-
-          <div className="cp-grid cp-grid--2">
-            {/* Course */}
-            <Field label="Course" error={errors.course?.message} required>
-              <select
-                className={`cp-select${errors.course ? " cp-input--error" : ""}`}
-                {...register("course")}
-              >
-                <option value="">Select Course</option>
-
-                {COURSES.map((course) => (
-                  <option key={course} value={course}>
-                    {course}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            {/* Branch */}
-            <Field label="Branch" error={errors.branch?.message} required>
-              <select
-                className={`cp-select${errors.branch ? " cp-input--error" : ""}`}
-                {...register("branch")}
-              >
-                <option value="">Select Branch</option>
-
-                {BRANCHES.map((branch) => (
-                  <option key={branch} value={branch}>
-                    {branch}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <div className="cp-grid cp-grid--3">
-            {/* Year */}
-            <Field label="Year" error={errors.year?.message} required>
-              <select
-                className={`cp-select${errors.year ? " cp-input--error" : ""}`}
-                {...register("year")}
-              >
-                <option value="">Year</option>
-                {YEAR_OPTIONS.map((y) => (
-                  <option key={y} value={y}>
-                    Year {y}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            {/* Semester */}
-            <Field label="Semester" error={errors.semester?.message} required>
-              <select
-                className={`cp-select${errors.semester ? " cp-input--error" : ""}`}
-                {...register("semester")}
-              >
-                <option value="">Semester</option>
-                {semesterOptions.map((s) => (
-                  <option key={s} value={s}>
-                    Semester {s}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            {/* Section */}
-            <Field label="Section" error={errors.section?.message} required>
-              <select
-                className={`cp-select${errors.section ? " cp-input--error" : ""}`}
-                {...register("section")}
-              >
-                <option value="">Section</option>
-                {SECTION_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    Section {s}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <Field label="Block" error={errors.block?.message} required>
-            <select
-              className={`cp-select${errors.block ? " cp-input--error" : ""}`}
-              {...register("block")}
-            >
-              <option value="">Select Block</option>
-
-              {BLOCK_OPTIONS.map((b) => (
-                <option key={b} value={b}>
-                  Block {b}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          {/* Submit */}
-          <button type="submit" className="cp-btn cp-btn-primary cp-btn-full">
-            Review & Complete Profile →
-          </button>
-        </form>
-      </div>
-
-      {/* Confirmation Modal */}
       {showModal && pendingData && (
         <ConfirmModal
           data={pendingData}
