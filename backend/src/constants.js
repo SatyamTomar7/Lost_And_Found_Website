@@ -150,7 +150,7 @@ const BLOCK_LOCATIONS = {
   ],
 };
 
-export const COMMON_LOCATIONS = [
+const COMMON_LOCATIONS = [
   "Main Ground (Open Field)",
   "Cricket Ground (Match Play)",
   "Cricket Practice Nets",
