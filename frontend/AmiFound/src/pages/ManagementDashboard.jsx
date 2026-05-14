@@ -1850,7 +1850,11 @@ function OperationalView({
         setPendingFormData(null);
         queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.foundItems });
         queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.matches });
-        setActiveTab("matches");
+        if (result.data?.matches?.length > 0) {
+          setActiveTab("matches");
+        } else {
+          setActiveTab("found-items");
+        }
       } else {
         setPendingFormData(null);
         showMessage(result.message || "Failed to add found item.", "error");
