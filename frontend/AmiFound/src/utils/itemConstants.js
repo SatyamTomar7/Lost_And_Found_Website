@@ -125,6 +125,21 @@ export const COMMON_LOCATIONS = [
   "University Entrance / Main Gate",
   "Main Garden / Open Area",
   "Cafeteria (Main)",
+
+  "Near Block A",
+  "Near Block B",
+  "Near Block C",
+  "Near Block D",
+  "Near Block E",
+
+  "Road Between Block A & B",
+  "Road Between Block A & D",
+  "Road Between Block B & C",
+  "Road Between Block C & E",
+  "Road Between Block D & E",
+
+  "Near Hostel",
+  "Other",
 ];
 export const COURSES = [
   "B.Tech",
