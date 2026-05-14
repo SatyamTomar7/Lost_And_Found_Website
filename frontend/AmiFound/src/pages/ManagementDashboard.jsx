@@ -1046,6 +1046,8 @@ const FoundItemCard = React.memo(
     const statusLower = item.status.toLowerCase();
     const statusClass = statusLower.replace(/\s+/g, "-");
     const isActiveItem = statusLower === "found" || statusLower === "matched";
+    const isOldItem =
+      Date.now() - new Date(item.dateFound).getTime() > 7 * 24 * 60 * 60 * 1000;
     const isReturnedItem = statusLower === "returned";
     const isOfflineCollectedItem = statusLower === "offline returned";
     return (
@@ -1105,13 +1107,15 @@ const FoundItemCard = React.memo(
         <div className="item-actions">
           {isActiveItem && (
             <>
-              <button
-                className="btn btn--sm btn--primary"
-                onClick={() => onMarkReturned(item)}
-                disabled={isUpdating}
-              >
-                <FaCheck /> Mark Returned
-              </button>
+              {!isOldItem && (
+                <button
+                  className="btn btn--sm btn--primary"
+                  onClick={() => onMarkReturned(item)}
+                  disabled={isUpdating}
+                >
+                  <FaCheck /> Mark Returned
+                </button>
+              )}
 
               <button
                 className="btn btn--sm btn--outline"
@@ -1762,6 +1766,7 @@ function OperationalView({
   onViewDashboard,
 }) {
   const role = currentUser.role;
+  const [foundItemsView, setFoundItemsView] = useState("active");
   const [activeTab, setActiveTab] = useState("add-found");
   const [returnModalItem, setReturnModalItem] = useState(null);
   const [detailsModalItem, setDetailsModalItem] = useState(null);
@@ -2027,6 +2032,21 @@ function OperationalView({
       }, {}),
     [matches],
   );
+  const activeFoundItems = useMemo(() => {
+    return foundItems.filter((item) => {
+      const age = Date.now() - new Date(item.dateFound).getTime();
+
+      return age <= 7 * 24 * 60 * 60 * 1000;
+    });
+  }, [foundItems]);
+
+  const oldFoundItems = useMemo(() => {
+    return foundItems.filter((item) => {
+      const age = Date.now() - new Date(item.dateFound).getTime();
+
+      return age > 7 * 24 * 60 * 60 * 1000;
+    });
+  }, [foundItems]);
 
   const isAnyUpdating =
     updateStatusMutation.isPending ||
@@ -2064,16 +2084,18 @@ function OperationalView({
                 <FaChartBar /> View Dashboard
               </button>
             )}
-            <button
-              onClick={() => setShowNotifications((p) => !p)}
-              className="notification-btn"
-              aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
-            >
-              <FaBell size={20} />
-              {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount}</span>
-              )}
-            </button>
+            {role !== "security" && (
+              <button
+                onClick={() => setShowNotifications((p) => !p)}
+                className="notification-btn"
+                aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+              >
+                <FaBell size={20} />
+                {unreadCount > 0 && (
+                  <span className="notification-badge">{unreadCount}</span>
+                )}
+              </button>
+            )}
           </div>
         </header>
 
@@ -2267,7 +2289,6 @@ function OperationalView({
               </div>
             </section>
           )}
-
           {/* Found Items */}
           {activeTab === "found-items" && (
             <section className="dashboard-tab active" role="tabpanel">
@@ -2275,6 +2296,37 @@ function OperationalView({
                 <h2>
                   <FaBox /> Department Found Items
                 </h2>
+                {role === "security" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      marginBottom: "20px",
+                    }}
+                  >
+                    <button
+                      className={`btn ${
+                        foundItemsView === "active"
+                          ? "btn--primary"
+                          : "btn--outline"
+                      }`}
+                      onClick={() => setFoundItemsView("active")}
+                    >
+                      Active Items
+                    </button>
+
+                    <button
+                      className={`btn ${
+                        foundItemsView === "old"
+                          ? "btn--primary"
+                          : "btn--outline"
+                      }`}
+                      onClick={() => setFoundItemsView("old")}
+                    >
+                      Old Items ({oldFoundItems.length})
+                    </button>
+                  </div>
+                )}
                 <div className="items-list">
                   {isTabLoading ? (
                     <EmptyState
@@ -2290,7 +2342,12 @@ function OperationalView({
                       description="No items found yet."
                     />
                   ) : (
-                    foundItems.map((item) => (
+                    (role === "security"
+                      ? foundItemsView === "active"
+                        ? activeFoundItems
+                        : oldFoundItems
+                      : activeFoundItems
+                    ).map((item) => (
                       <FoundItemCard
                         key={item._id}
                         item={item}
