@@ -150,7 +150,7 @@ const BLOCK_LOCATIONS = {
   ],
 };
 
-const COMMON_LOCATIONS = [
+export const COMMON_LOCATIONS = [
   "Main Ground (Open Field)",
   "Cricket Ground (Match Play)",
   "Cricket Practice Nets",
@@ -161,6 +161,21 @@ const COMMON_LOCATIONS = [
   "University Entrance / Main Gate",
   "Main Garden / Open Area",
   "Cafeteria (Main)",
+
+  "Near Block A",
+  "Near Block B",
+  "Near Block C",
+  "Near Block D",
+  "Near Block E",
+
+  "Road Between Block A & B",
+  "Road Between Block A & D",
+  "Road Between Block B & C",
+  "Road Between Block C & E",
+  "Road Between Block D & E",
+
+  "Near Hostel",
+  "Other",
 ];
 
 const ALL_LOCATIONS = [
