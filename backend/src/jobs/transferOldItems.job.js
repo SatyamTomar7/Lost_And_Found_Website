@@ -1,7 +1,7 @@
 import cron from "node-cron";
-import { FoundItem } from "../models/FoundItem.model.js";
-import { Notification } from "../models/Notification.model.js";
-import { ITEM_STATUS, NOTIFICATION_TYPES, USER_ROLES } from "../constants.js";
+import { ITEM_STATUS, NOTIFICATION_TYPES, USER_ROLES } from "../config/constants.js";
+import { FoundItem } from "../modules/found-items/FoundItem.model.js";
+import { Notification } from "../modules/notifications/Notification.model.js";
 // Track scheduled task
 let transferJob = null;
 let socketIo = null;
