@@ -298,7 +298,7 @@ export const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => 
                   />
                   <input
                     {...register(field)}
-                    className={`form-control ${errors[field] ? "is-invalid" : ""} ${modalStyles["return-modal__input--icon-offset"]}`}
+                    className={`${authStyles["form-control"]} ${errors[field] ? authStyles["is-invalid"] : ""} ${modalStyles["return-modal__input--icon-offset"]}`}
                     placeholder={placeholder}
                     disabled={isLoading}
                   />

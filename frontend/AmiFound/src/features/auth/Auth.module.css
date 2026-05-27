@@ -46,6 +46,10 @@
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
+.is-invalid {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
 .form-control.is-invalid:focus {
   box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2);
 }
@@ -84,6 +88,10 @@ select.form-control {
 }
 .password-input-wrapper .form-control {
   padding-right: 44px;
+}
+.password-input-wrapper .form-control::-ms-reveal,
+.password-input-wrapper .form-control::-ms-clear {
+  display: none;
 }
 .password-toggle-btn {
   position: absolute;
