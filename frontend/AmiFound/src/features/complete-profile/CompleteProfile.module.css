@@ -454,6 +454,19 @@
 }
 
 @media (max-width: 600px) {
+  .cp-hero {
+    padding-top: var(--sp-24);
+    padding-bottom: var(--sp-24);
+  }
+
+  .cp-page {
+    align-items: stretch;
+  }
+
+  .cp-card {
+    border-radius: 18px;
+  }
+
   .cp-card-header,
   .cp-form {
     padding-left: 20px;
@@ -469,6 +482,27 @@
     font-size: 22px;
   }
 
+  .cp-modal {
+    max-width: 100%;
+  }
+
+  .cp-modal-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .cp-modal-error,
+  .cp-modal-footer,
+  .cp-modal-header {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
   .cp-modal-footer {
     flex-direction: column;
   }
@@ -477,6 +511,30 @@
   .cp-modal-footer .cp-btn-primary {
     flex: unset;
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .cp-card-header,
+  .cp-form {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .cp-title {
+    font-size: 20px;
+  }
+
+  .cp-subtitle,
+  .cp-label,
+  .cp-input,
+  .cp-select {
+    font-size: 13px;
+  }
+
+  .cp-btn-full {
+    padding: 13px;
+    font-size: 14px;
   }
 }
 
