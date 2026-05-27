@@ -209,11 +209,143 @@
 /* ─────────────────────────────────────────────
    Responsive
 ───────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .hero {
+    min-height: auto;
+    padding: var(--sp-48) 0;
+  }
+
+  .hero-content {
+    grid-template-columns: 1fr;
+    gap: var(--sp-32);
+    text-align: center;
+  }
+
+  .hero-text p {
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .hero-buttons {
+    justify-content: center;
+  }
+
+  .university-icon {
+    width: 180px;
+    height: 180px;
+    font-size: 72px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: var(--sp-32) 0;
+  }
+
+  .hero-content {
+    gap: var(--sp-24);
+  }
+
+  .hero-text h1 {
+    margin-bottom: var(--sp-16);
+  }
+
+  .hero-text p {
+    font-size: var(--text-base);
+    line-height: 1.65;
+    margin-bottom: var(--sp-24);
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .hero-buttons :global(.btn) {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .features {
+    padding: var(--sp-48) 0;
+  }
+
+  .features h2 {
+    margin-bottom: var(--sp-32);
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: var(--sp-20);
+  }
+
+  .feature-card {
+    padding: var(--sp-24);
+  }
+
+  .feature-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+    margin-bottom: var(--sp-16);
+  }
+}
+
 @media (max-width: 480px) {
+  .hero::before {
+    background:
+      radial-gradient(
+        ellipse 85% 45% at 50% 12%,
+        rgba(255, 255, 255, 0.08) 0%,
+        transparent 72%
+      ),
+      radial-gradient(
+        ellipse 85% 45% at 50% 88%,
+        rgba(255, 255, 255, 0.08) 0%,
+        transparent 72%
+      );
+  }
+
+  .hero-text h1 {
+    font-size: clamp(28px, 9vw, 36px);
+    line-height: 1.08;
+  }
+
+  .university-icon {
+    width: 144px;
+    height: 144px;
+    font-size: 56px;
+    box-shadow:
+      var(--shadow-lg),
+      0 0 0 4px rgba(242, 184, 7, 0.26);
+  }
+
+  .university-icon::after {
+    inset: -6px;
+    filter: blur(14px);
+  }
+
+  .feature-card {
+    padding: var(--sp-20);
+  }
+
+  .feature-icon {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+
+  .feature-card h3 {
+    font-size: 17px;
+  }
+
   .hero-credits {
     flex-direction: column;
     align-items: center;
     gap: 0.4rem;
+    padding: 1rem 0.85rem 1.5rem;
   }
 
   .hero-credits__divider {
