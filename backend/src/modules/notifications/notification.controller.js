@@ -1,4 +1,6 @@
 import mongoose from "mongoose";
+import { NOTIFICATION_TYPES } from "../../config/constants.js";
+import { buildMatchNotificationMessage } from "../matching/match-notification-message.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { ApiResponse } from "../../shared/utils/ApiResponse.js";
 import { asyncHandler } from "../../shared/utils/asyncHandler.js";
@@ -13,7 +15,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
   const [notifications, total, unreadCount] = await Promise.all([
     Notification.find(query)
       .populate("data.lostItemId", "name  color")
-      .populate("data.foundItemId", "name color block handledBy")
+      .populate("data.foundItemId", "name color block originalBlock placeFound handledBy")
       .populate("data.createdBy", "name role block")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -23,11 +25,30 @@ export const getNotifications = asyncHandler(async (req, res) => {
     Notification.countDocuments({ userId: req.user.id, isRead: false }),
   ]);
 
+  const hydratedNotifications = notifications.map((notification) => {
+    if (
+      notification.type === NOTIFICATION_TYPES.MATCH_FOUND &&
+      notification.data?.lostItemId?.name &&
+      notification.data?.foundItemId
+    ) {
+      return {
+        ...notification,
+        message: buildMatchNotificationMessage(
+          notification.data.lostItemId.name,
+          notification.data.matchScore,
+          notification.data.foundItemId
+        ),
+      };
+    }
+
+    return notification;
+  });
+
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        notifications,
+        notifications: hydratedNotifications,
         unreadCount,
         pagination: {
           page,

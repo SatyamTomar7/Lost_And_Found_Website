@@ -28,7 +28,7 @@ app.set("socketio", io);
 // 2. CORS - MUST BE FIRST (to handle Preflight and Limiter errors)
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: "http://localhost:5173",
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],

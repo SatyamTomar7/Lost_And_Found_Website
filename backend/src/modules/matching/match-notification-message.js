@@ -3,8 +3,13 @@ const getMatchCollectionLocation = (foundItem) => {
     return "University Security Department";
   }
 
-  const block = foundItem?.originalBlock ?? foundItem?.block;
-  return `Block ${block} Lost and Found Department`;
+  const block = foundItem?.block;
+
+  if (block) {
+    return `Block ${block} Lost and Found Department`;
+  }
+
+  return "the Lost and Found Department";
 };
 
 const buildMatchNotificationMessage = (
