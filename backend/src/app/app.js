@@ -6,6 +6,7 @@ import { Server } from "socket.io";
 import { errorHandler } from "../shared/middleware/errorHandler.middleware.js";
 import { socketHandler } from "./socket.js";
 import { registerRoutes } from "./routes.js";
+import process from "../config/env.js";
 
 const app = express();
 
@@ -28,7 +29,7 @@ app.set("socketio", io);
 // 2. CORS - MUST BE FIRST (to handle Preflight and Limiter errors)
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_URL,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
