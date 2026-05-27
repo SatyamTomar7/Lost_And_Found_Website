@@ -1,0 +1,625 @@
+.return-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  animation: overlayIn 0.18s ease;
+}
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.return-modal {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalUp 0.22s ease;
+}
+@keyframes modalUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.return-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+.return-modal__title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #111827;
+}
+.return-modal__title-group h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.return-modal__icon {
+  color: #4f46e5;
+}
+.return-modal__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 1rem;
+  padding: 0.35rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.return-modal__close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.return-modal__found-summary {
+  padding: 0.9rem 1.5rem;
+  background: #eff6ff;
+  border-bottom: 1px solid #dbeafe;
+}
+.return-modal__label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.2rem;
+}
+.return-modal__item-name {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #1e40af;
+}
+
+.return-modal__body {
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.return-modal__body--scrollable {
+  padding-bottom: 0;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.return-modal__helper-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.return-modal__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.return-modal__input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.return-modal__input--icon-offset {
+  padding-left: 34px;
+}
+
+.return-modal__offline-submit {
+  color: #fff;
+  border: none;
+}
+
+.return-modal__offline-submit:not(:disabled) {
+  background: #b45309;
+}
+.return-modal__instruction {
+  font-size: 0.85rem;
+  color: #374151;
+  margin: 0 0 0.75rem;
+  font-weight: 500;
+}
+
+.return-modal__loading,
+.return-modal__error,
+.return-modal__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 1rem;
+  color: #6b7280;
+  font-size: 0.88rem;
+  text-align: center;
+}
+.return-modal__loading {
+  flex-direction: row;
+  justify-content: center;
+}
+.return-modal__error {
+  color: #dc2626;
+}
+.return-modal__empty svg {
+  font-size: 2rem;
+  color: #d1d5db;
+}
+
+.return-modal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.return-modal__list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+  background: #fff;
+}
+.return-modal__list-item:hover {
+  border-color: #a5b4fc;
+  background: #f5f3ff;
+}
+.return-modal__list-item--selected {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.return-modal__list-item-check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: transparent;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+  margin-top: 2px;
+}
+.return-modal__list-item--selected .return-modal__list-item-check {
+  border-color: #4f46e5;
+  background: #4f46e5;
+  color: #fff;
+}
+
+.return-modal__list-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.return-modal__list-item-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #111827;
+  margin-bottom: 0.3rem;
+}
+.return-modal__list-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+.return-modal__list-item-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.return-modal__list-item-user {
+  font-size: 0.78rem;
+  color: #4b5563;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.return-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+/* ── Return Details Modal ───────────────────────────────────────────────── */
+.return-details__body {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.return-details__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.return-details__section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  margin: 0;
+}
+
+.return-details__item-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+.return-details__item-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #111827;
+  margin-bottom: 0.45rem;
+}
+
+.return-details__claimant-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+.return-details__avatar {
+  width: 38px;
+  height: 38px;
+  background: #dcfce7;
+  color: #16a34a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.return-details__claimant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.return-details__claimant-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #111827;
+}
+.return-details__claimant-email {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.return-details__date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: #374151;
+  background: #fefce8;
+  border: 1px solid #fef08a;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+}
+
+
+/* ">>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* ─────────────────────────────────────────────────────────────────────────────
+   self-resolve.css
+   Import this in your main CSS file or component stylesheet.
+   All class names follow your existing .btn--sm, .status--, .return-modal patterns.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── "Found it Myself" button ────────────────────────────────────────────────
+   Green outline — distinct from all admin buttons.
+   Conveys: positive self-resolution, user-initiated.
+*/
+.btn--self-resolve {
+  background-color: transparent;
+  color: #2e7d52;
+  border: 1.5px solid #2e7d52;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.btn--self-resolve:hover:not(:disabled) {
+  background-color: #2e7d52;
+  color: #ffffff;
+}
+
+.btn--self-resolve:active:not(:disabled) {
+  background-color: #245f40;
+  color: #ffffff;
+}
+
+.btn--self-resolve:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Confirm button inside modal ─────────────────────────────────────────────*/
+.btn--self-resolve-confirm {
+  background-color: #2e7d52;
+  color: #ffffff;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    opacity 0.18s ease;
+  line-height: 1.4;
+}
+
+.btn--self-resolve-confirm:hover:not(:disabled) {
+  background-color: #245f40;
+}
+
+.btn--self-resolve-confirm:active:not(:disabled) {
+  background-color: #1a4a30;
+}
+
+.btn--self-resolve-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Status badge: self_resolved ─────────────────────────────────────────────
+   Follows your existing pattern:
+     .status--pending   { background: #fff3cd; color: #856404; }
+     .status--returned  { background: #d1e7dd; color: #0a3622; }
+   This sits alongside those naturally.
+*/
+.status--self-resolved {
+  background-color: #e6f4ec;
+  color: #2e7d52;
+  border: 1px solid #a8d5b8;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Modal: self-resolve specific overrides ──────────────────────────────────
+   Base styles (.return-modal, .return-modal-overlay, .return-modal__header, etc.)
+   come from your existing modal CSS — no need to redefine them here.
+*/
+
+/* Green icon tint in header */
+.return-modal__icon--resolve {
+  color: #2e7d52;
+}
+
+/* Item preview card */
+.self-resolve-modal__item-preview {
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.self-resolve-modal__item-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #1a202c);
+  margin-bottom: 8px;
+}
+
+/* Explanatory copy */
+.self-resolve-modal__message {
+  font-size: 14px;
+  color: var(--text-secondary, #4a5568);
+  line-height: 1.6;
+}
+
+.self-resolve-modal__message p {
+  margin: 0 0 8px 0;
+}
+
+.self-resolve-modal__message p:last-child {
+  margin-bottom: 0;
+}
+
+/* Warning line */
+.self-resolve-modal__warning {
+  font-size: 12px;
+  color: #b45309;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.self-resolve-modal__warning::before {
+  content: "⚠";
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* ─── Submit Confirm Modal ─────────────────────────────────────── */
+.submit-confirm-modal__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--warning-bg, #fff8e1);
+  border: 1px solid var(--warning-border, #f59e0b);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  color: var(--warning-text, #92400e);
+  font-size: 14px;
+}
+
+.submit-confirm-modal__warning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #f59e0b;
+}
+
+.submit-confirm-modal__warning p {
+  margin: 0;
+}
+
+.submit-confirm-modal__details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.submit-confirm-modal__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px 12px;
+  background: var(--bg-secondary, #f9fafb);
+  border-radius: 6px;
+  gap: 12px;
+}
+
+.submit-confirm-modal__label {
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.submit-confirm-modal__value {
+  font-size: 13px;
+  color: var(--text-primary, #111827);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Warning icon color for modal header */
+.return-modal__icon--warning {
+  color: #f59e0b;
+}
+
+/* Claimant info grid layout */
+.return-details__claimant-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.return-details__claimant-row {
+  display: grid;
+  grid-template-columns: 28px 130px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  font-size: 13.5px;
+  transition: background 0.15s;
+}
+
+.return-details__claimant-row:last-child {
+  border-bottom: none;
+}
+
+.return-details__claimant-row:hover {
+  background: var(--bg-hover, #f9fafb);
+}
+
+.return-details__claimant-icon {
+  color: var(--primary, #6366f1);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.return-details__claimant-field {
+  color: var(--text-secondary, #6b7280);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.return-details__claimant-val {
+  color: var(--text-primary, #111827);
+  font-weight: 600;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+
+

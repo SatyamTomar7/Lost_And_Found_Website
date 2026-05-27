@@ -1,0 +1,192 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-24);
+  border-radius: var(--r-md);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  font-weight: var(--fw-semibold);
+  line-height: 1.5;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: all var(--dur-normal) var(--ease);
+}
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0);
+  transition: background var(--dur-fast) var(--ease);
+  border-radius: inherit;
+}
+.btn:hover::after {
+  background: rgba(255, 255, 255, 0.1);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn--primary {
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--navy);
+  font-weight: var(--fw-bold);
+  box-shadow: var(--shadow-md);
+}
+.btn--primary:hover {
+  background: #fff;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.btn--secondary,
+.btn--outline {
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  color: #fff;
+  font-weight: var(--fw-bold);
+  box-shadow: var(--shadow-gold);
+}
+.btn--secondary:hover,
+.btn--outline:hover {
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--navy);
+  transform: translateY(-2px);
+}
+
+.btn--sm {
+  padding: var(--sp-8) var(--sp-16);
+  font-size: var(--text-sm);
+  border-radius: var(--r-sm);
+}
+.btn--lg {
+  padding: var(--sp-16) var(--sp-32);
+  font-size: var(--text-lg);
+  border-radius: var(--r-lg);
+}
+.btn--full-width {
+  width: 100%;
+}
+
+.btn--ghost {
+  background: transparent;
+  border: 1.5px solid transparent;
+  color: var(--text-secondary);
+  transition:
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.btn--ghost:hover:not(:disabled) {
+  color: var(--navy);
+  border-color: #e5e7eb;
+}
+
+.btn--info {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1.5px solid #bfdbfe;
+}
+.btn--info:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.btn--collected-offline {
+  background: transparent;
+  color: #b45309;
+  border: 1.5px solid #b45309;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.btn--collected-offline:hover:not(:disabled) {
+  background: #b45309;
+  color: #fff;
+}
+
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+.btn--outline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--self-resolve {
+  background-color: transparent;
+  color: #2e7d52;
+  border: 1.5px solid #2e7d52;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.btn--self-resolve:hover:not(:disabled) {
+  background-color: #2e7d52;
+  color: #ffffff;
+}
+
+.btn--self-resolve:active:not(:disabled) {
+  background-color: #245f40;
+  color: #ffffff;
+}
+
+.btn--self-resolve:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Confirm button inside modal ─────────────────────────────────────────────*/
+.btn--self-resolve-confirm {
+  background-color: #2e7d52;
+  color: #ffffff;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    opacity 0.18s ease;
+  line-height: 1.4;
+}
+
+.btn--self-resolve-confirm:hover:not(:disabled) {
+  background-color: #245f40;
+}
+
+.btn--self-resolve-confirm:active:not(:disabled) {
+  background-color: #1a4a30;
+}
+
+.btn--self-resolve-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

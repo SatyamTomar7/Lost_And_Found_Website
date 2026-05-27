@@ -1,0 +1,21 @@
+.empty-state {
+  text-align: center;
+  padding: var(--sp-64);
+}
+
+.empty-state svg {
+  font-size: 64px;
+  margin-bottom: var(--sp-24);
+  opacity: 0.55;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.empty-state h3 {
+  margin-bottom: var(--sp-8);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.empty-state p {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.6);
+}
