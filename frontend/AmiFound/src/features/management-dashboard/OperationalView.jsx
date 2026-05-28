@@ -478,7 +478,7 @@ export default function OperationalView({
       isSecurity
         ? [
             { id: "add-found", label: "ADD FOUND" },
-            { id: "active-found", label: "ACTIVE FOUND" },
+            { id: "active-found", label: "NEW FOUND ITEMS" },
             { id: "old-found-items", label: "OLD FOUND ITEMS" },
             { id: "enquiry-recovered", label: "ENQUIRY RECOVERED" },
             { id: "matches", label: "MATCHES" },
@@ -831,7 +831,7 @@ export default function OperationalView({
             >
               <div className={studentStyles["tab-content"]}>
                 <h2>
-                  <FaBox /> Active Found
+                  <FaBox /> New Found Items
                 </h2>
                 <div className={studentStyles["items-list"]}>
                   {isTabLoading ? (
@@ -844,7 +844,7 @@ export default function OperationalView({
                   ) : activeFoundItems.length === 0 ? (
                     <EmptyState
                       icon={FaInbox}
-                      title="No Active Found Items"
+                      title="No New Found Items"
                       description="No normal found items from the last 7 days."
                     />
                   ) : (
