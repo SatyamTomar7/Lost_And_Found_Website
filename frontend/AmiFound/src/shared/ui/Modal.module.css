@@ -129,14 +129,17 @@
 
 .return-modal__input-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   color: var(--text-muted);
   font-size: 13px;
   pointer-events: none;
+  width: 16px;
+  text-align: center;
+  z-index: 1;
 }
 
 .return-modal__input--icon-offset {
-  padding-left: 34px;
+  padding-left: 44px;
 }
 
 .return-modal__offline-submit {

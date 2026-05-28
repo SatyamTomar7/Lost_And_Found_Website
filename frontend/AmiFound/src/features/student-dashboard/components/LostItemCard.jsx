@@ -1,10 +1,19 @@
 import React from "react";
-import { FaCalendarAlt, FaHome, FaMapMarkerAlt, FaPalette } from "react-icons/fa";
+import {
+  FaCalendarAlt,
+  FaHome,
+  FaLink,
+  FaMapMarkerAlt,
+  FaPalette,
+} from "react-icons/fa";
 import buttonStyles from "../../../shared/ui/Button.module.css";
 import styles from "../StudentDashboard.module.css";
 import { canSelfResolve } from "../utils/studentDashboardHelpers";
 
-const LostItemCard = React.memo(({ item, onSelfResolve, isResolving }) => (
+const LostItemCard = React.memo(({ item, onSelfResolve, isResolving }) => {
+  const matchCount = item.matchedFoundItemIds?.length || 0;
+
+  return (
   <div className={styles["item-card"]}>
     <div className={styles["item-header"]}>
       <div className={styles["item-info"]}>
@@ -20,6 +29,12 @@ const LostItemCard = React.memo(({ item, onSelfResolve, isResolving }) => (
             <FaMapMarkerAlt /> {item.placeLost}
           </span>
         </div>
+        {matchCount > 0 && (
+          <div className={styles["item-match-badge"]}>
+            <FaLink /> {matchCount} possible match
+            {matchCount > 1 ? "es" : ""}
+          </div>
+        )}
       </div>
       {(() => {
         const statusClass = item.status.toLowerCase().replace(/[\s_]/g, "-");
@@ -48,7 +63,8 @@ const LostItemCard = React.memo(({ item, onSelfResolve, isResolving }) => (
       </div>
     )}
   </div>
-));
+  );
+});
 
 LostItemCard.displayName = "LostItemCard";
 
