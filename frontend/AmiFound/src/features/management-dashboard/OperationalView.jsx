@@ -226,7 +226,13 @@ export default function OperationalView({
   }, []);
 
   const submitMutation = useMutation({
-    mutationFn: (data) => submitFoundItem(data),
+    mutationFn: (data) =>
+      submitFoundItem({
+        ...data,
+        recoveryMode: isSecurity
+          ? data.recoveryMode || FOUND_ITEM_RECOVERY_MODES.NORMAL
+          : FOUND_ITEM_RECOVERY_MODES.NORMAL,
+      }),
     onMutate: () => setLoading(true),
     onSuccess: (result) => {
       if (result.success) {
@@ -448,7 +454,16 @@ export default function OperationalView({
     (item) => setOfflineDetailsModalItem(item),
     [],
   );
-  const handleFormSubmit = useCallback((data) => setPendingFormData(data), []);
+  const handleFormSubmit = useCallback(
+    (data) =>
+      setPendingFormData({
+        ...data,
+        recoveryMode: isSecurity
+          ? data.recoveryMode || selectedRecoveryMode || FOUND_ITEM_RECOVERY_MODES.NORMAL
+          : FOUND_ITEM_RECOVERY_MODES.NORMAL,
+      }),
+    [isSecurity, selectedRecoveryMode],
+  );
   const handleConfirmSubmit = useCallback(() => {
     if (pendingFormData) submitMutation.mutate(pendingFormData);
   }, [pendingFormData, submitMutation]);
