@@ -32,6 +32,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
   const {
     register,
     handleSubmit,
+    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm({
@@ -100,6 +101,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
   }, []);
 
   const isFormDisabled = isSubmitting || submitLostItemMutation.isPending;
+  const descriptionLength = watch("description", "").length;
 
   const joinDate = currentUser?.createdAt
     ? new Date(currentUser.createdAt).toLocaleDateString("en-US", {
@@ -135,6 +137,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
               submitLostItemMutation={submitLostItemMutation}
               today={today}
               minSelectableDate={minSelectableDate}
+              descriptionLength={descriptionLength}
             />
           )}
 

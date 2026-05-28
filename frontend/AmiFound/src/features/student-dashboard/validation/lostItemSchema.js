@@ -22,7 +22,7 @@ export const lostItemSchema = z.object({
   placeLost: z.string().min(1, "Please select a location"),
   description: z
     .string()
-    .max(100, "Description cannot exceed 100 characters")
+    .max(500, "Description cannot exceed 500 characters")
     .optional()
     .or(z.literal("")),
   photo: z

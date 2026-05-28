@@ -73,6 +73,12 @@ select.form-control {
   font-size: var(--text-sm);
   margin-top: var(--sp-4);
 }
+.form-help {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin-top: var(--sp-4);
+}
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

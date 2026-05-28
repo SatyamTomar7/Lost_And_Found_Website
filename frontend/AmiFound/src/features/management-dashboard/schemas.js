@@ -18,6 +18,11 @@ export const createFoundItemSchema = ({
         .max(20, "Brand name too long")
         .optional()
         .or(z.literal("")),
+      description: z
+        .string()
+        .max(500, "Description cannot exceed 500 characters")
+        .optional()
+        .or(z.literal("")),
       condition: z.enum(["New", "Used"], {
         required_error: "Please select condition",
       }),

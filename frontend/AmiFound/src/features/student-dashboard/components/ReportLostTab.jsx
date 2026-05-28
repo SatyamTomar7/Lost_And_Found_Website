@@ -20,6 +20,7 @@ const ReportLostTab = ({
   submitLostItemMutation,
   today,
   minSelectableDate,
+  descriptionLength,
 }) => (
   <div
     className={`${styles["dashboard-tab"]} ${styles.active}`}
@@ -213,8 +214,17 @@ const ReportLostTab = ({
             {...register("description")}
             className={authStyles["form-control"]}
             rows={3}
+            maxLength={500}
             disabled={isFormDisabled}
           />
+          <div className={authStyles["form-help"]}>
+            Maximum 500 characters. {descriptionLength}/500
+          </div>
+          {errors.description && (
+            <div className={authStyles["error-message"]}>
+              {errors.description.message}
+            </div>
+          )}
         </div>
 
         <div className={authStyles["form-group"]}>

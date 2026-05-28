@@ -73,6 +73,7 @@ export const SubmitConfirmModal = ({
               ? ["Recovery Mode", "Enquiry Recovered"]
               : null,
             formData.brand ? ["Brand", formData.brand] : null,
+            formData.description ? ["Description", formData.description] : null,
             ["Place Found", formData.placeFound],
             [
               "Date Found",

@@ -95,6 +95,7 @@ export default function OperationalView({
       dateFound: "",
       placeFound: "",
       brand: "",
+      description: "",
       condition: "Used",
     },
   });
@@ -104,6 +105,7 @@ export default function OperationalView({
     FOUND_ITEM_RECOVERY_MODES.NORMAL,
   );
   const selectedDateFound = watch("dateFound", "");
+  const descriptionLength = watch("description", "").length;
   const watchedRecoveryModeFallback =
     selectedRecoveryMode || DASHBOARD_RECOVERY_MODES.NORMAL;
   const currentMinSelectableDate = isSecurity
@@ -633,6 +635,27 @@ export default function OperationalView({
                         disabled={isFormDisabled}
                       />
                     </div>
+                  </div>
+                  <div className={authStyles["form-group"]}>
+                    <label htmlFor="description" className={authStyles["form-label"]}>
+                      Description (optional)
+                    </label>
+                    <textarea
+                      id="description"
+                      {...register("description")}
+                      className={`${authStyles["form-control"]} ${errors.description ? authStyles["is-invalid"] : ""}`}
+                      rows={3}
+                      maxLength={500}
+                      disabled={isFormDisabled}
+                    />
+                    <div className={authStyles["form-help"]}>
+                      Maximum 500 characters. {descriptionLength}/500
+                    </div>
+                    {errors.description && (
+                      <div className={authStyles["error-message"]}>
+                        {errors.description.message}
+                      </div>
+                    )}
                   </div>
                   <div className={authStyles["form-row"]}>
                     <div className={authStyles["form-group"]}>
