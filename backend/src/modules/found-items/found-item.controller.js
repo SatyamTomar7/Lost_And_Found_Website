@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
-import { ITEM_STATUS, NOTIFICATION_TYPES } from "../../config/constants.js";
+import {
+  FOUND_ITEM_RECOVERY_MODES,
+  ITEM_STATUS,
+  NOTIFICATION_TYPES,
+} from "../../config/constants.js";
 import { emailService } from "../../shared/services/email.service.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { ApiResponse } from "../../shared/utils/ApiResponse.js";
@@ -16,7 +20,15 @@ import { User } from "../auth/User.model.js";
 import { LostItem } from "../lost-items/LostItem.model.js";
 import { FoundItem } from "./FoundItem.model.js";
 export const addFoundItem = asyncHandler(async (req, res) => {
-  const { name, color, dateFound, placeFound, brand, condition } = req.body;
+  const {
+    name,
+    color,
+    dateFound,
+    placeFound,
+    brand,
+    condition,
+    recoveryMode,
+  } = req.body;
 
   const foundItemData = {
     name,
@@ -29,6 +41,11 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     createdBy: req.user.id,
 
     handledBy: req.user.role,
+
+    recoveryMode:
+      req.user.role === "security"
+        ? recoveryMode || FOUND_ITEM_RECOVERY_MODES.NORMAL
+        : FOUND_ITEM_RECOVERY_MODES.NORMAL,
 
     block: req.user.role === "admin" ? req.user.block : null,
 
@@ -70,14 +87,17 @@ export const addFoundItem = asyncHandler(async (req, res) => {
             priority: match.matchScore > 85 ? "high" : "medium",
           });
 
-          emailService
-            .sendMatchNotification(
-              match.lostItem.userId.email,
-              match.lostItem.userId.name,
-              match.lostItem,
-              foundItem
-            )
-            .catch((err) => console.error("Email Error:", err));
+          const emailSent = await emailService.sendMatchNotification(
+            match.lostItem.userId.email,
+            match.lostItem.userId.name,
+            match.lostItem,
+            foundItem
+          );
+          if (!emailSent) {
+            console.error(
+              `[addFoundItem] Match email failed for found item ${foundItem._id} and lost item ${match.lostItem._id}`
+            );
+          }
           if (io && match?.lostItem?.userId?._id) {
             io.sendNotificationToUser(match.lostItem.userId._id, {
               ...notification.toObject(),
@@ -113,7 +133,7 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 10);
-  const { status } = req.query;
+  const { status, recoveryMode } = req.query;
 
   const query = {
     isActive: true,
@@ -128,6 +148,12 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
     query.handledBy = "security";
   }
   if (status) query.status = status;
+  if (recoveryMode) {
+    if (!Object.values(FOUND_ITEM_RECOVERY_MODES).includes(recoveryMode)) {
+      throw new ApiError(400, "Invalid recovery mode filter");
+    }
+    query.recoveryMode = recoveryMode;
+  }
 
   const [foundItems, total] = await Promise.all([
     FoundItem.find(query)
@@ -1055,7 +1081,7 @@ for (const lostItem of affectedLostItems) {
   }
 });
 export const searchFoundItems = asyncHandler(async (req, res) => {
-  const { q, color, block, dateFrom, dateTo } = req.query;
+  const { q, color, block, dateFrom, dateTo, recoveryMode } = req.query;
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(parseInt(req.query.limit) || 10, 100);
 
@@ -1076,6 +1102,13 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
 
   if (color) {
     query.color = color;
+  }
+
+  if (recoveryMode) {
+    if (!Object.values(FOUND_ITEM_RECOVERY_MODES).includes(recoveryMode)) {
+      throw new ApiError(400, "Invalid recovery mode filter");
+    }
+    query.recoveryMode = recoveryMode;
   }
 
   if (dateFrom || dateTo) {

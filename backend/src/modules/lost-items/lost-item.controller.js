@@ -130,14 +130,17 @@ export const submitLostItem = asyncHandler(async (req, res) => {
             priority: match.matchScore > 85 ? "high" : "medium",
           });
 
-          emailService
-            .sendMatchNotification(
-              req.user.email,
-              req.user.name,
-              lostItem,
-              match.foundItem
-            )
-            .catch((err) => console.error("Match Email Failed:", err));
+          const emailSent = await emailService.sendMatchNotification(
+            req.user.email,
+            req.user.name,
+            lostItem,
+            match.foundItem
+          );
+          if (!emailSent) {
+            console.error(
+              `[submitLostItem] Match email failed for lost item ${lostItem._id} and found item ${match.foundItem._id}`
+            );
+          }
 
           if (io) {
             io.sendNotificationToUser(req.user.id, {

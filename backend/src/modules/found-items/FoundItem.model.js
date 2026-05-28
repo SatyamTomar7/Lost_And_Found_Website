@@ -1,9 +1,21 @@
 import mongoose, { Schema } from "mongoose";
 import {
   COLORS,
+  FOUND_ITEM_RECOVERY_MODES,
   ITEM_CONDITIONS_VALUES,
   ITEM_STATUS,
 } from "../../config/constants.js";
+
+const getMinAllowedDate = (recoveryMode) => {
+  const minDate = new Date();
+  minDate.setHours(0, 0, 0, 0);
+  minDate.setDate(
+    minDate.getDate() -
+      (recoveryMode === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED ? 29 : 6)
+  );
+  return minDate;
+};
+
 const foundItemSchema = new Schema(
   {
     createdBy: {
@@ -28,6 +40,12 @@ const foundItemSchema = new Schema(
       enum: ["admin", "security"],
       required: true,
       default: "admin",
+    },
+    recoveryMode: {
+      type: String,
+      enum: Object.values(FOUND_ITEM_RECOVERY_MODES),
+      default: FOUND_ITEM_RECOVERY_MODES.NORMAL,
+      index: true,
     },
     name: {
       type: String,
@@ -59,20 +77,18 @@ const foundItemSchema = new Schema(
       type: Date,
       required: [true, "Date found is required"],
       validate: {
-validator: function (date) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+        validator: function (date) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
-  const minDate = new Date();
-  minDate.setHours(0, 0, 0, 0);
-  minDate.setDate(minDate.getDate() - 6);
+          const minDate = getMinAllowedDate(this.recoveryMode);
+          const inputDate = new Date(date);
+          inputDate.setHours(0, 0, 0, 0);
 
-  const inputDate = new Date(date);
-  inputDate.setHours(0, 0, 0, 0);
-
-  return inputDate >= minDate && inputDate <= today;
-},
-        message: "Date found must be within the last 7 days and cannot be in the future",
+          return inputDate >= minDate && inputDate <= today;
+        },
+        message:
+          "Date found must be within the allowed recovery window and cannot be in the future",
       },
     },
     placeFound: {
@@ -217,6 +233,7 @@ foundItemSchema.index({
 
 foundItemSchema.index({ block: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
+foundItemSchema.index({ handledBy: 1, recoveryMode: 1, createdAt: -1 });
 foundItemSchema.index({ createdBy: 1 });
 foundItemSchema.index({ matchedLostItemIds: 1 });
 export const FoundItem = mongoose.model("FoundItem", foundItemSchema);

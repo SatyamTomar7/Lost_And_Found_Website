@@ -66,14 +66,6 @@ const buildPlaceLostFilter = (foundItem) => {
 };
 
 const MATCH_WINDOW_DAYS = 7;
-
-const isWithinMatchWindow = (date) => {
-  const cutoffDate = new Date(
-    Date.now() - MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000
-  );
-
-  return new Date(date) >= cutoffDate;
-};
 // ---------------------------------------------------------------------------
 
 class MatchingService {
@@ -273,11 +265,6 @@ class MatchingService {
           "Lost item not found, inactive, or not in pending state"
         );
       }
-      if (!isWithinMatchWindow(lostItem.dateLost)) {
-        await session.abortTransaction();
-        return [];
-      }
-
       const colorFilter = {
         $in: [lostItem.color, ...AMBIGUOUS_COLORS],
       };
@@ -325,7 +312,7 @@ class MatchingService {
         name: lostItem.name,
         color: colorFilter,
         dateFound: {
-          $gte: new Date(Date.now() - MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000),
+          $gte: minDate,
           $lte: maxDate,
         },
         ...placeFoundFilter,
@@ -424,11 +411,6 @@ class MatchingService {
           "Found item not found, inactive, or not available for matching"
         );
       }
-      if (!isWithinMatchWindow(foundItem.dateFound)) {
-        await session.abortTransaction();
-        return [];
-      }
-
       const colorFilter = { $in: [foundItem.color, ...AMBIGUOUS_COLORS] };
 
       const minDate = new Date(foundItem.dateFound);
@@ -445,7 +427,7 @@ class MatchingService {
         name: foundItem.name,
         color: colorFilter,
         dateLost: {
-          $gte: new Date(Date.now() - MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000),
+          $gte: minDate,
           $lte: maxDate,
         },
         ...(placeLostFilter ?? {}), // spread nothing for security items

@@ -2,19 +2,39 @@ import { body, param } from "express-validator";
 import {
   ALL_LOCATIONS,
   COLORS,
+  FOUND_ITEM_RECOVERY_MODES,
   ITEM_CONDITIONS,
   ITEM_NAME,
 } from "../../config/constants.js";
 import { handleValidationErrors } from "../../shared/validation/validate-request.js";
 
-const getMinAllowedDate = () => {
+const getMinAllowedDate = (recoveryMode = FOUND_ITEM_RECOVERY_MODES.NORMAL) => {
   const minDate = new Date();
   minDate.setHours(0, 0, 0, 0);
-  minDate.setDate(minDate.getDate() - 6);
+  minDate.setDate(
+    minDate.getDate() -
+      (recoveryMode === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED ? 29 : 6)
+  );
   return minDate;
 };
 
 const validateFoundItem = [
+  body("recoveryMode")
+    .optional()
+    .isIn(Object.values(FOUND_ITEM_RECOVERY_MODES))
+    .withMessage("Invalid recovery mode selected")
+    .custom((value, { req }) => {
+      if (
+        req.user?.role !== "security" &&
+        value === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED
+      ) {
+        throw new Error(
+          "Only security users can create enquiry recovered found items"
+        );
+      }
+      return true;
+    }),
+
   body("name")
     .isIn(ITEM_NAME)
     .withMessage("Please select a valid item category"),
@@ -38,12 +58,18 @@ const validateFoundItem = [
   body("dateFound")
     .isISO8601()
     .withMessage("Valid date is required")
-    .custom((value) => {
+    .custom((value, { req }) => {
+      const recoveryMode =
+        req.body.recoveryMode || FOUND_ITEM_RECOVERY_MODES.NORMAL;
       const inputDate = new Date(value);
       inputDate.setHours(0, 0, 0, 0);
 
-      if (inputDate < getMinAllowedDate()) {
-        throw new Error("Date found must be within the last 7 days");
+      if (inputDate < getMinAllowedDate(recoveryMode)) {
+        throw new Error(
+          recoveryMode === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED
+            ? "Date found must be within the last 30 days"
+            : "Date found must be within the last 7 days"
+        );
       }
 
       if (new Date(value) > new Date()) {

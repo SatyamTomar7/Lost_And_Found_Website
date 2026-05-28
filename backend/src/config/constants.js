@@ -56,6 +56,10 @@ const ITEM_STATUS = {
   SELF_RESOLVED: "self resolved",
   MATCHED: "matched",
 };
+const FOUND_ITEM_RECOVERY_MODES = {
+  NORMAL: "normal",
+  ENQUIRY_RECOVERED: "enquiry_recovered",
+};
 const COLORS = [
   "Black",
   "White",
@@ -192,6 +196,7 @@ export {
   ALL_LOCATIONS,
   COLORS,
   ITEM_STATUS,
+  FOUND_ITEM_RECOVERY_MODES,
   NOTIFICATION_TYPES,
   ITEM_NAME,
   ITEM_CONDITIONS,

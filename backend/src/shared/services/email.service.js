@@ -164,7 +164,10 @@ class EmailService {
       console.log(`Match notification email sent to ${userEmail}`);
       return true;
     } catch (error) {
-      console.error("Match notification email error:", error);
+      console.error(
+        `Match notification email error for ${userEmail} (${lostItem?.name ?? "unknown item"}):`,
+        error
+      );
       return false;
     }
   }
