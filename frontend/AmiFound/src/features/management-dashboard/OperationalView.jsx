@@ -600,40 +600,6 @@ export default function OperationalView({
                       )}
                     </div>
                     <div className={authStyles["form-group"]}>
-                      {isSecurity && (
-                        <>
-                          <label
-                            htmlFor="recoveryMode"
-                            className={authStyles["form-label"]}
-                          >
-                            Recovery Mode
-                          </label>
-                          <select
-                            id="recoveryMode"
-                            {...register("recoveryMode")}
-                            className={`${authStyles["form-control"]} ${errors.recoveryMode ? authStyles["is-invalid"] : ""}`}
-                            disabled={isFormDisabled}
-                          >
-                            <option value={FOUND_ITEM_RECOVERY_MODES.NORMAL}>
-                              Normal
-                            </option>
-                            <option
-                              value={
-                                FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED
-                              }
-                            >
-                              Enquiry Recovered
-                            </option>
-                          </select>
-                          {errors.recoveryMode && (
-                            <div className={authStyles["error-message"]}>
-                              {errors.recoveryMode.message}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    <div className={authStyles["form-group"]}>
                       <label htmlFor="brand" className={authStyles["form-label"]}>
                         Brand (optional)
                       </label>
@@ -649,27 +615,6 @@ export default function OperationalView({
                         </div>
                       )}
                     </div>
-                  </div>
-                  <div className={authStyles["form-group"]}>
-                    <label htmlFor="description" className={authStyles["form-label"]}>
-                      Description (optional)
-                    </label>
-                    <textarea
-                      id="description"
-                      {...register("description")}
-                      className={`${authStyles["form-control"]} ${errors.description ? authStyles["is-invalid"] : ""}`}
-                      rows={3}
-                      maxLength={500}
-                      disabled={isFormDisabled}
-                    />
-                    <div className={authStyles["form-help"]}>
-                      Maximum 500 characters. {descriptionLength}/500
-                    </div>
-                    {errors.description && (
-                      <div className={authStyles["error-message"]}>
-                        {errors.description.message}
-                      </div>
-                    )}
                   </div>
                   <div className={authStyles["form-row"]}>
                     <div className={authStyles["form-group"]}>
@@ -717,6 +662,57 @@ export default function OperationalView({
                         </div>
                       )}
                     </div>
+                  </div>
+                  {isSecurity && (
+                    <div className={authStyles["form-group"]}>
+                      <label
+                        htmlFor="recoveryMode"
+                        className={authStyles["form-label"]}
+                      >
+                        Recovery Mode
+                      </label>
+                      <select
+                        id="recoveryMode"
+                        {...register("recoveryMode")}
+                        className={`${authStyles["form-control"]} ${errors.recoveryMode ? authStyles["is-invalid"] : ""}`}
+                        disabled={isFormDisabled}
+                      >
+                        <option value={FOUND_ITEM_RECOVERY_MODES.NORMAL}>
+                          Normal
+                        </option>
+                        <option
+                          value={FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED}
+                        >
+                          Enquiry Recovered
+                        </option>
+                      </select>
+                      {errors.recoveryMode && (
+                        <div className={authStyles["error-message"]}>
+                          {errors.recoveryMode.message}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className={authStyles["form-group"]}>
+                    <label htmlFor="description" className={authStyles["form-label"]}>
+                      Description (optional)
+                    </label>
+                    <textarea
+                      id="description"
+                      {...register("description")}
+                      className={`${authStyles["form-control"]} ${errors.description ? authStyles["is-invalid"] : ""}`}
+                      rows={3}
+                      maxLength={500}
+                      disabled={isFormDisabled}
+                    />
+                    <div className={authStyles["form-help"]}>
+                      Maximum 500 characters. {descriptionLength}/500
+                    </div>
+                    {errors.description && (
+                      <div className={authStyles["error-message"]}>
+                        {errors.description.message}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="submit"
