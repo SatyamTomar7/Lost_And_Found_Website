@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
@@ -19,6 +19,7 @@ import managementStyles from "./ManagementDashboard.module.css";
 import buttonStyles from "../../shared/ui/Button.module.css";
 import {
   COLORS,
+  FOUND_ITEM_RECOVERY_MODES,
   getLocationsByRole,
   ITEM_CONDITIONS,
   ITEM_NAME,
@@ -36,12 +37,14 @@ import {
   markNotificationAsRead,
 } from "../notifications/services/notificationService";
 import {
+  FOUND_ITEM_RECOVERY_MODES as DASHBOARD_RECOVERY_MODES,
+  getMinSelectableDate,
   minSelectableDate,
   OP_QUERY_KEYS,
   OPERATIONAL_QUERY_TIMINGS,
   today,
 } from "./constants";
-import { foundItemResolver } from "./schemas";
+import { createFoundItemResolver } from "./schemas";
 import { EmptyState } from "./shared-components";
 import {
   CollectOfflineModal,
@@ -61,6 +64,7 @@ export default function OperationalView({
   onViewDashboard,
 }) {
   const role = currentUser.role;
+  const isSecurity = role === "security";
   const [foundItemsView, setFoundItemsView] = useState("active");
   const [activeTab, setActiveTab] = useState("add-found");
   const [returnModalItem, setReturnModalItem] = useState(null);
@@ -70,23 +74,49 @@ export default function OperationalView({
   const [pendingFormData, setPendingFormData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const queryClient = useQueryClient();
+  const foundItemResolver = useMemo(
+    () => createFoundItemResolver({ isSecurity }),
+    [isSecurity],
+  );
 
   const {
     register,
     handleSubmit,
+    watch,
     reset,
+    resetField,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: foundItemResolver,
     defaultValues: {
       name: "",
       color: "",
+      recoveryMode: FOUND_ITEM_RECOVERY_MODES.NORMAL,
       dateFound: "",
       placeFound: "",
       brand: "",
       condition: "Used",
     },
   });
+
+  const selectedRecoveryMode = watch(
+    "recoveryMode",
+    FOUND_ITEM_RECOVERY_MODES.NORMAL,
+  );
+  const selectedDateFound = watch("dateFound", "");
+  const watchedRecoveryModeFallback =
+    selectedRecoveryMode || DASHBOARD_RECOVERY_MODES.NORMAL;
+  const currentMinSelectableDate = isSecurity
+    ? getMinSelectableDate(watchedRecoveryModeFallback)
+    : minSelectableDate;
+
+  useEffect(() => {
+    if (!isSecurity) return;
+
+    if (selectedDateFound && selectedDateFound < currentMinSelectableDate) {
+      resetField("dateFound");
+    }
+  }, [currentMinSelectableDate, isSecurity, resetField, selectedDateFound]);
 
   const { data: foundItems = [], isLoading: foundItemsLoading } = useQuery({
     queryKey: OP_QUERY_KEYS.foundItems,
@@ -95,6 +125,25 @@ export default function OperationalView({
       return r.data.data || [];
     },
     enabled: activeTab === "found-items",
+    staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
+    gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
+    refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  });
+
+  const {
+    data: enquiryRecoveredItems = [],
+    isLoading: enquiryRecoveredItemsLoading,
+  } = useQuery({
+    queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
+    queryFn: async () => {
+      const r = await getDepartmentFoundItems({
+        recoveryMode: DASHBOARD_RECOVERY_MODES.ENQUIRY_RECOVERED,
+      });
+      return r.data.data || [];
+    },
+    enabled: isSecurity && activeTab === "enquiry-recovered",
     staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
     gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
     refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
@@ -142,6 +191,9 @@ export default function OperationalView({
         reset();
         setPendingFormData(null);
         queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.foundItems });
+        queryClient.invalidateQueries({
+          queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
+        });
         queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.matches });
         if (result.data?.matches?.length > 0) {
           setActiveTab("matches");
@@ -165,17 +217,31 @@ export default function OperationalView({
       updateFoundItemStatus(itemId, newStatus, lostItemId, claimedByUserId),
     onMutate: async ({ itemId, newStatus }) => {
       await queryClient.cancelQueries({ queryKey: OP_QUERY_KEYS.foundItems });
+      await queryClient.cancelQueries({
+        queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
+      });
       const prev = queryClient.getQueryData(OP_QUERY_KEYS.foundItems);
+      const prevEnquiry = queryClient.getQueryData(
+        OP_QUERY_KEYS.enquiryRecoveredItems,
+      );
       queryClient.setQueryData(OP_QUERY_KEYS.foundItems, (old = []) =>
         old.map((item) =>
           item._id === itemId ? { ...item, status: newStatus } : item,
         ),
       );
+      queryClient.setQueryData(OP_QUERY_KEYS.enquiryRecoveredItems, (old = []) =>
+        old.map((item) =>
+          item._id === itemId ? { ...item, status: newStatus } : item,
+        ),
+      );
       setLoading(true);
-      return { previousFoundItems: prev };
+      return { previousFoundItems: prev, previousEnquiryItems: prevEnquiry };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.foundItems });
+      queryClient.invalidateQueries({
+        queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
+      });
       queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.matches });
       setReturnModalItem(null);
       showMessage("Item status updated successfully.", "success");
@@ -185,6 +251,12 @@ export default function OperationalView({
         queryClient.setQueryData(
           OP_QUERY_KEYS.foundItems,
           context.previousFoundItems,
+        );
+      }
+      if (context?.previousEnquiryItems) {
+        queryClient.setQueryData(
+          OP_QUERY_KEYS.enquiryRecoveredItems,
+          context.previousEnquiryItems,
         );
       }
       showMessage(error?.message || "Failed to update item status.", "error");
@@ -199,8 +271,26 @@ export default function OperationalView({
       await queryClient.cancelQueries({
         queryKey: OP_QUERY_KEYS.foundItems,
       });
+      await queryClient.cancelQueries({
+        queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
+      });
       const prev = queryClient.getQueryData(OP_QUERY_KEYS.foundItems);
+      const prevEnquiry = queryClient.getQueryData(
+        OP_QUERY_KEYS.enquiryRecoveredItems,
+      );
       queryClient.setQueryData(OP_QUERY_KEYS.foundItems, (old = []) =>
+        old.map((item) =>
+          item._id === itemId
+            ? {
+                ...item,
+                status: "offline returned",
+                matchedLostItemIds: [],
+                claimedBy,
+              }
+            : item,
+        ),
+      );
+      queryClient.setQueryData(OP_QUERY_KEYS.enquiryRecoveredItems, (old = []) =>
         old.map((item) =>
           item._id === itemId
             ? {
@@ -215,11 +305,15 @@ export default function OperationalView({
       setLoading(true);
       return {
         previousFoundItems: prev,
+        previousEnquiryItems: prevEnquiry,
       };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: OP_QUERY_KEYS.foundItems,
+      });
+      queryClient.invalidateQueries({
+        queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
       });
       queryClient.invalidateQueries({
         queryKey: OP_QUERY_KEYS.matches,
@@ -232,6 +326,12 @@ export default function OperationalView({
         queryClient.setQueryData(
           OP_QUERY_KEYS.foundItems,
           context.previousFoundItems,
+        );
+      }
+      if (context?.previousEnquiryItems) {
+        queryClient.setQueryData(
+          OP_QUERY_KEYS.enquiryRecoveredItems,
+          context.previousEnquiryItems,
         );
       }
       showMessage(
@@ -324,6 +424,14 @@ export default function OperationalView({
     });
   }, [foundItems]);
 
+  const operationalTabs = useMemo(
+    () =>
+      isSecurity
+        ? ["add-found", "found-items", "enquiry-recovered", "matches"]
+        : ["add-found", "found-items", "matches"],
+    [isSecurity],
+  );
+
   const isAnyUpdating =
     updateStatusMutation.isPending ||
     collectedOfflineMutation.isPending ||
@@ -331,6 +439,7 @@ export default function OperationalView({
   const isFormDisabled = isSubmitting || submitMutation.isPending;
   const isTabLoading =
     (activeTab === "found-items" && foundItemsLoading) ||
+    (activeTab === "enquiry-recovered" && enquiryRecoveredItemsLoading) ||
     (activeTab === "matches" && matchesLoading);
 
   return (
@@ -376,7 +485,7 @@ export default function OperationalView({
         </header>
 
         <nav className={studentStyles["dashboard-nav"]} role="tablist">
-          {["add-found", "found-items", "matches"].map((tab) => (
+          {operationalTabs.map((tab) => (
             <button
               key={tab}
               role="tab"
@@ -480,6 +589,40 @@ export default function OperationalView({
                       )}
                     </div>
                     <div className={authStyles["form-group"]}>
+                      {isSecurity && (
+                        <>
+                          <label
+                            htmlFor="recoveryMode"
+                            className={authStyles["form-label"]}
+                          >
+                            Recovery Mode
+                          </label>
+                          <select
+                            id="recoveryMode"
+                            {...register("recoveryMode")}
+                            className={`${authStyles["form-control"]} ${errors.recoveryMode ? authStyles["is-invalid"] : ""}`}
+                            disabled={isFormDisabled}
+                          >
+                            <option value={FOUND_ITEM_RECOVERY_MODES.NORMAL}>
+                              Normal
+                            </option>
+                            <option
+                              value={
+                                FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED
+                              }
+                            >
+                              Enquiry Recovered
+                            </option>
+                          </select>
+                          {errors.recoveryMode && (
+                            <div className={authStyles["error-message"]}>
+                              {errors.recoveryMode.message}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <div className={authStyles["form-group"]}>
                       <label htmlFor="brand" className={authStyles["form-label"]}>
                         Brand (optional)
                       </label>
@@ -525,7 +668,7 @@ export default function OperationalView({
                       <input
                         id="dateFound"
                         type="date"
-                        min={minSelectableDate}
+                        min={currentMinSelectableDate}
                         max={today}
                         {...register("dateFound")}
                         className={`${authStyles["form-control"]} ${errors.dateFound ? authStyles["is-invalid"] : ""}`}
@@ -654,6 +797,49 @@ export default function OperationalView({
                           />
                         ),
                     )
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "enquiry-recovered" && isSecurity && (
+            <section
+              className={`${studentStyles["dashboard-tab"]} ${studentStyles.active}`}
+              role="tabpanel"
+            >
+              <div className={studentStyles["tab-content"]}>
+                <h2>
+                  <FaBox /> Enquired Recovered Items
+                </h2>
+                <div className={studentStyles["items-list"]}>
+                  {isTabLoading ? (
+                    <EmptyState
+                      icon={FaSpinner}
+                      title=""
+                      description="Loading..."
+                      isSpinning
+                    />
+                  ) : enquiryRecoveredItems.length === 0 ? (
+                    <EmptyState
+                      icon={FaInbox}
+                      title="No Enquiry Recovered Items"
+                      description="No enquiry recovered items found yet."
+                    />
+                  ) : (
+                    enquiryRecoveredItems.map((item) => (
+                      <FoundItemCard
+                        key={item._id}
+                        item={item}
+                        currentUser={currentUser}
+                        onMarkReturned={handleMarkReturned}
+                        onUpdateStatus={handleUpdateStatus}
+                        onMarkCollectedOffline={handleMarkOffline}
+                        isUpdating={isAnyUpdating}
+                        onViewDetails={handleViewDetails}
+                        onViewOfflineDetails={handleViewOffline}
+                      />
+                    ))
                   )}
                 </div>
               </div>

@@ -9,11 +9,26 @@ import {
 
 export const today = new Date().toISOString().split("T")[0];
 
-export const minSelectableDate = new Date(
-  Date.now() - 6 * 24 * 60 * 60 * 1000,
-)
-  .toISOString()
-  .split("T")[0];
+export const FOUND_ITEM_RECOVERY_MODES = {
+  NORMAL: "normal",
+  ENQUIRY_RECOVERED: "enquiry_recovered",
+};
+
+export const getMinSelectableDate = (
+  recoveryMode = FOUND_ITEM_RECOVERY_MODES.NORMAL,
+) =>
+  new Date(
+    Date.now() -
+      (recoveryMode === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED ? 29 : 6) *
+        24 *
+        60 *
+        60 *
+        1000,
+  )
+    .toISOString()
+    .split("T")[0];
+
+export const minSelectableDate = getMinSelectableDate();
 
 export const BLOCKS = ["A", "B", "C", "D", "E"];
 
@@ -83,6 +98,7 @@ export const MGMT_STAT_CARDS = (a) => [
 
 export const OP_QUERY_KEYS = {
   foundItems: ["foundItems"],
+  enquiryRecoveredItems: ["enquiryRecoveredItems"],
   matches: ["matches"],
   notifications: ["admin-notifications"],
 };

@@ -3,6 +3,19 @@ import { getAuthHeaders, getAuthToken } from "../../auth/services/authService";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
+const buildQuery = (params = {}) => {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, value);
+    }
+  });
+
+  const queryString = query.toString();
+  return queryString ? `?${queryString}` : "";
+};
+
 // ==================== LOST ITEMS ====================
 
 export const submitLostItem = async (itemData) => {
@@ -60,8 +73,8 @@ export const submitFoundItem = async (itemData) =>
     body: JSON.stringify(itemData),
   });
 
-export const getDepartmentFoundItems = async () =>
-  apiFetch(`${API_URL}/founditems/department`, {
+export const getDepartmentFoundItems = async (params = {}) =>
+  apiFetch(`${API_URL}/founditems/department${buildQuery(params)}`, {
     headers: getAuthHeaders(),
   });
 

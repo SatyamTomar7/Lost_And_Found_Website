@@ -63,6 +63,11 @@ export const ITEM_CONDITIONS = {
   USED: "Used",
 };
 
+export const FOUND_ITEM_RECOVERY_MODES = {
+  NORMAL: "normal",
+  ENQUIRY_RECOVERED: "enquiry_recovered",
+};
+
 export const BLOCK_LOCATIONS = {
   A: [
     "Block A - Classrooms",

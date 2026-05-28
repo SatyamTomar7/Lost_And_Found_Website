@@ -69,6 +69,9 @@ export const SubmitConfirmModal = ({
             ["Item Name", formData.name],
             ["Color", formData.color],
             ["Condition", formData.condition],
+            formData.recoveryMode === "enquiry_recovered"
+              ? ["Recovery Mode", "Enquiry Recovered"]
+              : null,
             formData.brand ? ["Brand", formData.brand] : null,
             ["Place Found", formData.placeFound],
             [
@@ -808,6 +811,12 @@ export const FoundItemCard = ({
           {item.handledBy === "security" && item.originalBlock && (
             <div className={managementStyles["transferred-badge"]}>
               Transferred from Block {item.originalBlock}
+            </div>
+          )}
+
+          {item.recoveryMode === "enquiry_recovered" && (
+            <div className={managementStyles["transferred-badge"]}>
+              Enquiry Recovered
             </div>
           )}
 
