@@ -17,6 +17,7 @@ import authStyles from "../auth/Auth.module.css";
 import studentStyles from "../student-dashboard/StudentDashboard.module.css";
 import managementStyles from "./ManagementDashboard.module.css";
 import buttonStyles from "../../shared/ui/Button.module.css";
+import { applyBackendFormErrors } from "../../shared/lib/formErrorMapper";
 import {
   COLORS,
   FOUND_ITEM_RECOVERY_MODES,
@@ -71,6 +72,7 @@ export default function OperationalView({
   const [detailsModalItem, setDetailsModalItem] = useState(null);
   const [offlineDetailsModalItem, setOfflineDetailsModalItem] = useState(null);
   const [collectOfflineItem, setCollectOfflineItem] = useState(null);
+  const [collectOfflineServerError, setCollectOfflineServerError] = useState(null);
   const [pendingFormData, setPendingFormData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const queryClient = useQueryClient();
@@ -82,6 +84,7 @@ export default function OperationalView({
   const {
     register,
     handleSubmit,
+    setError,
     watch,
     reset,
     resetField,
@@ -208,6 +211,7 @@ export default function OperationalView({
       }
     },
     onError: (error) => {
+      applyBackendFormErrors(setError, error);
       setPendingFormData(null);
       showMessage(error?.message || "Failed to add found item.", "error");
     },
@@ -320,6 +324,7 @@ export default function OperationalView({
       queryClient.invalidateQueries({
         queryKey: OP_QUERY_KEYS.matches,
       });
+      setCollectOfflineServerError(null);
       setCollectOfflineItem(null);
       showMessage("Item marked as collected offline.", "success");
     },
@@ -336,6 +341,7 @@ export default function OperationalView({
           context.previousEnquiryItems,
         );
       }
+      setCollectOfflineServerError(error);
       showMessage(
         error?.message || "Failed to mark item as collected offline.",
         "error",
@@ -374,7 +380,10 @@ export default function OperationalView({
     [updateStatusMutation],
   );
   const handleViewDetails = useCallback((item) => setDetailsModalItem(item), []);
-  const handleMarkOffline = useCallback((item) => setCollectOfflineItem(item), []);
+  const handleMarkOffline = useCallback((item) => {
+    setCollectOfflineServerError(null);
+    setCollectOfflineItem(item);
+  }, []);
   const handleOfflineConfirm = useCallback(
     (itemId, claimedBy) =>
       collectedOfflineMutation.mutate({
@@ -631,9 +640,14 @@ export default function OperationalView({
                       <input
                         id="brand"
                         {...register("brand")}
-                        className={authStyles["form-control"]}
+                        className={`${authStyles["form-control"]} ${errors.brand ? authStyles["is-invalid"] : ""}`}
                         disabled={isFormDisabled}
                       />
+                      {errors.brand && (
+                        <div className={authStyles["error-message"]}>
+                          {errors.brand.message}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className={authStyles["form-group"]}>
@@ -711,6 +725,11 @@ export default function OperationalView({
                   >
                     <FaPlus /> {submitMutation.isPending ? "Adding..." : "Add Found Item"}
                   </button>
+                  {errors.root && (
+                    <div className={authStyles["error-message"]}>
+                      {errors.root.message}
+                    </div>
+                  )}
                 </form>
               </div>
             </section>
@@ -895,8 +914,12 @@ export default function OperationalView({
         <CollectOfflineModal
           item={collectOfflineItem}
           onConfirm={handleOfflineConfirm}
-          onClose={() => setCollectOfflineItem(null)}
+          onClose={() => {
+            setCollectOfflineItem(null);
+            setCollectOfflineServerError(null);
+          }}
           isLoading={collectedOfflineMutation.isPending}
+          serverError={collectOfflineServerError}
         />
       )}
       {pendingFormData && (

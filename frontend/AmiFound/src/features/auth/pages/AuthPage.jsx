@@ -23,6 +23,7 @@ import {
 } from "../constants";
 import { schemaMap } from "../schemas";
 import useOTPTimer from "../hooks/useOTPTimer";
+import { applyBackendFormErrors } from "../../../shared/lib/formErrorMapper";
 import LoginForm from "../components/LoginForm";
 import RegisterForm from "../components/RegisterForm";
 import VerificationOtpForm from "../components/VerificationOtpForm";
@@ -72,6 +73,7 @@ const UnifiedAuthPage = ({
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver,
@@ -125,11 +127,19 @@ const UnifiedAuthPage = ({
           }
         }, 800);
       } else {
+        setError("root", {
+          type: "server",
+          message: result.message || "Invalid email or password",
+        });
         showMessage(result.message || "Invalid email or password", "error");
       }
     },
-    onError: (error) =>
-      showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) => {
+      applyBackendFormErrors(setError, error, {
+        defaultField: "root",
+      });
+      showMessage(error?.message || "Error connecting to server", "error");
+    },
     onSettled: () => setLoading(false),
   });
 
@@ -159,11 +169,19 @@ const UnifiedAuthPage = ({
         reset();
         showMessage("OTP sent to your email address", "success");
       } else {
+        setError("root", {
+          type: "server",
+          message: result.message || "Registration failed",
+        });
         showMessage(result.message || "Registration failed", "error");
       }
     },
-    onError: (error) =>
-      showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) => {
+      applyBackendFormErrors(setError, error, {
+        defaultField: "root",
+      });
+      showMessage(error?.message || "Error connecting to server", "error");
+    },
     onSettled: () => setLoading(false),
   });
 
@@ -183,11 +201,20 @@ const UnifiedAuthPage = ({
           navigate(getDashboardRoute(refreshedUser.role), { replace: true });
         }
       } else {
+        setError("otp", {
+          type: "server",
+          message: result.message || "Invalid OTP",
+        });
         showMessage(result.message || "Invalid OTP", "error");
       }
     },
-    onError: (error) =>
-      showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) => {
+      applyBackendFormErrors(setError, error, {
+        fieldMap: { root: "otp" },
+        defaultField: "otp",
+      });
+      showMessage(error?.message || "Error connecting to server", "error");
+    },
     onSettled: () => setLoading(false),
   });
 
@@ -198,10 +225,20 @@ const UnifiedAuthPage = ({
       if (result.success) {
         registrationTimer.startTimer();
         showMessage("OTP resent to your email address", "success");
-      } else showMessage(result.message || "Failed to resend OTP", "error");
+      } else {
+        setError("root", {
+          type: "server",
+          message: result.message || "Failed to resend OTP",
+        });
+        showMessage(result.message || "Failed to resend OTP", "error");
+      }
     },
-    onError: (error) =>
-      showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) => {
+      applyBackendFormErrors(setError, error, {
+        defaultField: "root",
+      });
+      showMessage(error?.message || "Error connecting to server", "error");
+    },
     onSettled: () => setLoading(false),
   });
 
@@ -215,8 +252,13 @@ const UnifiedAuthPage = ({
       reset();
       resetTimer.startTimer();
     },
-    onError: (error) =>
-      showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) => {
+      applyBackendFormErrors(setError, error, {
+        fieldMap: { email: "email" },
+        defaultField: "email",
+      });
+      showMessage(error?.message || "Error connecting to server", "error");
+    },
     onSettled: () => setLoading(false),
   });
 
@@ -227,8 +269,12 @@ const UnifiedAuthPage = ({
       resetTimer.startTimer();
       showMessage("OTP resent to your email.", "success");
     },
-    onError: (error) =>
-      showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) => {
+      applyBackendFormErrors(setError, error, {
+        defaultField: "root",
+      });
+      showMessage(error?.message || "Error connecting to server", "error");
+    },
     onSettled: () => setLoading(false),
   });
 
@@ -242,11 +288,19 @@ const UnifiedAuthPage = ({
         reset();
         showMessage("OTP verified. Set your new password.", "success");
       } else {
+        setError("otp", {
+          type: "server",
+          message: result.message || "Invalid or expired OTP",
+        });
         showMessage(result.message || "Invalid or expired OTP", "error");
       }
     },
-    onError: (error) =>
-      showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) => {
+      applyBackendFormErrors(setError, error, {
+        defaultField: "otp",
+      });
+      showMessage(error?.message || "Error connecting to server", "error");
+    },
     onSettled: () => setLoading(false),
   });
 
@@ -261,11 +315,24 @@ const UnifiedAuthPage = ({
         setResetToken("");
         switchForm("login");
       } else {
+        setError("root", {
+          type: "server",
+          message: result.message || "Failed to reset password",
+        });
         showMessage(result.message || "Failed to reset password", "error");
       }
     },
-    onError: (error) =>
-      showMessage(error?.message || "Error connecting to server", "error"),
+    onError: (error) => {
+      applyBackendFormErrors(setError, error, {
+        fieldMap: {
+          resetToken: "root",
+          newPassword: "newPassword",
+          confirmPassword: "confirmPassword",
+        },
+        defaultField: "root",
+      });
+      showMessage(error?.message || "Error connecting to server", "error");
+    },
     onSettled: () => setLoading(false),
   });
 

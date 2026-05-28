@@ -73,6 +73,9 @@ const ResetOtpForm = ({
       <FaArrowLeft />
       <span>Change Email</span>
     </button>
+    {errors.root && (
+      <div className={authStyles["error-message"]}>{errors.root.message}</div>
+    )}
   </form>
 );
 

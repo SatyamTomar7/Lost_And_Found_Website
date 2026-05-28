@@ -1,9 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { submitLostItem } from "../../items/services/itemService";
 import { STUDENT_DASHBOARD_QUERY_KEYS } from "../constants";
+import { applyBackendFormErrors } from "../../../shared/lib/formErrorMapper";
 
 export const useSubmitLostItem = ({
   reset,
+  setError,
   setPendingFormData,
   setActiveTab,
   setLoading,
@@ -27,6 +29,14 @@ export const useSubmitLostItem = ({
       setActiveTab("my-items");
     },
     onError: (err) => {
+      if (setError) {
+        applyBackendFormErrors(setError, err, {
+          fieldMap: {
+            "contactInfo.phone": "photo",
+          },
+          defaultField: "root",
+        });
+      }
       setPendingFormData(null);
       showMessage(err.message || "Something went wrong", "error");
     },

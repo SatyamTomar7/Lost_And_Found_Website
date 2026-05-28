@@ -72,6 +72,9 @@ const LoginForm = ({
       <FaSignInAlt aria-hidden="true" />
       <span>{loginMutation.isPending ? "Logging in..." : "Login"}</span>
     </button>
+    {errors.root && (
+      <div className={authStyles["error-message"]}>{errors.root.message}</div>
+    )}
   </form>
 );
 

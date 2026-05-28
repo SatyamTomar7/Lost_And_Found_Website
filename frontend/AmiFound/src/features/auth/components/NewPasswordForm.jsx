@@ -74,6 +74,9 @@ const NewPasswordForm = ({
         {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
       </span>
     </button>
+    {errors.root && (
+      <div className={authStyles["error-message"]}>{errors.root.message}</div>
+    )}
   </form>
 );
 

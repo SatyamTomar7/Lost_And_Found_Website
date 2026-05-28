@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,6 +29,7 @@ import managementStyles from "./ManagementDashboard.module.css";
 import studentStyles from "../student-dashboard/StudentDashboard.module.css";
 import buttonStyles from "../../shared/ui/Button.module.css";
 import modalStyles from "../../shared/ui/Modal.module.css";
+import { applyBackendFormErrors } from "../../shared/lib/formErrorMapper";
 import { collectOfflineSchema } from "./schemas";
 import { getMatchedLostItemsForFoundItem } from "../items/services/itemService";
 
@@ -226,10 +227,17 @@ export const ReturnDetailsModal = ({ item, onClose }) => (
   </div>
 );
 
-export const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => {
+export const CollectOfflineModal = ({
+  item,
+  onConfirm,
+  onClose,
+  isLoading,
+  serverError,
+}) => {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(collectOfflineSchema),
@@ -244,6 +252,14 @@ export const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => 
       block: "",
     },
   });
+
+  useEffect(() => {
+    if (!serverError) return;
+
+    applyBackendFormErrors(setError, serverError, {
+      defaultField: "root",
+    });
+  }, [serverError, setError]);
 
   return (
     <div className={modalStyles["return-modal-overlay"]} onClick={onClose}>
@@ -316,6 +332,11 @@ export const CollectOfflineModal = ({ item, onConfirm, onClose, isLoading }) => 
             ))}
           </div>
           <div className={modalStyles["return-modal__footer"]}>
+            {errors.root && (
+              <div className={authStyles["error-message"]}>
+                {errors.root.message}
+              </div>
+            )}
             <button
               type="button"
               className={`${buttonStyles.btn} ${buttonStyles["btn--outline"]}`}

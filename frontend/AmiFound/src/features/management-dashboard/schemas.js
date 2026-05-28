@@ -15,7 +15,7 @@ export const createFoundItemSchema = ({
       color: z.string().min(1, "Please select a color"),
       brand: z
         .string()
-        .max(20, "Brand name too long")
+        .max(50, "Brand name too long")
         .optional()
         .or(z.literal("")),
       description: z

@@ -8,7 +8,7 @@ import {
 export const lostItemSchema = z.object({
   name: z.string().min(1, "Please select a name"),
   color: z.string().min(1, "Please select a color"),
-  brand: z.string().max(20, "Brand name too long").optional().or(z.literal("")),
+  brand: z.string().max(50, "Brand name too long").optional().or(z.literal("")),
   condition: z.enum(["New", "Used"], {
     required_error: "Please select condition",
   }),
@@ -35,8 +35,10 @@ export const lostItemSchema = z.object({
       (files) =>
         !files ||
         files.length === 0 ||
-        ["image/jpeg", "image/png", "image/jpg"].includes(files[0].type),
-      ".jpg, .jpeg, and .png files are accepted.",
+        ["image/jpeg", "image/png", "image/jpg", "image/webp"].includes(
+          files[0].type,
+        ),
+      ".jpg, .jpeg, .png, and .webp files are accepted.",
     )
     .optional(),
 });

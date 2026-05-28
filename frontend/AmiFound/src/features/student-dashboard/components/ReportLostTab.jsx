@@ -152,9 +152,14 @@ const ReportLostTab = ({
             <input
               id="brand"
               {...register("brand")}
-              className={authStyles["form-control"]}
+              className={`${authStyles["form-control"]} ${errors.brand ? authStyles["is-invalid"] : ""}`}
               disabled={isFormDisabled}
             />
+            {errors.brand && (
+              <div className={authStyles["error-message"]}>
+                {errors.brand.message}
+              </div>
+            )}
           </div>
         </div>
 
@@ -235,10 +240,15 @@ const ReportLostTab = ({
             id="photo"
             type="file"
             {...register("photo")}
-            className={authStyles["form-control"]}
+            className={`${authStyles["form-control"]} ${errors.photo ? authStyles["is-invalid"] : ""}`}
             accept="image/*"
             disabled={isFormDisabled}
           />
+          {errors.photo && (
+            <div className={authStyles["error-message"]}>
+              {errors.photo.message}
+            </div>
+          )}
         </div>
 
         <button
@@ -249,6 +259,9 @@ const ReportLostTab = ({
           <FaPaperPlane />
           {submitLostItemMutation.isPending ? "Submitting…" : "Submit Report"}
         </button>
+        {errors.root && (
+          <div className={authStyles["error-message"]}>{errors.root.message}</div>
+        )}
       </form>
     </div>
   </div>

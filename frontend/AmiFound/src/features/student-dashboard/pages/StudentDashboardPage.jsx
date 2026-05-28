@@ -32,6 +32,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
   const {
     register,
     handleSubmit,
+    setError,
     watch,
     reset,
     formState: { errors, isSubmitting },
@@ -62,6 +63,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
 
   const submitLostItemMutation = useSubmitLostItem({
     reset,
+    setError,
     setPendingFormData,
     setActiveTab,
     setLoading,

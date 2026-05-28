@@ -60,6 +60,9 @@ const VerificationOtpForm = ({
       timerActive={registrationTimer.isActive}
       isAnyPending={isAnyPending}
     />
+    {errors.root && (
+      <div className={authStyles["error-message"]}>{errors.root.message}</div>
+    )}
   </form>
 );
 

@@ -61,6 +61,9 @@ const ForgotPasswordForm = ({
       <FaArrowLeft />
       <span>Back to Login</span>
     </button>
+    {errors.root && (
+      <div className={authStyles["error-message"]}>{errors.root.message}</div>
+    )}
   </form>
 );
 

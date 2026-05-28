@@ -15,6 +15,7 @@ import {
   SECTION_OPTIONS,
   BLOCK_OPTIONS,
 } from "../../../shared/constants/itemConstants.js";
+import { applyBackendFormErrors } from "../../../shared/lib/formErrorMapper.js";
 import styles from "../CompleteProfile.module.css";
 import homeStyles from "../../home/HomePage.module.css";
 
@@ -126,6 +127,7 @@ const CompleteProfile = ({ setCurrentUser }) => {
   const {
     register,
     handleSubmit,
+    setError,
     watch,
     setValue,
     formState: { errors },
@@ -159,6 +161,12 @@ const CompleteProfile = ({ setCurrentUser }) => {
       }
 
       navigate("/student-dashboard", { replace: true });
+    },
+    onError: (error) => {
+      setShowModal(false);
+      applyBackendFormErrors(setError, error, {
+        defaultField: "root",
+      });
     },
   });
 
@@ -313,6 +321,9 @@ const CompleteProfile = ({ setCurrentUser }) => {
                 <button type="submit" className={`${styles["cp-btn"]} ${styles["cp-btn-primary"]} ${styles["cp-btn-full"]}`}>
                   Review & Complete Profile
                 </button>
+                {errors.root && (
+                  <p className={styles["cp-error-text"]}>{errors.root.message}</p>
+                )}
               </form>
             </div>
           </div>

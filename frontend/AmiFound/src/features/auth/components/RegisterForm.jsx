@@ -79,6 +79,9 @@ const RegisterForm = ({
         {registerMutation.isPending ? "Sending OTP..." : "Register & Send OTP"}
       </span>
     </button>
+    {errors.root && (
+      <div className={authStyles["error-message"]}>{errors.root.message}</div>
+    )}
   </form>
 );
 
