@@ -489,7 +489,7 @@ function MgmtFoundItemsPanel() {
                   <div className={managementStyles["dd-name-cell"]}>
                     <BlockBadge block={item.block} />
                     <span className={managementStyles["dd-sm"]}>
-                      {item.adminId?.name || "-"}
+                      {item.createdBy?.name || "-"}
                     </span>
                   </div>
                 </td>

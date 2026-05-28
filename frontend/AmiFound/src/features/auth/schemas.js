@@ -1,12 +1,14 @@
 import { z } from "zod";
-import { isValidAmityEmail } from "./services/authService";
+import { isValidStudentRegistrationEmail } from "./services/authService";
 
-const amityEmailRule = z
+const studentRegistrationEmailRule = z
   .string()
   .trim()
   .toLowerCase()
   .min(1, "Email is required")
-  .refine(isValidAmityEmail, { message: "Must be a valid Amity email" });
+  .refine(isValidStudentRegistrationEmail, {
+    message: "Registration requires a valid @s.amity.edu email",
+  });
 
 const loginEmailRule = z
   .string()
@@ -26,7 +28,7 @@ const registerSchema = z.object({
     .trim()
     .min(2, "Name must be at least 2 characters")
     .max(50, "Name cannot exceed 50 characters"),
-  email: amityEmailRule,
+  email: studentRegistrationEmailRule,
   password: z
     .string()
     .min(6, "Password must be at least 6 characters")

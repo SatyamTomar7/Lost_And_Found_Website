@@ -66,7 +66,6 @@ export default function OperationalView({
 }) {
   const role = currentUser.role;
   const isSecurity = role === "security";
-  const [foundItemsView, setFoundItemsView] = useState("active");
   const [activeTab, setActiveTab] = useState("add-found");
   const [returnModalItem, setReturnModalItem] = useState(null);
   const [detailsModalItem, setDetailsModalItem] = useState(null);
@@ -129,13 +128,49 @@ export default function OperationalView({
       const r = await getDepartmentFoundItems();
       return r.data.data || [];
     },
-    enabled: activeTab === "found-items",
+    enabled: !isSecurity && activeTab === "found-items",
     staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
     gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
     refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
+
+  const { data: activeFoundItems = [], isLoading: activeFoundItemsLoading } =
+    useQuery({
+      queryKey: [...OP_QUERY_KEYS.foundItems, "security-active"],
+      queryFn: async () => {
+        const r = await getDepartmentFoundItems({
+          recoveryMode: DASHBOARD_RECOVERY_MODES.NORMAL,
+          age: "active",
+        });
+        return r.data.data || [];
+      },
+      enabled: isSecurity && activeTab === "active-found",
+      staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
+      gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
+      refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: true,
+    });
+
+  const { data: oldFoundItems = [], isLoading: oldFoundItemsLoading } =
+    useQuery({
+      queryKey: [...OP_QUERY_KEYS.foundItems, "security-old"],
+      queryFn: async () => {
+        const r = await getDepartmentFoundItems({
+          recoveryMode: DASHBOARD_RECOVERY_MODES.NORMAL,
+          age: "old",
+        });
+        return r.data.data || [];
+      },
+      enabled: isSecurity && activeTab === "old-found-items",
+      staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
+      gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
+      refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: true,
+    });
 
   const {
     data: enquiryRecoveredItems = [],
@@ -186,6 +221,9 @@ export default function OperationalView({
     });
 
   const { notifications, unreadCount } = notificationData;
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const submitMutation = useMutation({
     mutationFn: (data) => submitFoundItem(data),
@@ -202,8 +240,22 @@ export default function OperationalView({
         queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.matches });
         if (result.data?.matches?.length > 0) {
           setActiveTab("matches");
+          scrollToTop();
+        } else if (isSecurity) {
+          const submittedRecoveryMode =
+            result.data?.foundItem?.recoveryMode ||
+            pendingFormData?.recoveryMode ||
+            FOUND_ITEM_RECOVERY_MODES.NORMAL;
+
+          setActiveTab(
+            submittedRecoveryMode === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED
+              ? "enquiry-recovered"
+              : "active-found",
+          );
+          scrollToTop();
         } else {
           setActiveTab("found-items");
+          scrollToTop();
         }
       } else {
         setPendingFormData(null);
@@ -421,25 +473,21 @@ export default function OperationalView({
     [matches],
   );
 
-  const activeFoundItems = useMemo(() => {
-    return foundItems.filter((item) => {
-      const age = Date.now() - new Date(item.dateFound).getTime();
-      return age <= 7 * 24 * 60 * 60 * 1000;
-    });
-  }, [foundItems]);
-
-  const oldFoundItems = useMemo(() => {
-    return foundItems.filter((item) => {
-      const age = Date.now() - new Date(item.dateFound).getTime();
-      return age > 7 * 24 * 60 * 60 * 1000;
-    });
-  }, [foundItems]);
-
   const operationalTabs = useMemo(
     () =>
       isSecurity
-        ? ["add-found", "found-items", "enquiry-recovered", "matches"]
-        : ["add-found", "found-items", "matches"],
+        ? [
+            { id: "add-found", label: "ADD FOUND" },
+            { id: "active-found", label: "ACTIVE FOUND" },
+            { id: "old-found-items", label: "OLD FOUND ITEMS" },
+            { id: "enquiry-recovered", label: "ENQUIRY RECOVERED" },
+            { id: "matches", label: "MATCHES" },
+          ]
+        : [
+            { id: "add-found", label: "ADD FOUND" },
+            { id: "found-items", label: "FOUND ITEMS" },
+            { id: "matches", label: "MATCHES" },
+          ],
     [isSecurity],
   );
 
@@ -450,6 +498,8 @@ export default function OperationalView({
   const isFormDisabled = isSubmitting || submitMutation.isPending;
   const isTabLoading =
     (activeTab === "found-items" && foundItemsLoading) ||
+    (activeTab === "active-found" && activeFoundItemsLoading) ||
+    (activeTab === "old-found-items" && oldFoundItemsLoading) ||
     (activeTab === "enquiry-recovered" && enquiryRecoveredItemsLoading) ||
     (activeTab === "matches" && matchesLoading);
 
@@ -498,13 +548,13 @@ export default function OperationalView({
         <nav className={studentStyles["dashboard-nav"]} role="tablist">
           {operationalTabs.map((tab) => (
             <button
-              key={tab}
+              key={tab.id}
               role="tab"
-              aria-selected={activeTab === tab}
-              className={`${studentStyles["nav-tab"]} ${activeTab === tab ? studentStyles.active : ""}`}
-              onClick={() => setActiveTab(tab)}
+              aria-selected={activeTab === tab.id}
+              className={`${studentStyles["nav-tab"]} ${activeTab === tab.id ? studentStyles.active : ""}`}
+              onClick={() => setActiveTab(tab.id)}
             >
-              {tab.replace("-", " ").toUpperCase()}
+              {tab.label}
             </button>
           ))}
         </nav>
@@ -740,22 +790,6 @@ export default function OperationalView({
                 <h2>
                   <FaBox /> Department Found Items
                 </h2>
-                {role === "security" && (
-                  <div className={managementStyles["found-items-toggle"]}>
-                    <button
-                      className={`${buttonStyles.btn} ${foundItemsView === "active" ? buttonStyles["btn--primary"] : buttonStyles["btn--outline"]}`}
-                      onClick={() => setFoundItemsView("active")}
-                    >
-                      Active Items
-                    </button>
-                    <button
-                      className={`${buttonStyles.btn} ${foundItemsView === "old" ? buttonStyles["btn--primary"] : buttonStyles["btn--outline"]}`}
-                      onClick={() => setFoundItemsView("old")}
-                    >
-                      Old Items ({oldFoundItems.length})
-                    </button>
-                  </div>
-                )}
                 <div className={studentStyles["items-list"]}>
                   {isTabLoading ? (
                     <EmptyState
@@ -771,12 +805,93 @@ export default function OperationalView({
                       description="No items found yet."
                     />
                   ) : (
-                    (role === "security"
-                      ? foundItemsView === "active"
-                        ? activeFoundItems
-                        : oldFoundItems
-                      : activeFoundItems
-                    ).map((item) => (
+                    foundItems.map((item) => (
+                      <FoundItemCard
+                        key={item._id}
+                        item={item}
+                        currentUser={currentUser}
+                        onMarkReturned={handleMarkReturned}
+                        onUpdateStatus={handleUpdateStatus}
+                        onMarkCollectedOffline={handleMarkOffline}
+                        isUpdating={isAnyUpdating}
+                        onViewDetails={handleViewDetails}
+                        onViewOfflineDetails={handleViewOffline}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "active-found" && isSecurity && (
+            <section
+              className={`${studentStyles["dashboard-tab"]} ${studentStyles.active}`}
+              role="tabpanel"
+            >
+              <div className={studentStyles["tab-content"]}>
+                <h2>
+                  <FaBox /> Active Found
+                </h2>
+                <div className={studentStyles["items-list"]}>
+                  {isTabLoading ? (
+                    <EmptyState
+                      icon={FaSpinner}
+                      title=""
+                      description="Loading..."
+                      isSpinning
+                    />
+                  ) : activeFoundItems.length === 0 ? (
+                    <EmptyState
+                      icon={FaInbox}
+                      title="No Active Found Items"
+                      description="No normal found items from the last 7 days."
+                    />
+                  ) : (
+                    activeFoundItems.map((item) => (
+                      <FoundItemCard
+                        key={item._id}
+                        item={item}
+                        currentUser={currentUser}
+                        onMarkReturned={handleMarkReturned}
+                        onUpdateStatus={handleUpdateStatus}
+                        onMarkCollectedOffline={handleMarkOffline}
+                        isUpdating={isAnyUpdating}
+                        onViewDetails={handleViewDetails}
+                        onViewOfflineDetails={handleViewOffline}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "old-found-items" && isSecurity && (
+            <section
+              className={`${studentStyles["dashboard-tab"]} ${studentStyles.active}`}
+              role="tabpanel"
+            >
+              <div className={studentStyles["tab-content"]}>
+                <h2>
+                  <FaBox /> Old Found Items
+                </h2>
+                <div className={studentStyles["items-list"]}>
+                  {isTabLoading ? (
+                    <EmptyState
+                      icon={FaSpinner}
+                      title=""
+                      description="Loading..."
+                      isSpinning
+                    />
+                  ) : oldFoundItems.length === 0 ? (
+                    <EmptyState
+                      icon={FaInbox}
+                      title="No Old Found Items"
+                      description="No normal found items older than 7 days."
+                    />
+                  ) : (
+                    oldFoundItems.map((item) => (
                       <FoundItemCard
                         key={item._id}
                         item={item}

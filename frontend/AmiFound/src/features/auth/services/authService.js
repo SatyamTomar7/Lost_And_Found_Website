@@ -30,6 +30,9 @@ export const getAuthHeaders = () => {
 export const isValidAmityEmail = (email) =>
   email.endsWith("@s.amity.edu") || email.endsWith("@gwa.amity.edu");
 
+export const isValidStudentRegistrationEmail = (email) =>
+  email.endsWith("@s.amity.edu");
+
 export const isAuthenticated = () => !!getAuthToken();
 
 export const clearAuth = clearAuthSession;
