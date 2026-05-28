@@ -70,8 +70,13 @@ export const SubmitConfirmModal = ({
             ["Item Name", formData.name],
             ["Color", formData.color],
             ["Condition", formData.condition],
-            formData.recoveryMode === "enquiry_recovered"
-              ? ["Recovery Mode", "Enquiry Recovered"]
+            formData.recoveryMode
+              ? [
+                  "Recovery Mode",
+                  formData.recoveryMode === "enquiry_recovered"
+                    ? "Enquiry Recovered"
+                    : "Normal",
+                ]
               : null,
             formData.brand ? ["Brand", formData.brand] : null,
             formData.description ? ["Description", formData.description] : null,
