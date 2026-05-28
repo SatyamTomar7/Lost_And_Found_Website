@@ -21,8 +21,8 @@ const validateLostItem = [
   body("description")
     .optional({ checkFalsy: true })
     .trim()
-    .isLength({ max: 100 })
-    .withMessage("Description cannot exceed 100 characters"),
+    .isLength({ max: 500 })
+    .withMessage("Description cannot exceed 500 characters"),
 
   body("color")
     .isIn(COLORS)

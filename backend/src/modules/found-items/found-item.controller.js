@@ -27,6 +27,7 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     placeFound,
     brand,
     condition,
+    description,
     recoveryMode,
   } = req.body;
 
@@ -37,6 +38,7 @@ export const addFoundItem = asyncHandler(async (req, res) => {
     placeFound,
     brand,
     condition,
+    description,
 
     createdBy: req.user.id,
 

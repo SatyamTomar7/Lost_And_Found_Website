@@ -20,7 +20,7 @@ const lostItemSchema = new Schema(
     description: {
       type: String,
       trim: true,
-      maxlength: [100, "Description can not exceed 100 characters"],
+      maxlength: [500, "Description can not exceed 500 characters"],
     },
     color: {
       type: String,
