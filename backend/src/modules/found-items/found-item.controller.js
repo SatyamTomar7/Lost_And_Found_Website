@@ -135,7 +135,7 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.max(1, parseInt(req.query.limit) || 10);
-  const { status, recoveryMode } = req.query;
+  const { status, recoveryMode, age } = req.query;
 
   const query = {
     isActive: true,
@@ -155,6 +155,20 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Invalid recovery mode filter");
     }
     query.recoveryMode = recoveryMode;
+  }
+  if (age) {
+    if (!["active", "old"].includes(age)) {
+      throw new ApiError(400, "Invalid age filter");
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setHours(0, 0, 0, 0);
+    cutoffDate.setDate(cutoffDate.getDate() - 6);
+
+    query.dateFound =
+      age === "active"
+        ? { $gte: cutoffDate }
+        : { $lt: cutoffDate };
   }
 
   const [foundItems, total] = await Promise.all([

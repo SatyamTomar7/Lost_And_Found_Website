@@ -19,7 +19,9 @@ export const getDirectorAnalytics = asyncHandler(async (req, res) => {
     }),
 
     User.countDocuments({
-      role: USER_ROLES.ADMIN,
+      role: {
+        $in: [USER_ROLES.ADMIN, USER_ROLES.SECURITY],
+      },
     }),
 
     LostItem.countDocuments(),
