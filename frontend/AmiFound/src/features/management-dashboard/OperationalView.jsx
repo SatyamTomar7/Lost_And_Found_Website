@@ -462,6 +462,50 @@ export default function OperationalView({
     markAllReadMutation.mutate();
   }, [markAllReadMutation]);
 
+  const securityDateCutoff = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - 6);
+    return cutoff;
+  }, []);
+
+  const isEnquiryRecoveredItem = useCallback(
+    (item) =>
+      item?.recoveryMode === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED,
+    [],
+  );
+
+  const isNewFoundItem = useCallback(
+    (item) => {
+      if (!item || isEnquiryRecoveredItem(item) || !item.dateFound) return false;
+      return new Date(item.dateFound) >= securityDateCutoff;
+    },
+    [isEnquiryRecoveredItem, securityDateCutoff],
+  );
+
+  const isOldFoundItem = useCallback(
+    (item) => {
+      if (!item || isEnquiryRecoveredItem(item) || !item.dateFound) return false;
+      return new Date(item.dateFound) < securityDateCutoff;
+    },
+    [isEnquiryRecoveredItem, securityDateCutoff],
+  );
+
+  const filteredActiveFoundItems = useMemo(
+    () => activeFoundItems.filter(isNewFoundItem),
+    [activeFoundItems, isNewFoundItem],
+  );
+
+  const filteredOldFoundItems = useMemo(
+    () => oldFoundItems.filter(isOldFoundItem),
+    [isOldFoundItem, oldFoundItems],
+  );
+
+  const filteredEnquiryRecoveredItems = useMemo(
+    () => enquiryRecoveredItems.filter(isEnquiryRecoveredItem),
+    [enquiryRecoveredItems, isEnquiryRecoveredItem],
+  );
+
   const groupedMatches = useMemo(
     () =>
       matches.reduce((acc, match) => {
@@ -841,14 +885,14 @@ export default function OperationalView({
                       description="Loading..."
                       isSpinning
                     />
-                  ) : activeFoundItems.length === 0 ? (
+                  ) : filteredActiveFoundItems.length === 0 ? (
                     <EmptyState
                       icon={FaInbox}
                       title="No New Found Items"
                       description="No normal found items from the last 7 days."
                     />
                   ) : (
-                    activeFoundItems.map((item) => (
+                    filteredActiveFoundItems.map((item) => (
                       <FoundItemCard
                         key={item._id}
                         item={item}
@@ -884,14 +928,14 @@ export default function OperationalView({
                       description="Loading..."
                       isSpinning
                     />
-                  ) : oldFoundItems.length === 0 ? (
+                  ) : filteredOldFoundItems.length === 0 ? (
                     <EmptyState
                       icon={FaInbox}
                       title="No Old Found Items"
                       description="No normal found items older than 7 days."
                     />
                   ) : (
-                    oldFoundItems.map((item) => (
+                    filteredOldFoundItems.map((item) => (
                       <FoundItemCard
                         key={item._id}
                         item={item}
@@ -973,14 +1017,14 @@ export default function OperationalView({
                       description="Loading..."
                       isSpinning
                     />
-                  ) : enquiryRecoveredItems.length === 0 ? (
+                  ) : filteredEnquiryRecoveredItems.length === 0 ? (
                     <EmptyState
                       icon={FaInbox}
                       title="No Enquiry Recovered Items"
                       description="No enquiry recovered items found yet."
                     />
                   ) : (
-                    enquiryRecoveredItems.map((item) => (
+                    filteredEnquiryRecoveredItems.map((item) => (
                       <FoundItemCard
                         key={item._id}
                         item={item}
