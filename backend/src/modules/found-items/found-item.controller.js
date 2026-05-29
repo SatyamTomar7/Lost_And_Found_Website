@@ -19,6 +19,30 @@ import { Notification } from "../notifications/Notification.model.js";
 import { User } from "../auth/User.model.js";
 import { LostItem } from "../lost-items/LostItem.model.js";
 import { FoundItem } from "./FoundItem.model.js";
+
+const isFetchAllLimit = (value) =>
+  typeof value === "string" && value.trim().toLowerCase() === "all";
+
+const buildRecoveryModeQuery = (recoveryMode) => {
+  if (!recoveryMode) return null;
+
+  if (!Object.values(FOUND_ITEM_RECOVERY_MODES).includes(recoveryMode)) {
+    throw new ApiError(400, "Invalid recovery mode filter");
+  }
+
+  // Legacy records created before recoveryMode existed should behave as normal items.
+  if (recoveryMode === FOUND_ITEM_RECOVERY_MODES.NORMAL) {
+    return {
+      $or: [
+        { recoveryMode: FOUND_ITEM_RECOVERY_MODES.NORMAL },
+        { recoveryMode: { $exists: false } },
+        { recoveryMode: null },
+      ],
+    };
+  }
+
+  return { recoveryMode };
+};
 export const addFoundItem = asyncHandler(async (req, res) => {
   const {
     name,
@@ -134,7 +158,8 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 
 export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.max(1, parseInt(req.query.limit) || 10);
+  const fetchAll = isFetchAllLimit(req.query.limit);
+  const limit = fetchAll ? null : Math.min(200, Math.max(1, parseInt(req.query.limit) || 10));
   const { status, recoveryMode, age } = req.query;
 
   const query = {
@@ -150,11 +175,9 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
     query.handledBy = "security";
   }
   if (status) query.status = status;
-  if (recoveryMode) {
-    if (!Object.values(FOUND_ITEM_RECOVERY_MODES).includes(recoveryMode)) {
-      throw new ApiError(400, "Invalid recovery mode filter");
-    }
-    query.recoveryMode = recoveryMode;
+  const recoveryModeQuery = buildRecoveryModeQuery(recoveryMode);
+  if (recoveryModeQuery) {
+    Object.assign(query, recoveryModeQuery);
   }
   if (age) {
     if (!["active", "old"].includes(age)) {
@@ -171,30 +194,33 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
         : { $lt: cutoffDate };
   }
 
-  const [foundItems, total] = await Promise.all([
-    FoundItem.find(query)
-      .populate("createdBy", "name role block")
-      .populate({
-        path: "matchedLostItemIds",
-        select: "name userId status createdAt",
+  const itemsQuery = FoundItem.find(query)
+    .populate("createdBy", "name role block")
+    .populate({
+      path: "matchedLostItemIds",
+      select: "name userId status createdAt",
 
-        populate: {
-          path: "userId",
-          select: `
+      populate: {
+        path: "userId",
+        select: `
   name
   email
   enrollmentNumber
 `,
-        },
-      })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .skip((page - 1) * limit)
-      .lean(),
+      },
+    })
+    .sort({ createdAt: -1 });
+
+  if (!fetchAll) {
+    itemsQuery.limit(limit).skip((page - 1) * limit);
+  }
+
+  const [foundItems, total] = await Promise.all([
+    itemsQuery.lean(),
     FoundItem.countDocuments(query),
   ]);
 
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = fetchAll ? 1 : Math.ceil(total / limit);
 
   res.status(200).json(
     new ApiResponse(
@@ -202,10 +228,10 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
       {
         count: foundItems.length,
         pagination: {
-          page,
+          page: fetchAll ? 1 : page,
           pages: totalPages,
           total,
-          limit,
+          limit: fetchAll ? total : limit,
         },
         data: foundItems,
       },
@@ -1120,11 +1146,9 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
     query.color = color;
   }
 
-  if (recoveryMode) {
-    if (!Object.values(FOUND_ITEM_RECOVERY_MODES).includes(recoveryMode)) {
-      throw new ApiError(400, "Invalid recovery mode filter");
-    }
-    query.recoveryMode = recoveryMode;
+  const recoveryModeQuery = buildRecoveryModeQuery(recoveryMode);
+  if (recoveryModeQuery) {
+    Object.assign(query, recoveryModeQuery);
   }
 
   if (dateFrom || dateTo) {

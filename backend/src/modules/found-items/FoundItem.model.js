@@ -234,6 +234,7 @@ foundItemSchema.index({
 foundItemSchema.index({ block: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
 foundItemSchema.index({ handledBy: 1, recoveryMode: 1, createdAt: -1 });
+foundItemSchema.index({ handledBy: 1, recoveryMode: 1, dateFound: -1 });
 foundItemSchema.index({ createdBy: 1 });
 foundItemSchema.index({ matchedLostItemIds: 1 });
 export const FoundItem = mongoose.model("FoundItem", foundItemSchema);

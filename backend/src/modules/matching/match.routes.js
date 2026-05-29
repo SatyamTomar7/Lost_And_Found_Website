@@ -10,6 +10,6 @@ import { validateObjectId } from "../../shared/validation/common.validation.js";
 const router = express.Router();
 router.use(protect);
 router.get("/lost/:id", validateObjectId, checkLostItemMatches);
-router.get("/found/:id", validateObjectId, checkFoundItemMatches);
+router.get("/found/:id", isAdmin, validateObjectId, checkFoundItemMatches);
 router.get("/stats", isAdmin, getMatchingStats);
 export default router;

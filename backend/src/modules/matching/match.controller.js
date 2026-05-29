@@ -109,6 +109,10 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
   const foundItem = await FoundItem.findById(id).lean();
   if (!foundItem) throw new ApiError(404, "Found item not found");
 
+  if (req.user.role !== "admin" && req.user.role !== "security") {
+    throw new ApiError(403, "Access denied. Staff access only.");
+  }
+
   const foundItemBlock = extractBlock(foundItem.placeFound);
 
   if (req.user.role === "admin") {
@@ -240,7 +244,6 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
     matchedLostCount,
     returnedCount,
     itemStats,
-    foundItems,
     lostItems,
   ] = await Promise.all([
     LostItem.countDocuments({ isActive: true }),
@@ -279,16 +282,15 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
       { $sort: { total: -1 } },
     ]),
 
-    FoundItem.find({
-      isActive: true,
-      status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
-      ...foundItemQuery,
-    }).lean(),
-
     LostItem.find({
       isActive: true,
       status: { $in: [ITEM_STATUS.PENDING, ITEM_STATUS.MATCHED] },
-    }).lean(),
+      matchedFoundItemIds: { $exists: true, $ne: [] },
+    })
+      .select(
+        "name color dateLost placeLost description images userId matchedFoundItemIds"
+      )
+      .lean(),
   ]);
 
   const matchRate =
@@ -301,11 +303,32 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
       ? ((returnedCount / totalFoundItems) * 100).toFixed(2)
       : 0;
 
+  const referencedFoundIds = [
+    ...new Set(
+      lostItems.flatMap((lostItem) =>
+        (lostItem.matchedFoundItemIds || []).map((foundId) => foundId.toString())
+      )
+    ),
+  ];
+
+  const foundItems = referencedFoundIds.length
+    ? await FoundItem.find({
+        _id: { $in: referencedFoundIds },
+        isActive: true,
+        status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
+        ...foundItemQuery,
+      })
+        .select("name color block placeFound handledBy dateFound")
+        .lean()
+    : [];
+
   // Batch fetch users — avoids N+1
   const userIds = [...new Set(lostItems.map((l) => l.userId.toString()))];
-  const users = await User.find({ _id: { $in: userIds } }).select(
+  const users = userIds.length
+    ? await User.find({ _id: { $in: userIds } }).select(
     "name email enrollmentNumber phoneNumber course branch semester block"
-  );
+      )
+    : [];
   const userMap = Object.fromEntries(users.map((u) => [u._id.toString(), u]));
 
   // Build matches list from stored matchedFoundItemIds
