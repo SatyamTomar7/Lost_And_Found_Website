@@ -175,24 +175,25 @@ function AdminsPanel() {
             )}
             {data?.data?.map((a) => (
               <tr key={a._id}>
-                <td>
+                <td data-label="Name">
                   <div className={managementStyles["dd-name-cell"]}>
                     <MgmtAvatar name={a.name} />
                     <span className={managementStyles["dd-name"]}>{a.name}</span>
                   </div>
                 </td>
                 <td
+                  data-label="Email"
                   className={`${managementStyles["dd-muted"]} ${managementStyles["dd-sm"]}`}
                 >
                   {a.email}
                 </td>
-                <td>
+                <td data-label="Role">
                   <Pill status={a.role} />
                 </td>
-                <td>
+                <td data-label="Block">
                   <BlockBadge block={a.block} />
                 </td>
-                <td>
+                <td data-label="Status">
                   {a.isActive ? (
                     <span
                       className={`${managementStyles["dd-pill"]} ${managementStyles["pill-returned"]}`}
@@ -208,6 +209,7 @@ function AdminsPanel() {
                   )}
                 </td>
                 <td
+                  data-label="Last login"
                   className={`${managementStyles["dd-muted"]} ${managementStyles["dd-sm"]}`}
                 >
                   {fmtDate(a.lastLogin)}
@@ -277,7 +279,7 @@ function StudentsPanel() {
             )}
             {data?.data?.map((s) => (
               <tr key={s._id}>
-                <td>
+                <td data-label="Name">
                   <div className={managementStyles["dd-name-cell"]}>
                     <MgmtAvatar name={s.name} />
                     <div>
@@ -286,24 +288,29 @@ function StudentsPanel() {
                     </div>
                   </div>
                 </td>
-                <td className={managementStyles["dd-mono"]}>
+                <td
+                  data-label="Enrollment no."
+                  className={managementStyles["dd-mono"]}
+                >
                   {s.enrollmentNumber}
                 </td>
-                <td>
+                <td data-label="Course / Branch">
                   <span className={managementStyles["dd-name"]}>{s.course}</span>
                   <span className={managementStyles["dd-item-sub"]}>{s.branch}</span>
                 </td>
-                <td>
+                <td data-label="Semester">
                   <span
                     className={`${managementStyles["dd-pill"]} ${managementStyles["pill-found"]}`}
                   >
                     Sem {s.semester}
                   </span>
                 </td>
-                <td>
+                <td data-label="Block">
                   <BlockBadge block={s.block} />
                 </td>
-                <td className={managementStyles["dd-muted"]}>{s.section || "-"}</td>
+                <td data-label="Section" className={managementStyles["dd-muted"]}>
+                  {s.section || "-"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -370,13 +377,13 @@ function MgmtLostItemsPanel() {
             )}
             {data?.data?.map((item) => (
               <tr key={item._id}>
-                <td>
+                <td data-label="Item">
                   <span className={managementStyles["dd-name"]}>{item.name}</span>
                   {item.color && (
                     <span className={managementStyles["dd-item-sub"]}>{item.color}</span>
                   )}
                 </td>
-                <td>
+                <td data-label="Reported by">
                   <span className={managementStyles["dd-name"]}>
                     {item.userId?.name || "-"}
                   </span>
@@ -384,20 +391,25 @@ function MgmtLostItemsPanel() {
                     {item.userId?.email}
                   </span>
                 </td>
-                <td className={managementStyles["dd-mono"]}>
+                <td
+                  data-label="Enrollment"
+                  className={managementStyles["dd-mono"]}
+                >
                   {item.userId?.enrollmentNumber || "-"}
                 </td>
                 <td
+                  data-label="Place lost"
                   className={`${managementStyles["dd-muted"]} ${managementStyles["dd-sm"]}`}
                 >
                   {item.placeLost}
                 </td>
                 <td
+                  data-label="Date lost"
                   className={`${managementStyles["dd-muted"]} ${managementStyles["dd-sm"]}`}
                 >
                   {fmtDate(item.dateLost)}
                 </td>
-                <td>
+                <td data-label="Status">
                   <Pill status={item.status} />
                 </td>
               </tr>
@@ -479,13 +491,13 @@ function MgmtFoundItemsPanel() {
             )}
             {data?.data?.map((item) => (
               <tr key={item._id}>
-                <td>
+                <td data-label="Item">
                   <span className={managementStyles["dd-name"]}>{item.name}</span>
                   {item.color && (
                     <span className={managementStyles["dd-item-sub"]}>{item.color}</span>
                   )}
                 </td>
-                <td>
+                <td data-label="Admin (Block)">
                   <div className={managementStyles["dd-name-cell"]}>
                     <BlockBadge block={item.block} />
                     <span className={managementStyles["dd-sm"]}>
@@ -493,20 +505,22 @@ function MgmtFoundItemsPanel() {
                     </span>
                   </div>
                 </td>
-                <td className={managementStyles["dd-muted"]}>
+                <td data-label="Brand" className={managementStyles["dd-muted"]}>
                   {item.brand || "-"}
                 </td>
                 <td
+                  data-label="Place found"
                   className={`${managementStyles["dd-muted"]} ${managementStyles["dd-sm"]}`}
                 >
                   {item.placeFound}
                 </td>
                 <td
+                  data-label="Date found"
                   className={`${managementStyles["dd-muted"]} ${managementStyles["dd-sm"]}`}
                 >
                   {fmtDate(item.dateFound)}
                 </td>
-                <td>
+                <td data-label="Claimed by">
                   {item.claimedBy ? (
                     <>
                       <span className={managementStyles["dd-name"]}>
@@ -520,7 +534,7 @@ function MgmtFoundItemsPanel() {
                     <span className={managementStyles["dd-muted"]}>-</span>
                   )}
                 </td>
-                <td>
+                <td data-label="Status">
                   <Pill status={item.status} />
                 </td>
               </tr>
