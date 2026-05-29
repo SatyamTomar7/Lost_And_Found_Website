@@ -1,6 +1,9 @@
 import { FaArrowLeft, FaEnvelope, FaKey } from "react-icons/fa";
 import buttonStyles from "../../../shared/ui/Button.module.css";
 import authStyles from "../Auth.module.css";
+import AuthField from "./AuthField";
+import AuthSubmitButton from "./AuthSubmitButton";
+import AuthTextInput from "./AuthTextInput";
 import ResendButton from "./ResendButton";
 
 const ResetOtpForm = ({
@@ -27,34 +30,30 @@ const ResetOtpForm = ({
       </p>
     </div>
 
-    <div className={authStyles["form-group"]}>
-      <label htmlFor="reset-otp-input" className={authStyles["form-label"]}>
-        Reset OTP
-      </label>
-      <input
+    <AuthField
+      id="reset-otp-input"
+      label="Reset OTP"
+      error={errors.otp}
+    >
+      <AuthTextInput
         id="reset-otp-input"
-        {...register("otp")}
+        registration={register("otp")}
         autoComplete="one-time-code"
-        className={`${authStyles["form-control"]} ${authStyles["otp-input"]} ${errors.otp ? authStyles["is-invalid"] : ""}`}
-        maxLength="6"
+        inputMode="numeric"
+        className={authStyles["otp-input"]}
+        maxLength={6}
         placeholder="000000"
         disabled={isAnyPending}
       />
-      {errors.otp && (
-        <div className={authStyles["error-message"]}>{errors.otp.message}</div>
-      )}
-    </div>
+    </AuthField>
 
-    <button
-      type="submit"
-      className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${buttonStyles["btn--full-width"]}`}
+    <AuthSubmitButton
+      icon={FaKey}
+      label="Verify OTP"
+      pendingLabel="Verifying..."
+      isPending={verifyResetOTPMutation.isPending}
       disabled={isAnyPending}
-    >
-      <FaKey />
-      <span>
-        {verifyResetOTPMutation.isPending ? "Verifying..." : "Verify OTP"}
-      </span>
-    </button>
+    />
 
     <ResendButton
       onResend={() => resendResetOTPMutation.mutate()}

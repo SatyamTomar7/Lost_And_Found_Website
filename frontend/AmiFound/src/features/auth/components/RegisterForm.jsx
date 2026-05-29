@@ -1,6 +1,8 @@
 import { FaUserPlus } from "react-icons/fa";
-import buttonStyles from "../../../shared/ui/Button.module.css";
 import authStyles from "../Auth.module.css";
+import AuthField from "./AuthField";
+import AuthSubmitButton from "./AuthSubmitButton";
+import AuthTextInput from "./AuthTextInput";
 import PasswordInput from "./PasswordInput";
 
 const RegisterForm = ({
@@ -16,44 +18,33 @@ const RegisterForm = ({
     className={authStyles["auth-form"]}
     noValidate
   >
-    <div className={authStyles["form-group"]}>
-      <label htmlFor="register-name" className={authStyles["form-label"]}>
-        Full Name
-      </label>
-      <input
+    <AuthField id="register-name" label="Full Name" error={errors.name}>
+      <AuthTextInput
         id="register-name"
-        {...register("name")}
+        registration={register("name")}
         autoComplete="name"
-        className={`${authStyles["form-control"]} ${errors.name ? authStyles["is-invalid"] : ""}`}
         placeholder="Enter your full name"
         disabled={isAnyPending}
       />
-      {errors.name && (
-        <div className={authStyles["error-message"]}>{errors.name.message}</div>
-      )}
-    </div>
+    </AuthField>
 
-    <div className={authStyles["form-group"]}>
-      <label htmlFor="register-email" className={authStyles["form-label"]}>
-        Amity Email
-      </label>
-      <input
+    <AuthField id="register-email" label="Amity Email" error={errors.email}>
+      <AuthTextInput
         id="register-email"
-        {...register("email")}
+        registration={register("email")}
+        type="email"
         autoComplete="email"
-        className={`${authStyles["form-control"]} ${errors.email ? authStyles["is-invalid"] : ""}`}
+        inputMode="email"
         placeholder="your.name@s.amity.edu"
         disabled={isAnyPending}
       />
-      {errors.email && (
-        <div className={authStyles["error-message"]}>{errors.email.message}</div>
-      )}
-    </div>
+    </AuthField>
 
-    <div className={authStyles["form-group"]}>
-      <label htmlFor="register-password" className={authStyles["form-label"]}>
-        Password
-      </label>
+    <AuthField
+      id="register-password"
+      label="Password"
+      error={errors.password}
+    >
       <PasswordInput
         id="register-password"
         registration={register("password")}
@@ -62,23 +53,15 @@ const RegisterForm = ({
         disabled={isAnyPending}
         autoComplete="new-password"
       />
-      {errors.password && (
-        <div className={authStyles["error-message"]}>
-          {errors.password.message}
-        </div>
-      )}
-    </div>
+    </AuthField>
 
-    <button
-      type="submit"
-      className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${buttonStyles["btn--full-width"]}`}
+    <AuthSubmitButton
+      icon={FaUserPlus}
+      label="Register & Send OTP"
+      pendingLabel="Sending OTP..."
+      isPending={registerMutation.isPending}
       disabled={isAnyPending}
-    >
-      <FaUserPlus aria-hidden="true" />
-      <span>
-        {registerMutation.isPending ? "Sending OTP..." : "Register & Send OTP"}
-      </span>
-    </button>
+    />
     {errors.root && (
       <div className={authStyles["error-message"]}>{errors.root.message}</div>
     )}

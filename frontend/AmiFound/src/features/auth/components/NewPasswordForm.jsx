@@ -1,6 +1,7 @@
 import { FaCheck, FaLock } from "react-icons/fa";
-import buttonStyles from "../../../shared/ui/Button.module.css";
 import authStyles from "../Auth.module.css";
+import AuthField from "./AuthField";
+import AuthSubmitButton from "./AuthSubmitButton";
 import PasswordInput from "./PasswordInput";
 
 const NewPasswordForm = ({
@@ -23,10 +24,11 @@ const NewPasswordForm = ({
       <p>OTP verified! Choose a strong new password for your account.</p>
     </div>
 
-    <div className={authStyles["form-group"]}>
-      <label htmlFor="new-password-input" className={authStyles["form-label"]}>
-        New Password
-      </label>
+    <AuthField
+      id="new-password-input"
+      label="New Password"
+      error={errors.newPassword}
+    >
       <PasswordInput
         id="new-password-input"
         registration={register("newPassword")}
@@ -35,20 +37,13 @@ const NewPasswordForm = ({
         disabled={isAnyPending}
         autoComplete="new-password"
       />
-      {errors.newPassword && (
-        <div className={authStyles["error-message"]}>
-          {errors.newPassword.message}
-        </div>
-      )}
-    </div>
+    </AuthField>
 
-    <div className={authStyles["form-group"]}>
-      <label
-        htmlFor="confirm-password-input"
-        className={authStyles["form-label"]}
-      >
-        Confirm New Password
-      </label>
+    <AuthField
+      id="confirm-password-input"
+      label="Confirm New Password"
+      error={errors.confirmPassword}
+    >
       <PasswordInput
         id="confirm-password-input"
         registration={register("confirmPassword")}
@@ -57,23 +52,15 @@ const NewPasswordForm = ({
         disabled={isAnyPending}
         autoComplete="new-password"
       />
-      {errors.confirmPassword && (
-        <div className={authStyles["error-message"]}>
-          {errors.confirmPassword.message}
-        </div>
-      )}
-    </div>
+    </AuthField>
 
-    <button
-      type="submit"
-      className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${buttonStyles["btn--full-width"]}`}
+    <AuthSubmitButton
+      icon={FaLock}
+      label="Reset Password"
+      pendingLabel="Resetting..."
+      isPending={resetPasswordMutation.isPending}
       disabled={isAnyPending}
-    >
-      <FaLock />
-      <span>
-        {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
-      </span>
-    </button>
+    />
     {errors.root && (
       <div className={authStyles["error-message"]}>{errors.root.message}</div>
     )}

@@ -1,6 +1,8 @@
 import { FaCheck, FaEnvelope } from "react-icons/fa";
-import buttonStyles from "../../../shared/ui/Button.module.css";
 import authStyles from "../Auth.module.css";
+import AuthField from "./AuthField";
+import AuthSubmitButton from "./AuthSubmitButton";
+import AuthTextInput from "./AuthTextInput";
 import ResendButton from "./ResendButton";
 
 const VerificationOtpForm = ({
@@ -26,32 +28,26 @@ const VerificationOtpForm = ({
       </p>
     </div>
 
-    <div className={authStyles["form-group"]}>
-      <label htmlFor="otp-input" className={authStyles["form-label"]}>
-        Verification Code
-      </label>
-      <input
+    <AuthField id="otp-input" label="Verification Code" error={errors.otp}>
+      <AuthTextInput
         id="otp-input"
-        {...register("otp")}
+        registration={register("otp")}
         autoComplete="one-time-code"
-        className={`${authStyles["form-control"]} ${authStyles["otp-input"]} ${errors.otp ? authStyles["is-invalid"] : ""}`}
-        maxLength="6"
+        inputMode="numeric"
+        className={authStyles["otp-input"]}
+        maxLength={6}
         placeholder="000000"
         disabled={isAnyPending}
       />
-      {errors.otp && (
-        <div className={authStyles["error-message"]}>{errors.otp.message}</div>
-      )}
-    </div>
+    </AuthField>
 
-    <button
-      type="submit"
-      className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${buttonStyles["btn--full-width"]}`}
+    <AuthSubmitButton
+      icon={FaCheck}
+      label="Verify Email"
+      pendingLabel="Verifying..."
+      isPending={otpMutation.isPending}
       disabled={isAnyPending}
-    >
-      <FaCheck />
-      <span>{otpMutation.isPending ? "Verifying..." : "Verify Email"}</span>
-    </button>
+    />
 
     <ResendButton
       onResend={() => resendMutation.mutate()}

@@ -1,6 +1,9 @@
 import { FaArrowLeft, FaEnvelope, FaLock } from "react-icons/fa";
 import buttonStyles from "../../../shared/ui/Button.module.css";
 import authStyles from "../Auth.module.css";
+import AuthField from "./AuthField";
+import AuthSubmitButton from "./AuthSubmitButton";
+import AuthTextInput from "./AuthTextInput";
 
 const ForgotPasswordForm = ({
   handleSubmit,
@@ -24,33 +27,25 @@ const ForgotPasswordForm = ({
       </p>
     </div>
 
-    <div className={authStyles["form-group"]}>
-      <label htmlFor="forgot-email" className={authStyles["form-label"]}>
-        Email Address
-      </label>
-      <input
+    <AuthField id="forgot-email" label="Email Address" error={errors.email}>
+      <AuthTextInput
         id="forgot-email"
-        {...register("email")}
+        registration={register("email")}
+        type="email"
         autoComplete="email"
-        className={`${authStyles["form-control"]} ${errors.email ? authStyles["is-invalid"] : ""}`}
+        inputMode="email"
         placeholder="your.email@amity.edu"
         disabled={isAnyPending}
       />
-      {errors.email && (
-        <div className={authStyles["error-message"]}>{errors.email.message}</div>
-      )}
-    </div>
+    </AuthField>
 
-    <button
-      type="submit"
-      className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${buttonStyles["btn--full-width"]}`}
+    <AuthSubmitButton
+      icon={FaEnvelope}
+      label="Send Reset OTP"
+      pendingLabel="Sending OTP..."
+      isPending={forgotPasswordMutation.isPending}
       disabled={isAnyPending}
-    >
-      <FaEnvelope />
-      <span>
-        {forgotPasswordMutation.isPending ? "Sending OTP..." : "Send Reset OTP"}
-      </span>
-    </button>
+    />
 
     <button
       type="button"

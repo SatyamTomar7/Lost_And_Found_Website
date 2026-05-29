@@ -146,6 +146,7 @@ input[type="radio"] {
 /* ── Auth ───────────────────────────────────────────────────────────────── */
 .auth-container {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -354,14 +355,23 @@ input[type="radio"] {
   }
 
   .auth-card {
-    padding: var(--sp-24) var(--sp-18);
+    padding: var(--sp-20) var(--sp-16);
     border-radius: var(--r-xl);
     margin-top: var(--sp-16);
     margin-bottom: var(--sp-16);
+    max-width: 100%;
   }
 
   .auth-header {
     margin-bottom: var(--sp-24);
+  }
+
+  .auth-header h2 {
+    font-size: clamp(1.35rem, 5vw, 1.6rem);
+  }
+
+  .auth-header p {
+    font-size: var(--text-sm);
   }
 
   .form-label-row {
@@ -373,6 +383,11 @@ input[type="radio"] {
   .otp-message,
   .reset-info-box {
     padding: 12px 14px;
+  }
+
+  .form-control {
+    padding: 11px 14px;
+    font-size: 16px;
   }
 }
 

@@ -1,6 +1,8 @@
 import { FaSignInAlt } from "react-icons/fa";
-import buttonStyles from "../../../shared/ui/Button.module.css";
 import authStyles from "../Auth.module.css";
+import AuthField from "./AuthField";
+import AuthSubmitButton from "./AuthSubmitButton";
+import AuthTextInput from "./AuthTextInput";
 import PasswordInput from "./PasswordInput";
 
 const LoginForm = ({
@@ -17,28 +19,23 @@ const LoginForm = ({
     className={authStyles["auth-form"]}
     noValidate
   >
-    <div className={authStyles["form-group"]}>
-      <label htmlFor="login-email" className={authStyles["form-label"]}>
-        Email Address
-      </label>
-      <input
+    <AuthField id="login-email" label="Email Address" error={errors.email}>
+      <AuthTextInput
         id="login-email"
-        {...register("email")}
+        registration={register("email")}
+        type="email"
         autoComplete="email"
-        className={`${authStyles["form-control"]} ${errors.email ? authStyles["is-invalid"] : ""}`}
+        inputMode="email"
         placeholder="your.email@amity.edu"
         disabled={isAnyPending}
       />
-      {errors.email && (
-        <div className={authStyles["error-message"]}>{errors.email.message}</div>
-      )}
-    </div>
+    </AuthField>
 
-    <div className={authStyles["form-group"]}>
-      <div className={authStyles["form-label-row"]}>
-        <label htmlFor="login-password" className={authStyles["form-label"]}>
-          Password
-        </label>
+    <AuthField
+      id="login-password"
+      label="Password"
+      error={errors.password}
+      action={
         <button
           type="button"
           className={authStyles["forgot-password-link"]}
@@ -47,7 +44,8 @@ const LoginForm = ({
         >
           Forgot password?
         </button>
-      </div>
+      }
+    >
       <PasswordInput
         id="login-password"
         registration={register("password")}
@@ -56,22 +54,16 @@ const LoginForm = ({
         disabled={isAnyPending}
         autoComplete="current-password"
       />
-      {errors.password && (
-        <div className={authStyles["error-message"]}>
-          {errors.password.message}
-        </div>
-      )}
-    </div>
+    </AuthField>
 
-    <button
-      type="submit"
-      className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${buttonStyles["btn--full-width"]}`}
+    <AuthSubmitButton
+      icon={FaSignInAlt}
+      label="Login"
+      pendingLabel="Logging in..."
+      isPending={loginMutation.isPending}
       disabled={isAnyPending}
-      aria-busy={loginMutation.isPending}
-    >
-      <FaSignInAlt aria-hidden="true" />
-      <span>{loginMutation.isPending ? "Logging in..." : "Login"}</span>
-    </button>
+      ariaBusy={loginMutation.isPending}
+    />
     {errors.root && (
       <div className={authStyles["error-message"]}>{errors.root.message}</div>
     )}
