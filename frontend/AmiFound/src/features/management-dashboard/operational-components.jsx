@@ -824,8 +824,6 @@ export const FoundItemCard = ({
   const statusLower = item.status.toLowerCase();
   const statusClass = statusLower.replace(/\s+/g, "-");
   const isActiveItem = statusLower === "found" || statusLower === "matched";
-  const isOldItem =
-    Date.now() - new Date(item.dateFound).getTime() > 7 * 24 * 60 * 60 * 1000;
   const isReturnedItem = statusLower === "returned";
   const isOfflineCollectedItem = statusLower === "offline returned";
 
@@ -881,15 +879,13 @@ export const FoundItemCard = ({
       <div className={studentStyles["item-actions"]}>
         {isActiveItem && (
           <>
-            {!isOldItem && (
-              <button
-                className={`${buttonStyles.btn} ${buttonStyles["btn--sm"]} ${buttonStyles["btn--primary"]}`}
-                onClick={() => onMarkReturned(item)}
-                disabled={isUpdating}
-              >
-                <FaCheck /> Mark Returned
-              </button>
-            )}
+            <button
+              className={`${buttonStyles.btn} ${buttonStyles["btn--sm"]} ${buttonStyles["btn--primary"]}`}
+              onClick={() => onMarkReturned(item)}
+              disabled={isUpdating}
+            >
+              <FaCheck /> Mark Returned
+            </button>
 
             <button
               className={`${buttonStyles.btn} ${buttonStyles["btn--sm"]} ${buttonStyles["btn--outline"]}`}

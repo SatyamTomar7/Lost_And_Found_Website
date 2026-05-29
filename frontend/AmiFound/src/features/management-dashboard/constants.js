@@ -103,6 +103,8 @@ export const OP_QUERY_KEYS = {
   notifications: ["admin-notifications"],
 };
 
+export const SECURITY_FOUND_ITEMS_LIMIT = "all";
+
 export const OPERATIONAL_QUERY_TIMINGS = {
   dataStaleTime: 30 * 1000,
   dataGcTime: 5 * 60 * 1000,

@@ -43,6 +43,7 @@ import {
   minSelectableDate,
   OP_QUERY_KEYS,
   OPERATIONAL_QUERY_TIMINGS,
+  SECURITY_FOUND_ITEMS_LIMIT,
   today,
 } from "./constants";
 import { createFoundItemResolver } from "./schemas";
@@ -113,6 +114,10 @@ export default function OperationalView({
   const currentMinSelectableDate = isSecurity
     ? getMinSelectableDate(watchedRecoveryModeFallback)
     : minSelectableDate;
+  const securityFetchAllParams = useMemo(
+    () => ({ limit: SECURITY_FOUND_ITEMS_LIMIT }),
+    [],
+  );
 
   useEffect(() => {
     if (!isSecurity) return;
@@ -141,6 +146,7 @@ export default function OperationalView({
       queryKey: [...OP_QUERY_KEYS.foundItems, "security-active"],
       queryFn: async () => {
         const r = await getDepartmentFoundItems({
+          ...securityFetchAllParams,
           recoveryMode: DASHBOARD_RECOVERY_MODES.NORMAL,
           age: "active",
         });
@@ -159,6 +165,7 @@ export default function OperationalView({
       queryKey: [...OP_QUERY_KEYS.foundItems, "security-old"],
       queryFn: async () => {
         const r = await getDepartmentFoundItems({
+          ...securityFetchAllParams,
           recoveryMode: DASHBOARD_RECOVERY_MODES.NORMAL,
           age: "old",
         });
@@ -176,13 +183,14 @@ export default function OperationalView({
     data: enquiryRecoveredItems = [],
     isLoading: enquiryRecoveredItemsLoading,
   } = useQuery({
-    queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
-    queryFn: async () => {
-      const r = await getDepartmentFoundItems({
-        recoveryMode: DASHBOARD_RECOVERY_MODES.ENQUIRY_RECOVERED,
-      });
-      return r.data.data || [];
-    },
+      queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
+      queryFn: async () => {
+        const r = await getDepartmentFoundItems({
+          ...securityFetchAllParams,
+          recoveryMode: DASHBOARD_RECOVERY_MODES.ENQUIRY_RECOVERED,
+        });
+        return r.data.data || [];
+      },
     enabled: isSecurity && activeTab === "enquiry-recovered",
     staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
     gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
@@ -214,6 +222,7 @@ export default function OperationalView({
           unreadCount: result.data.unreadCount || 0,
         };
       },
+      enabled: role !== "security",
       staleTime: OPERATIONAL_QUERY_TIMINGS.notificationStaleTime,
       refetchInterval: OPERATIONAL_QUERY_TIMINGS.notificationRefetchInterval,
       refetchIntervalInBackground: false,
@@ -572,8 +581,9 @@ export default function OperationalView({
             </div>
             <div className={studentStyles["user-details"]}>
               <h3>
-                {currentUser?.block || "-"} Block{" "}
-                {role === "security" ? "Security" : "Admin"}
+                {role === "security"
+                  ? "Security Department"
+                  : `${currentUser?.block || "-"} Block Admin`}
               </h3>
             </div>
           </div>

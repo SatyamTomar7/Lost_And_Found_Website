@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { isValidStudentRegistrationEmail } from "./services/authService";
+import {
+  isValidAmityEmail,
+  isValidStudentRegistrationEmail,
+} from "./services/authService";
 
 const studentRegistrationEmailRule = z
   .string()
@@ -43,7 +46,9 @@ const otpSchema = z.object({
 });
 
 const forgotPasswordSchema = z.object({
-  email: loginEmailRule,
+  email: loginEmailRule.refine(isValidAmityEmail, {
+    message: "Enter a valid @s.amity.edu or @gwa.amity.edu email",
+  }),
 });
 
 const resetOTPSchema = z.object({
