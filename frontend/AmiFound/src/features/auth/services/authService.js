@@ -95,7 +95,9 @@ export const checkCurrentUser = async () => {
   if (!token) {
     return {
       success: false,
+      hasToken: false,
       shouldLogout: true,
+      errorType: null,
       user: null,
     };
   }
@@ -115,7 +117,9 @@ export const checkCurrentUser = async () => {
 
       return {
         success: false,
+        hasToken: true,
         shouldLogout: true,
+        errorType: "unauthorized",
         user: null,
       };
     }
@@ -124,7 +128,9 @@ export const checkCurrentUser = async () => {
     if (!response.ok) {
       return {
         success: false,
+        hasToken: true,
         shouldLogout: false,
+        errorType: "server",
         user: null,
       };
     }
@@ -133,7 +139,9 @@ export const checkCurrentUser = async () => {
 
     return {
       success: true,
+      hasToken: true,
       shouldLogout: false,
+      errorType: null,
       user: result.data || null,
     };
   } catch (error) {
@@ -142,7 +150,9 @@ export const checkCurrentUser = async () => {
 
     return {
       success: false,
+      hasToken: true,
       shouldLogout: false,
+      errorType: "network",
       user: null,
     };
   } finally {

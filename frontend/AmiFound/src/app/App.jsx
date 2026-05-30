@@ -18,6 +18,7 @@ import { FaSpinner, FaExclamationTriangle } from "react-icons/fa";
 import {
   checkCurrentUser,
   clearAuthSession,
+  getAuthToken,
   logout,
 } from "../features/auth/services/authService";
 import { getDashboardRoute } from "../features/auth/constants";
@@ -50,6 +51,29 @@ const PageLoader = () => (
     <div className={loaderStyles["loading-spinner"]}>
       <FaSpinner className={loaderStyles["spin-icon"]} />
       <p>Loading...</p>
+    </div>
+  </div>
+);
+
+const SessionRecoveryScreen = ({ message, onRetry, onGoToLogin }) => (
+  <div className={loaderStyles["page-loader"]}>
+    <div className={loaderStyles["loading-spinner"]}>
+      <FaExclamationTriangle className={loaderStyles["chunk-error-icon"]} />
+      <p>{message}</p>
+      <div className={loaderStyles["session-recovery-actions"]}>
+        <button
+          className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]}`}
+          onClick={onRetry}
+        >
+          Retry Session Restore
+        </button>
+        <button
+          className={`${buttonStyles.btn} ${buttonStyles["btn--outline"]}`}
+          onClick={onGoToLogin}
+        >
+          Go To Login
+        </button>
+      </div>
     </div>
   </div>
 );
@@ -125,6 +149,7 @@ function AppContent() {
   const [currentUser, setCurrentUser] = useState(null);
 
   const [authChecking, setAuthChecking] = useState(true);
+  const [authRecoveryError, setAuthRecoveryError] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({
     text: "",
@@ -135,36 +160,49 @@ function AppContent() {
   const toastTimerRef = useRef(null);
 
   // ── Re-hydrate session on mount ─────────────────────────────────────────────
-  useEffect(() => {
-    let isMounted = true;
+  const restoreSession = useCallback(async () => {
+    setAuthChecking(true);
+    setAuthRecoveryError("");
 
-    checkCurrentUser()
-      .then((result) => {
-        if (!isMounted) return;
+    try {
+      const result = await checkCurrentUser();
 
-        if (result.shouldLogout) {
-          clearAuthSession();
-          setCurrentUser(null);
-          return;
-        }
+      if (result.shouldLogout) {
+        clearAuthSession();
+        setCurrentUser(null);
+        return;
+      }
 
-        if (result.user) {
-          setCurrentUser(result.user);
-        }
-      })
-      .catch((error) => {
-        console.error("[Session Recovery]", error);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setAuthChecking(false);
-        }
-      });
+      if (result.user) {
+        setCurrentUser(result.user);
+        return;
+      }
 
-    return () => {
-      isMounted = false;
-    };
+      if (result.hasToken || getAuthToken()) {
+        setAuthRecoveryError(
+          result.errorType === "server"
+            ? "We couldn't restore your session because the server is temporarily unavailable. Please retry."
+            : "We couldn't reach the server to restore your session. Please retry.",
+        );
+      } else {
+        setCurrentUser(null);
+      }
+    } catch (error) {
+      console.error("[Session Recovery]", error);
+
+      if (getAuthToken()) {
+        setAuthRecoveryError(
+          "We couldn't restore your session right now. Please retry.",
+        );
+      }
+    } finally {
+      setAuthChecking(false);
+    }
   }, []);
+
+  useEffect(() => {
+    restoreSession();
+  }, [restoreSession]);
 
   // ── Clear toast timer on unmount ─────────────────────────────────────────────
   useEffect(() => {
@@ -234,8 +272,25 @@ const showMessage = useCallback((text, type = "info") => {
       });
   }, [navigate, showMessage]);
 
+  const handleRecoveryLoginRedirect = useCallback(() => {
+    clearAuthSession();
+    setCurrentUser(null);
+    setAuthRecoveryError("");
+    navigate("/login", { replace: true });
+  }, [navigate]);
+
   // ── Block render until session is verified ────────────────────────────────────
   if (authChecking) return <PageLoader />;
+
+  if (authRecoveryError) {
+    return (
+      <SessionRecoveryScreen
+        message={authRecoveryError}
+        onRetry={restoreSession}
+        onGoToLogin={handleRecoveryLoginRedirect}
+      />
+    );
+  }
 
   const role = currentUser?.role;
 

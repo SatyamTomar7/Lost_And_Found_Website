@@ -57,6 +57,14 @@
   margin-top: 16px;
 }
 
+.session-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
 .loading-spinner-content {
   text-align: center;
 }
