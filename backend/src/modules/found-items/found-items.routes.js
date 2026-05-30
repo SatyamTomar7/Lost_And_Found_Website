@@ -19,6 +19,7 @@ import {
 import {
   validateObjectId,
   validatePagination,
+  validatePaginationAllowAll,
 } from "../../shared/validation/common.validation.js";
 import {
   validateFoundItem,
@@ -26,7 +27,7 @@ import {
 } from "./found-items.validation.js";
 router.use(protect, isAdmin);
 router.post("/", validateFoundItem, addFoundItem);
-router.get("/department", validatePagination, getDepartmentFoundItems);
+router.get("/department", validatePaginationAllowAll, getDepartmentFoundItems);
 router.get("/search", searchFoundItems);
 router.get("/:id", validateObjectId, getFoundItem);
 router.put("/:id/returned", validateObjectId, markAsReturned);
