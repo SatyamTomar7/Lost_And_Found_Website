@@ -141,8 +141,12 @@ export default function OperationalView({
     refetchOnWindowFocus: true,
   });
 
-  const { data: activeFoundItems = [], isLoading: activeFoundItemsLoading } =
-    useQuery({
+  const {
+    data: activeFoundItems = [],
+    isLoading: activeFoundItemsLoading,
+    isError: activeFoundItemsError,
+    error: activeFoundItemsErrorDetails,
+  } = useQuery({
       queryKey: [...OP_QUERY_KEYS.foundItems, "security-active"],
       queryFn: async () => {
         const r = await getDepartmentFoundItems({
@@ -160,8 +164,12 @@ export default function OperationalView({
       refetchOnWindowFocus: true,
     });
 
-  const { data: oldFoundItems = [], isLoading: oldFoundItemsLoading } =
-    useQuery({
+  const {
+    data: oldFoundItems = [],
+    isLoading: oldFoundItemsLoading,
+    isError: oldFoundItemsError,
+    error: oldFoundItemsErrorDetails,
+  } = useQuery({
       queryKey: [...OP_QUERY_KEYS.foundItems, "security-old"],
       queryFn: async () => {
         const r = await getDepartmentFoundItems({
@@ -182,6 +190,8 @@ export default function OperationalView({
   const {
     data: enquiryRecoveredItems = [],
     isLoading: enquiryRecoveredItemsLoading,
+    isError: enquiryRecoveredItemsError,
+    error: enquiryRecoveredItemsErrorDetails,
   } = useQuery({
       queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
       queryFn: async () => {
@@ -570,6 +580,20 @@ export default function OperationalView({
     (activeTab === "old-found-items" && oldFoundItemsLoading) ||
     (activeTab === "enquiry-recovered" && enquiryRecoveredItemsLoading) ||
     (activeTab === "matches" && matchesLoading);
+  const securityTabErrorMessage =
+    (activeTab === "active-found" &&
+      activeFoundItemsError &&
+      (activeFoundItemsErrorDetails?.message ||
+        "Failed to load new found items.")) ||
+    (activeTab === "old-found-items" &&
+      oldFoundItemsError &&
+      (oldFoundItemsErrorDetails?.message ||
+        "Failed to load old found items.")) ||
+    (activeTab === "enquiry-recovered" &&
+      enquiryRecoveredItemsError &&
+      (enquiryRecoveredItemsErrorDetails?.message ||
+        "Failed to load enquiry recovered items.")) ||
+    "";
 
   return (
     <div className="page active">
@@ -910,6 +934,12 @@ export default function OperationalView({
                       description="Loading..."
                       isSpinning
                     />
+                  ) : securityTabErrorMessage ? (
+                    <EmptyState
+                      icon={FaInbox}
+                      title="Unable To Load Items"
+                      description={securityTabErrorMessage}
+                    />
                   ) : filteredActiveFoundItems.length === 0 ? (
                     <EmptyState
                       icon={FaInbox}
@@ -952,6 +982,12 @@ export default function OperationalView({
                       title=""
                       description="Loading..."
                       isSpinning
+                    />
+                  ) : securityTabErrorMessage ? (
+                    <EmptyState
+                      icon={FaInbox}
+                      title="Unable To Load Items"
+                      description={securityTabErrorMessage}
                     />
                   ) : filteredOldFoundItems.length === 0 ? (
                     <EmptyState
@@ -1041,6 +1077,12 @@ export default function OperationalView({
                       title=""
                       description="Loading..."
                       isSpinning
+                    />
+                  ) : securityTabErrorMessage ? (
+                    <EmptyState
+                      icon={FaInbox}
+                      title="Unable To Load Items"
+                      description={securityTabErrorMessage}
                     />
                   ) : filteredEnquiryRecoveredItems.length === 0 ? (
                     <EmptyState
