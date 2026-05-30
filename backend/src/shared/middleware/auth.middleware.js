@@ -43,7 +43,7 @@ export const protect = asyncHandler(async (req, _, next) => {
   next();
 });
 
-export const authorize = (...roles) => {
+export const authorizeRoles = (...roles) => {
   return (req, _, next) => {
     if (!req.user) {
       throw new ApiError(401, "Authentication required");
@@ -59,10 +59,15 @@ export const authorize = (...roles) => {
     next();
   };
 };
-export const isSecurity = authorize(USER_ROLES.SECURITY);
-export const isStudent = authorize(USER_ROLES.STUDENT);
-export const isAdmin = authorize(USER_ROLES.ADMIN,USER_ROLES.SECURITY);
-export const isManagement = authorize(USER_ROLES.SECURITY,USER_ROLES.DIRECTOR);
+export const authorize = authorizeRoles;
+export const isSecurity = authorizeRoles(USER_ROLES.SECURITY);
+export const isStudent = authorizeRoles(USER_ROLES.STUDENT);
+export const isAdminOnly = authorizeRoles(USER_ROLES.ADMIN);
+export const isAdminOrSecurity = authorizeRoles(
+  USER_ROLES.ADMIN,
+  USER_ROLES.SECURITY,
+);
+export const isDirectorOnly = authorizeRoles(USER_ROLES.DIRECTOR);
 export const optionalAuth = asyncHandler(async (req, _, next) => {
   let token;
 

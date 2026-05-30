@@ -13,7 +13,7 @@ import {
 const router = express.Router();
 import {
   protect,
-  isAdmin,
+  isAdminOrSecurity,
   isSecurity,
 } from "../../shared/middleware/auth.middleware.js";
 import {
@@ -25,7 +25,7 @@ import {
   validateFoundItem,
   validateOfflineReturn,
 } from "./found-items.validation.js";
-router.use(protect, isAdmin);
+router.use(protect, isAdminOrSecurity);
 router.post("/", validateFoundItem, addFoundItem);
 router.get("/department", validatePaginationAllowAll, getDepartmentFoundItems);
 router.get("/search", searchFoundItems);

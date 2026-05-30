@@ -10,7 +10,7 @@ import {
 
 import {
   protect,
-  isAdmin,
+  isAdminOrSecurity,
   isStudent,
 } from "../../shared/middleware/auth.middleware.js";
 
@@ -21,7 +21,7 @@ const router=express.Router();
 //student routes
 router.post("/",protect,isStudent,validateLostItem,submitLostItem);
 router.get("/my",protect,isStudent,validatePagination,getMyLostItems);
-router.get("/search",protect,validatePagination,searchLostItems);
+router.get("/search",protect,isAdminOrSecurity,validatePagination,searchLostItems);
 router.get("/:id",protect,isStudent,validateObjectId,getLostItem);
 router.delete("/:id",protect,isStudent,validateObjectId,deleteLostItem);
 router.patch("/:id/self-resolve",protect,isStudent, selfResolveLostItem);

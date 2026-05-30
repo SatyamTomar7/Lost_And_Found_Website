@@ -12,7 +12,10 @@ import {
   resetPassword,
   completeProfile,
 } from "./auth.controller.js";
-import { protect } from "../../shared/middleware/auth.middleware.js";
+import {
+  protect,
+  isStudent,
+} from "../../shared/middleware/auth.middleware.js";
 import {
   validateLogin,
   validateOTPVerification,
@@ -46,6 +49,7 @@ router.post("/logout", protect, logout);
 router.patch(
   "/complete-profile",
   protect,
+  isStudent,
   validateCompleteProfile,
   completeProfile
 );
