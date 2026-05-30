@@ -1,8 +1,8 @@
 export const ROLE_ROUTES = {
   student: "/student-dashboard",
-  admin: "/management-dashboard",
-  director: "/management-dashboard",
-  security: "/management-dashboard",
+  admin: "/admin-dashboard",
+  director: "/director-dashboard",
+  security: "/security-dashboard",
 };
 
 export const getDashboardRoute = (role) =>

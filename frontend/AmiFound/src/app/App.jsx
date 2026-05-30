@@ -14,7 +14,7 @@ import {
   Navigate,
   useNavigate,
 } from "react-router-dom";
-import { FaSpinner, FaExclamationTriangle } from "react-icons/fa";
+import { FaExclamationTriangle, FaSpinner } from "react-icons/fa";
 import {
   checkCurrentUser,
   clearAuthSession,
@@ -25,27 +25,25 @@ import { getDashboardRoute } from "../features/auth/constants";
 import "../shared/styles/App.css";
 import loaderStyles from "../shared/ui/Loader.module.css";
 import buttonStyles from "../shared/ui/Button.module.css";
-
-// ── Non-lazy components (always needed) ───────────────────────────────────────
 import BackButton from "../shared/components/BackButton";
 import Header from "../shared/components/Header";
 import MessageToast from "../shared/components/MessageToast";
 import LoadingOverlay from "../shared/components/LoadingOverlay";
+import AccessDeniedPage from "../shared/pages/AccessDeniedPage";
+import NotFoundPage from "../shared/pages/NotFoundPage";
 
-// ── Lazy-loaded page components ───────────────────────────────────────────────
 const HomePage = lazy(() => import("../features/home/pages/HomePage"));
 const UnifiedAuthPage = lazy(() => import("../features/auth/pages/AuthPage"));
 const StudentDashboard = lazy(() =>
-  import("../features/student-dashboard/pages/StudentDashboardPage")
+  import("../features/student-dashboard/pages/StudentDashboardPage"),
 );
 const ManagementDashboard = lazy(() =>
-  import("../features/management-dashboard/pages/ManagementDashboardPage")
+  import("../features/management-dashboard/pages/ManagementDashboardPage"),
 );
 const CompleteProfile = lazy(() =>
-  import("../features/complete-profile/pages/CompleteProfilePage")
+  import("../features/complete-profile/pages/CompleteProfilePage"),
 );
 
-// ── Page Loader (Suspense fallback) ───────────────────────────────────────────
 const PageLoader = () => (
   <div className={loaderStyles["page-loader"]}>
     <div className={loaderStyles["loading-spinner"]}>
@@ -78,7 +76,6 @@ const SessionRecoveryScreen = ({ message, onRetry, onGoToLogin }) => (
   </div>
 );
 
-// ── Error Boundary ────────────────────────────────────────────────────────────
 class ChunkErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -106,10 +103,10 @@ class ChunkErrorBoundary extends Component {
       return (
         <div className={loaderStyles["page-loader"]}>
           <div className={loaderStyles["loading-spinner"]}>
-            <FaExclamationTriangle className={loaderStyles["chunk-error-icon"]} />
-            <p>
-              Failed to load page. Please check your connection and refresh.
-            </p>
+            <FaExclamationTriangle
+              className={loaderStyles["chunk-error-icon"]}
+            />
+            <p>Failed to load page. Please check your connection and refresh.</p>
             <button
               className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${loaderStyles["chunk-retry-btn"]}`}
               onClick={this.handleRetry}
@@ -120,14 +117,11 @@ class ChunkErrorBoundary extends Component {
         </div>
       );
     }
+
     return <div key={this.state.retryKey}>{this.props.children}</div>;
   }
 }
 
-// ── Protected route helpers ───────────────────────────────────────────────────
-
-// Requires a logged-in user with one of the allowed roles.
-// If not logged in → /login. If wrong role → their own dashboard.
 const ProtectedRoute = ({
   user,
   allowedRoles,
@@ -135,19 +129,25 @@ const ProtectedRoute = ({
   redirectTo = "/login",
 }) => {
   if (!user) return <Navigate to={redirectTo} replace />;
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to={getDashboardRoute(user.role)} replace />;
+    return <AccessDeniedPage currentUser={user} allowedRoles={allowedRoles} />;
   }
+
   return children;
 };
 
-// ── AppContent ────────────────────────────────────────────────────────────────
+const ManagementDashboardRoute = ({ currentUser, setLoading, showMessage }) => (
+  <ManagementDashboard
+    currentUser={currentUser}
+    setLoading={setLoading}
+    showMessage={showMessage}
+  />
+);
+
 function AppContent() {
   const navigate = useNavigate();
-
-  // Single user state for ALL roles — role field drives routing
   const [currentUser, setCurrentUser] = useState(null);
-
   const [authChecking, setAuthChecking] = useState(true);
   const [authRecoveryError, setAuthRecoveryError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -156,10 +156,8 @@ function AppContent() {
     type: "info",
     show: false,
   });
-
   const toastTimerRef = useRef(null);
 
-  // ── Re-hydrate session on mount ─────────────────────────────────────────────
   const restoreSession = useCallback(async () => {
     setAuthChecking(true);
     setAuthRecoveryError("");
@@ -204,46 +202,42 @@ function AppContent() {
     restoreSession();
   }, [restoreSession]);
 
-  // ── Clear toast timer on unmount ─────────────────────────────────────────────
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
-  }, []);
+    },
+    [],
+  );
 
-  // ── Callbacks ─────────────────────────────────────────────────────────────────
-const showMessage = useCallback((text, type = "info") => {
-  if (toastTimerRef.current) {
-    clearTimeout(toastTimerRef.current);
-  }
-
-  let normalizedText = "";
-
-  if (typeof text === "string") {
-    normalizedText = text;
-  } else if (text?.message && typeof text.message === "string") {
-    normalizedText = text.message;
-  } else {
-    try {
-      normalizedText = JSON.stringify(text);
-    } catch {
-      normalizedText = "Something went wrong";
+  const showMessage = useCallback((text, type = "info") => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
     }
-  }
 
-  setMessage({
-    text: normalizedText,
-    type,
-    show: true,
-  });
+    let normalizedText = "";
 
-  toastTimerRef.current = setTimeout(() => {
-    setMessage((prev) => ({
-      ...prev,
-      show: false,
-    }));
-  }, 4000);
-}, []);
+    if (typeof text === "string") {
+      normalizedText = text;
+    } else if (text?.message && typeof text.message === "string") {
+      normalizedText = text.message;
+    } else {
+      try {
+        normalizedText = JSON.stringify(text);
+      } catch {
+        normalizedText = "Something went wrong";
+      }
+    }
+
+    setMessage({
+      text: normalizedText,
+      type,
+      show: true,
+    });
+
+    toastTimerRef.current = setTimeout(() => {
+      setMessage((prev) => ({ ...prev, show: false }));
+    }, 4000);
+  }, []);
 
   const handleCloseMessage = useCallback(() => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -279,7 +273,6 @@ const showMessage = useCallback((text, type = "info") => {
     navigate("/login", { replace: true });
   }, [navigate]);
 
-  // ── Block render until session is verified ────────────────────────────────────
   if (authChecking) return <PageLoader />;
 
   if (authRecoveryError) {
@@ -302,10 +295,8 @@ const showMessage = useCallback((text, type = "info") => {
       <ChunkErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* ── Public ── */}
             <Route path="/" element={<HomePage />} />
 
-            {/* ── Auth: /login and /register ── */}
             <Route
               path="/login"
               element={
@@ -340,17 +331,9 @@ const showMessage = useCallback((text, type = "info") => {
               }
             />
 
-            {/* ── Legacy redirects: old URLs keep working ── */}
-            <Route
-              path="/student-auth"
-              element={<Navigate to="/login" replace />}
-            />
-            {/* <Route
-              path="/admin-auth"
-              element={<Navigate to="/login" replace />}
-            /> */}
+            <Route path="/student-auth" element={<Navigate to="/login" replace />} />
+            <Route path="/admin-auth" element={<Navigate to="/login" replace />} />
 
-            {/* ── Complete Profile (students only) ── */}
             <Route
               path="/complete-profile"
               element={
@@ -370,7 +353,6 @@ const showMessage = useCallback((text, type = "info") => {
               }
             />
 
-            {/* ── Student Dashboard ── */}
             <Route
               path="/student-dashboard"
               element={
@@ -387,15 +369,12 @@ const showMessage = useCallback((text, type = "info") => {
                 </ProtectedRoute>
               }
             />
-            {/* ── Management Dashboard ── */}
+
             <Route
-              path="/management-dashboard"
+              path="/admin-dashboard"
               element={
-                <ProtectedRoute
-                  user={currentUser}
-                  allowedRoles={["admin", "director", "security"]}
-                >
-                  <ManagementDashboard
+                <ProtectedRoute user={currentUser} allowedRoles={["admin"]}>
+                  <ManagementDashboardRoute
                     currentUser={currentUser}
                     setLoading={setLoading}
                     showMessage={showMessage}
@@ -403,8 +382,50 @@ const showMessage = useCallback((text, type = "info") => {
                 </ProtectedRoute>
               }
             />
-            {/* ── Catch-all ── */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+
+            <Route
+              path="/security-dashboard"
+              element={
+                <ProtectedRoute user={currentUser} allowedRoles={["security"]}>
+                  <ManagementDashboardRoute
+                    currentUser={currentUser}
+                    setLoading={setLoading}
+                    showMessage={showMessage}
+                  />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/director-dashboard"
+              element={
+                <ProtectedRoute user={currentUser} allowedRoles={["director"]}>
+                  <ManagementDashboardRoute
+                    currentUser={currentUser}
+                    setLoading={setLoading}
+                    showMessage={showMessage}
+                  />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/management-dashboard"
+              element={
+                currentUser ? (
+                  <Navigate to={getDashboardRoute(role)} replace />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+
+            <Route
+              path="/access-denied"
+              element={<AccessDeniedPage currentUser={currentUser} />}
+            />
+
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
       </ChunkErrorBoundary>
@@ -415,7 +436,6 @@ const showMessage = useCallback((text, type = "info") => {
   );
 }
 
-// ── App (Router wrapper) ──────────────────────────────────────────────────────
 function App() {
   return (
     <Router>
