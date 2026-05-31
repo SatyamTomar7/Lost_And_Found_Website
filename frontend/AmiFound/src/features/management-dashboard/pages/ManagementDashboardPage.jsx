@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ManagementView from "../ManagementView";
 import OperationalView from "../OperationalView";
 
@@ -7,6 +8,7 @@ export default function ManagementDashboard({
   showMessage,
 }) {
   const role = currentUser?.role;
+  const [securityView, setSecurityView] = useState("operations");
 
   if (role === "director") {
     return <ManagementView role="director" onBackToOps={null} />;
@@ -24,12 +26,21 @@ export default function ManagementDashboard({
   }
 
   if (role === "security") {
+    if (securityView === "dashboard") {
+      return (
+        <ManagementView
+          role="security"
+          onBackToOps={() => setSecurityView("operations")}
+        />
+      );
+    }
+
     return (
       <OperationalView
         currentUser={currentUser}
         setLoading={setLoading}
         showMessage={showMessage}
-        onViewDashboard={null}
+        onViewDashboard={() => setSecurityView("dashboard")}
       />
     );
   }
