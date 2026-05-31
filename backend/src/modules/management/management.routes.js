@@ -10,13 +10,14 @@ import {
 
 import {
   protect,
-  isDirectorOnly,
+  authorizeRoles,
 } from "../../shared/middleware/auth.middleware.js";
+import { USER_ROLES } from "../../config/constants.js";
 
 const router = Router();
 
 // Protect all managements routes
-router.use(protect, isDirectorOnly);
+router.use(protect, authorizeRoles(USER_ROLES.DIRECTOR, USER_ROLES.SECURITY));
 
 // Analytics
 router.get("/analytics", getDirectorAnalytics);
