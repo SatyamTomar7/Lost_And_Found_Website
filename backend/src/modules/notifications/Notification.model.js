@@ -38,6 +38,16 @@ const notificationSchema = new Schema(
         type: Schema.Types.ObjectId,
         ref: "User",
       },
+      outdatedMessage: {
+        type: String,
+        trim: true,
+        maxlength: [300, "Outdated message cannot exceed 300 characters"],
+      },
+      transferredFromBlock: {
+        type: String,
+        trim: true,
+        maxlength: [20, "Transferred block cannot exceed 20 characters"],
+      },
     },
     isRead: {
       type: Boolean,
@@ -55,6 +65,10 @@ const notificationSchema = new Schema(
         return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       },
     },
+    isOutdated: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -66,6 +80,22 @@ const notificationSchema = new Schema(
 notificationSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ isRead: 1, priority: -1 });
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+notificationSchema.index(
+  {
+    userId: 1,
+    type: 1,
+    "data.foundItemId": 1,
+    "data.lostItemId": 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      type: NOTIFICATION_TYPES.ITEM_TRANSFERRED_TO_SECURITY,
+      "data.foundItemId": { $exists: true },
+      "data.lostItemId": { $exists: true },
+    },
+  }
+);
 //Mark as read method
 
 notificationSchema.methods.markAsRead = function () {

@@ -1,10 +1,19 @@
 import cron from "node-cron";
 import { ITEM_STATUS, NOTIFICATION_TYPES, USER_ROLES } from "../config/constants.js";
 import { FoundItem } from "../modules/found-items/FoundItem.model.js";
+import { LostItem } from "../modules/lost-items/LostItem.model.js";
+import {
+  buildTransferToSecurityNotificationMessage,
+  getTransferredFromBlock,
+} from "../modules/matching/match-notification-message.js";
 import { Notification } from "../modules/notifications/Notification.model.js";
 // Track scheduled task
 let transferJob = null;
 let socketIo = null;
+
+const ACTIVE_LOST_MATCH_STATUSES = [ITEM_STATUS.MATCHED];
+const OUTDATED_PICKUP_MESSAGE =
+  "This pickup instruction is outdated because the item has been transferred to the University Security Office.";
 
 export const startTransferOldItemsJob = (io = null) => {
   // Prevent duplicate cron jobs
@@ -55,6 +64,8 @@ export const startTransferOldItemsJob = (io = null) => {
 
         for (const item of oldItems) {
           try {
+            const transferredFromBlock = getTransferredFromBlock(item);
+
             // Transfer item to security
             await FoundItem.findByIdAndUpdate(item._id, {
               $set: {
@@ -62,6 +73,79 @@ export const startTransferOldItemsJob = (io = null) => {
                 block: null,
               },
             });
+
+            const activeLostItems = await LostItem.find({
+              _id: { $in: item.matchedLostItemIds || [] },
+              status: { $in: ACTIVE_LOST_MATCH_STATUSES },
+              matchedFoundItemIds: item._id,
+              isActive: true,
+            })
+              .select("_id name userId")
+              .lean();
+
+            console.log(
+              `[TransferJob] ${item._id} transferred to security with ${activeLostItems.length} active matched lost item(s)`
+            );
+
+            for (const lostItem of activeLostItems) {
+              const duplicateTransferNotification = await Notification.findOne({
+                userId: lostItem.userId,
+                type: NOTIFICATION_TYPES.ITEM_TRANSFERRED_TO_SECURITY,
+                "data.foundItemId": item._id,
+                "data.lostItemId": lostItem._id,
+              })
+                .select("_id")
+                .lean();
+
+              if (duplicateTransferNotification) {
+                console.log(
+                  `[TransferJob] Skipping duplicate transfer notification for found item ${item._id} and lost item ${lostItem._id}`
+                );
+                continue;
+              }
+
+              await Notification.updateMany(
+                {
+                  userId: lostItem.userId,
+                  type: NOTIFICATION_TYPES.MATCH_FOUND,
+                  "data.foundItemId": item._id,
+                  "data.lostItemId": lostItem._id,
+                  isOutdated: { $ne: true },
+                },
+                {
+                  $set: {
+                    isOutdated: true,
+                    "data.outdatedMessage": OUTDATED_PICKUP_MESSAGE,
+                  },
+                }
+              );
+
+              const transferNotification = await Notification.create({
+                userId: lostItem.userId,
+                type: NOTIFICATION_TYPES.ITEM_TRANSFERRED_TO_SECURITY,
+                title: "Matched item transferred to Security Office",
+                message: buildTransferToSecurityNotificationMessage(
+                  item.name,
+                  { ...item, originalBlock: transferredFromBlock }
+                ),
+                data: {
+                  foundItemId: item._id,
+                  lostItemId: lostItem._id,
+                  transferredFromBlock,
+                },
+                priority: "high",
+              });
+
+              if (socketIo) {
+                socketIo.sendNotificationToUser(lostItem.userId.toString(), {
+                  ...transferNotification.toObject(),
+                });
+              }
+
+              console.log(
+                `[TransferJob] Sent security transfer notification to user ${lostItem.userId} for found item ${item._id}`
+              );
+            }
 
             if (item.createdBy) {
               const adminNotification = await Notification.create({
@@ -84,7 +168,7 @@ export const startTransferOldItemsJob = (io = null) => {
 
             // Re-run matching after transfer
             console.log(
-              `[TransferJob] Transferred ${item._id}`
+              `[TransferJob] Transferred ${item._id} from Block ${transferredFromBlock ?? "unknown"} to security`
             );
 
             results.success++;

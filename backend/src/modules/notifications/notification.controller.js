@@ -28,6 +28,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
   const hydratedNotifications = notifications.map((notification) => {
     if (
       notification.type === NOTIFICATION_TYPES.MATCH_FOUND &&
+      !notification.message &&
       notification.data?.lostItemId?.name &&
       notification.data?.foundItemId
     ) {
@@ -38,6 +39,16 @@ export const getNotifications = asyncHandler(async (req, res) => {
           notification.data.matchScore,
           notification.data.foundItemId
         ),
+      };
+    }
+
+    if (
+      notification.type === NOTIFICATION_TYPES.ITEM_TRANSFERRED_TO_SECURITY &&
+      notification.data?.foundItemId
+    ) {
+      return {
+        ...notification,
+        isOutdated: false,
       };
     }
 

@@ -96,6 +96,7 @@ const NOTIFICATION_TYPES = {
   ITEM_UNAVAILABLE: "item_unavailable",
   MATCH_REMOVED: "match_removed",
   ITEM_TRANSFERRED: "item_transferred",
+  ITEM_TRANSFERRED_TO_SECURITY: "item_transferred_to_security",
 };
 
 const ITEM_CONDITIONS = {

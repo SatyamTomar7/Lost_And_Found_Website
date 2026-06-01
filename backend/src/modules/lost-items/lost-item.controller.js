@@ -183,7 +183,7 @@ export const getMyLostItems = asyncHandler(async (req, res) => {
 
       .populate({
         path: "matchedFoundItemIds",
-        select: "name block createdBy status",
+        select: "name block originalBlock handledBy createdBy status",
         populate: {
           path: "createdBy",
           select: "name role block",
@@ -242,7 +242,7 @@ export const getLostItem = asyncHandler(async (req, res) => {
     )
     .populate({
       path: "matchedFoundItemIds",
-      select: "name block createdBy status createdAt",
+      select: "name block originalBlock handledBy createdBy status createdAt",
       populate: {
         path: "createdBy",
         select: "name role block",
