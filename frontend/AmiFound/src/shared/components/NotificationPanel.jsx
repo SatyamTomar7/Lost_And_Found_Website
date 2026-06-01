@@ -1,5 +1,11 @@
 import React from "react";
-import { FaBell, FaTimes, FaLink, FaExchangeAlt } from "react-icons/fa";
+import {
+  FaBell,
+  FaExclamationCircle,
+  FaExchangeAlt,
+  FaLink,
+  FaTimes,
+} from "react-icons/fa";
 import styles from "./NotificationPanel.module.css";
 
 const formatTimestamp = (timestamp) => {
@@ -10,31 +16,40 @@ const formatTimestamp = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-const NotificationItem = React.memo(({ notification, onClick }) => (
-  <button
-    type="button"
-    className={`${styles["notification-item"]} ${notification.isRead ? "" : styles.unread}`}
-    onClick={() => onClick(notification._id)}
-    aria-label={`${notification.title}. ${notification.message}`}
-  >
-    <div className={styles["notification-content"]}>
-      <div className={styles["notification-icon"]}>
-        {notification.type === "item_transferred" ? (
-          <FaExchangeAlt />
-        ) : (
-          <FaLink />
-        )}
-      </div>
-      <div className={styles["notification-text"]}>
-        <h4>{notification.title}</h4>
-        <p>{notification.message}</p>
-        <div className={styles["notification-time"]}>
-          {formatTimestamp(notification.createdAt)}
+const NotificationItem = React.memo(({ notification, onClick }) => {
+  const isTransferNotice =
+    notification.type === "item_transferred" ||
+    notification.type === "item_transferred_to_security";
+  const isOutdated = notification.isOutdated;
+
+  return (
+    <button
+      type="button"
+      className={`${styles["notification-item"]} ${notification.isRead ? "" : styles.unread} ${isOutdated ? styles.outdated : ""}`}
+      onClick={() => onClick(notification._id)}
+      aria-label={`${notification.title}. ${notification.message}${isOutdated && notification.data?.outdatedMessage ? `. ${notification.data.outdatedMessage}` : ""}`}
+    >
+      <div className={styles["notification-content"]}>
+        <div className={styles["notification-icon"]}>
+          {isTransferNotice ? <FaExchangeAlt /> : <FaLink />}
+        </div>
+        <div className={styles["notification-text"]}>
+          <h4>{notification.title}</h4>
+          <p>{notification.message}</p>
+          {isOutdated && notification.data?.outdatedMessage ? (
+            <div className={styles["notification-outdated"]}>
+              <FaExclamationCircle />
+              <span>{notification.data.outdatedMessage}</span>
+            </div>
+          ) : null}
+          <div className={styles["notification-time"]}>
+            {formatTimestamp(notification.createdAt)}
+          </div>
         </div>
       </div>
-    </div>
-  </button>
-));
+    </button>
+  );
+});
 NotificationItem.displayName = "NotificationItem";
 
 const NotificationPanel = React.memo(

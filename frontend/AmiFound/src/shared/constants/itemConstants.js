@@ -209,6 +209,7 @@ export const NOTIFICATION_TYPES = {
   ITEM_RETURNED: "item_returned",
   ITEM_UNAVAILABLE: "item_unavailable",
   MATCH_REMOVED: "match_removed",
+  ITEM_TRANSFERRED_TO_SECURITY: "item_transferred_to_security",
 };
 export const YEAR_OPTIONS = ["1", "2", "3", "4"];
 export const SECTION_OPTIONS = ["A", "B", "C", "D", "E"];

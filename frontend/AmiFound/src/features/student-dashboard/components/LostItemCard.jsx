@@ -5,6 +5,7 @@ import {
   FaLink,
   FaMapMarkerAlt,
   FaPalette,
+  FaShieldAlt,
 } from "react-icons/fa";
 import buttonStyles from "../../../shared/ui/Button.module.css";
 import styles from "../StudentDashboard.module.css";
@@ -12,6 +13,14 @@ import { canSelfResolve } from "../utils/studentDashboardHelpers";
 
 const LostItemCard = React.memo(({ item, onSelfResolve, isResolving }) => {
   const matchCount = item.matchedFoundItemIds?.length || 0;
+  const securityMatch = item.matchedFoundItemIds?.find(
+    (matchedItem) => matchedItem.handledBy === "security",
+  );
+  const currentHolder = securityMatch
+    ? "University Security Office"
+    : item.matchedFoundItemIds?.[0]?.block
+      ? `Block ${item.matchedFoundItemIds[0].block} Lost and Found Department`
+      : null;
 
   return (
   <div className={styles["item-card"]}>
@@ -33,6 +42,12 @@ const LostItemCard = React.memo(({ item, onSelfResolve, isResolving }) => {
           <div className={styles["item-match-badge"]}>
             <FaLink /> {matchCount} possible match
             {matchCount > 1 ? "es" : ""}
+          </div>
+        )}
+        {currentHolder && (
+          <div className={styles["item-holder"]}>
+            <FaShieldAlt />
+            <span>Current holder: {currentHolder}</span>
           </div>
         )}
       </div>

@@ -4,10 +4,6 @@ import {
   FaSignInAlt,
   FaUserPlus,
   FaUniversity,
-  FaSearch,
-  FaBell,
-  FaShieldAlt,
-  FaBuilding,
 } from "react-icons/fa";
 import styles from "../HomePage.module.css";
 import buttonStyles from "../../../shared/ui/Button.module.css";
@@ -18,7 +14,7 @@ const HomePage = () => {
   }, []);
 
   return (
-    <div className="page active">
+    <div className={`page active ${styles["home-page"]}`}>
       {/* Hero Section */}
       <section className={styles.hero}>
         <div className="container">
@@ -62,56 +58,6 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className={styles.features}>
-        <div className="container">
-          <h2>System Features</h2>
-          <div className={styles["features-grid"]}>
-            <div className={styles["feature-card"]}>
-              <div className={styles["feature-icon"]}>
-                <FaSearch aria-hidden="true" />
-              </div>
-              <h3>Smart Matching</h3>
-              <p>
-                Automatic matching between lost and found items using
-                intelligent search algorithms.
-              </p>
-            </div>
-
-            <div className={styles["feature-card"]}>
-              <div className={styles["feature-icon"]}>
-                <FaBell aria-hidden="true" />
-              </div>
-              <h3>Real-time Notifications</h3>
-              <p>
-                Instant alerts when your lost item is found by any department.
-              </p>
-            </div>
-
-            <div className={styles["feature-card"]}>
-              <div className={styles["feature-icon"]}>
-                <FaShieldAlt aria-hidden="true" />
-              </div>
-              <h3>Secure &amp; Private</h3>
-              <p>
-                OTP verification and secure data handling for student privacy.
-              </p>
-            </div>
-
-            <div className={styles["feature-card"]}>
-              <div className={styles["feature-icon"]}>
-                <FaBuilding aria-hidden="true" />
-              </div>
-              <h3>Multi-Department</h3>
-              <p>
-                Coordinated management across all university blocks and security
-                department.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Project Credits */}
       <div className={styles["hero-credits"]}>
         <span className={styles["hero-credits__item"]}>
@@ -124,6 +70,11 @@ const HomePage = () => {
         <span className={styles["hero-credits__item"]}>
           <span className={styles["hero-credits__label"]}>Mentor</span>
           Dr. Ashok Kumar Shrivastava
+        </span>
+        <span className={styles["hero-credits__copyright"]}>
+          © AmiFound For any technical issue, please write to
+          {" "}
+          satyam.tomar2@s.amity.edu
         </span>
       </div>
     </div>

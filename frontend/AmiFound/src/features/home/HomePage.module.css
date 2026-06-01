@@ -1,6 +1,22 @@
+:global(.page).home-page {
+  height: calc(100vh - 87px);
+  height: calc(100dvh - 87px);
+  min-height: calc(100vh - 87px);
+  min-height: calc(100dvh - 87px);
+  max-height: calc(100vh - 87px);
+  max-height: calc(100dvh - 87px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  position: relative;
+  padding-bottom: 78px;
+  overflow: hidden;
+}
+
 .hero {
-  padding: var(--sp-64) 0;
-  min-height: 85vh;
+  padding: clamp(16px, 2.8vh, 32px) 0;
+  min-height: 0;
+  flex: 1;
   display: flex;
   align-items: center;
   position: relative;
@@ -95,7 +111,7 @@
   }
 }
 
-/* ── Features ───────────────────────────────────────────────────────────── */
+/* Features */
 .features {
   padding: var(--sp-64) 0;
 }
@@ -171,16 +187,20 @@
   margin: 0;
 }
 
-
 .hero-credits {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   gap: 0.75rem;
-  margin-top: 1.25rem;
-  padding: 1.25rem 1rem;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.35rem 1rem 0.45rem;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
   flex-wrap: wrap;
+  flex-shrink: 0;
+  align-content: end;
 }
 
 .hero-credits__item {
@@ -188,7 +208,7 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 0.82rem;
-  color: #1a1a2e; /* dark solid — clearly readable on light bg */
+  color: #1a1a2e;
   font-weight: 600;
 }
 
@@ -197,19 +217,31 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #888888; /* muted gray for the tag */
+  color: #888888;
 }
 
 .hero-credits__divider {
-  color: rgba(0, 0, 0, 0.2); /* subtle dark divider */
+  color: rgba(0, 0, 0, 0.2);
   font-size: 0.85rem;
   user-select: none;
 }
+.hero-credits__copyright {
+  width: 100%;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #1a1a2e;
+  font-weight: 600;
+}
 
-/* ─────────────────────────────────────────────
-   Responsive
-───────────────────────────────────────────── */
 @media (max-width: 900px) {
+  :global(.page).home-page {
+    height: auto;
+    min-height: calc(100vh - 79px);
+    min-height: calc(100dvh - 79px);
+    max-height: none;
+    padding-bottom: 0;
+  }
+
   .hero {
     min-height: auto;
     padding: var(--sp-48) 0;
@@ -294,6 +326,14 @@
 }
 
 @media (max-width: 480px) {
+  :global(.page).home-page {
+    height: auto;
+    min-height: calc(100vh - 67px);
+    min-height: calc(100dvh - 67px);
+    max-height: none;
+    padding-bottom: 0;
+  }
+
   .hero::before {
     background:
       radial-gradient(
@@ -342,6 +382,7 @@
   }
 
   .hero-credits {
+    position: static;
     flex-direction: column;
     align-items: center;
     gap: 0.4rem;
@@ -352,10 +393,3 @@
     display: none;
   }
 }
-
-/* ============================================================
-   CompleteProfile.css
-   Styles for CompleteProfile.jsx — AmiFound
-   ============================================================ */
-
-
