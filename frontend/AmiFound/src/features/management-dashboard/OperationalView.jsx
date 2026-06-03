@@ -57,6 +57,7 @@ import {
   ReturnModal,
   SingleMatchCard,
   SubmitConfirmModal,
+  UnclaimedConfirmModal,
 } from "./operational-components";
 
 export default function OperationalView({
@@ -72,6 +73,7 @@ export default function OperationalView({
   const [detailsModalItem, setDetailsModalItem] = useState(null);
   const [offlineDetailsModalItem, setOfflineDetailsModalItem] = useState(null);
   const [collectOfflineItem, setCollectOfflineItem] = useState(null);
+  const [unclaimedModalItem, setUnclaimedModalItem] = useState(null);
   const [collectOfflineServerError, setCollectOfflineServerError] = useState(null);
   const [pendingFormData, setPendingFormData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -327,6 +329,7 @@ export default function OperationalView({
       });
       queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.matches });
       setReturnModalItem(null);
+      setUnclaimedModalItem(null);
       showMessage("Item status updated successfully.", "success");
     },
     onError: (error, _vars, context) => {
@@ -439,11 +442,18 @@ export default function OperationalView({
       queryClient.invalidateQueries({ queryKey: OP_QUERY_KEYS.notifications }),
   });
 
-  const handleUpdateStatus = useCallback(
-    (itemId, newStatus) => updateStatusMutation.mutate({ itemId, newStatus }),
-    [updateStatusMutation],
-  );
+  const handleMarkUnclaimed = useCallback((item) => {
+    setUnclaimedModalItem(item);
+  }, []);
   const handleMarkReturned = useCallback((item) => setReturnModalItem(item), []);
+  const handleUnclaimedConfirm = useCallback(() => {
+    if (!unclaimedModalItem) return;
+
+    updateStatusMutation.mutate({
+      itemId: unclaimedModalItem._id,
+      newStatus: "Unclaimed",
+    });
+  }, [unclaimedModalItem, updateStatusMutation]);
   const handleReturnConfirm = useCallback(
     (foundItemId, selectedLostItem) => {
       updateStatusMutation.mutate({
@@ -904,7 +914,7 @@ export default function OperationalView({
                         item={item}
                         currentUser={currentUser}
                         onMarkReturned={handleMarkReturned}
-                        onUpdateStatus={handleUpdateStatus}
+                        onMarkUnclaimed={handleMarkUnclaimed}
                         onMarkCollectedOffline={handleMarkOffline}
                         isUpdating={isAnyUpdating}
                         onViewDetails={handleViewDetails}
@@ -953,7 +963,7 @@ export default function OperationalView({
                         item={item}
                         currentUser={currentUser}
                         onMarkReturned={handleMarkReturned}
-                        onUpdateStatus={handleUpdateStatus}
+                        onMarkUnclaimed={handleMarkUnclaimed}
                         onMarkCollectedOffline={handleMarkOffline}
                         isUpdating={isAnyUpdating}
                         onViewDetails={handleViewDetails}
@@ -1002,7 +1012,8 @@ export default function OperationalView({
                         item={item}
                         currentUser={currentUser}
                         onMarkReturned={handleMarkReturned}
-                        onUpdateStatus={handleUpdateStatus}
+                        onMarkUnclaimed={handleMarkUnclaimed}
+                        canMarkUnclaimed
                         onMarkCollectedOffline={handleMarkOffline}
                         isUpdating={isAnyUpdating}
                         onViewDetails={handleViewDetails}
@@ -1097,7 +1108,7 @@ export default function OperationalView({
                         item={item}
                         currentUser={currentUser}
                         onMarkReturned={handleMarkReturned}
-                        onUpdateStatus={handleUpdateStatus}
+                        onMarkUnclaimed={handleMarkUnclaimed}
                         onMarkCollectedOffline={handleMarkOffline}
                         isUpdating={isAnyUpdating}
                         onViewDetails={handleViewDetails}
@@ -1142,6 +1153,14 @@ export default function OperationalView({
           }}
           isLoading={collectedOfflineMutation.isPending}
           serverError={collectOfflineServerError}
+        />
+      )}
+      {unclaimedModalItem && (
+        <UnclaimedConfirmModal
+          item={unclaimedModalItem}
+          onConfirm={handleUnclaimedConfirm}
+          onClose={() => setUnclaimedModalItem(null)}
+          isLoading={updateStatusMutation.isPending}
         />
       )}
       {pendingFormData && (

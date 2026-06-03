@@ -715,6 +715,104 @@ export const SingleMatchCard = ({ match }) => {
   );
 };
 
+export const UnclaimedConfirmModal = ({
+  item,
+  onConfirm,
+  onClose,
+  isLoading,
+}) => (
+  <div className={modalStyles["return-modal-overlay"]} onClick={onClose}>
+    <div
+      className={modalStyles["return-modal"]}
+      onClick={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="unclaimed-modal-title"
+    >
+      <div className={modalStyles["return-modal__header"]}>
+        <div className={modalStyles["return-modal__title-group"]}>
+          <FaExclamationTriangle
+            className={`${modalStyles["return-modal__icon"]} ${modalStyles["return-modal__icon--warning"]}`}
+          />
+          <h3 id="unclaimed-modal-title">Mark Item as Unclaimed</h3>
+        </div>
+        <button
+          className={modalStyles["return-modal__close"]}
+          onClick={onClose}
+          aria-label="Close modal"
+          disabled={isLoading}
+        >
+          <FaTimes />
+        </button>
+      </div>
+      <div className={modalStyles["return-details__body"]}>
+        <div
+          className={modalStyles["submit-confirm-modal__warning"]}
+          role="alert"
+        >
+          <FaExclamationTriangle />
+          <p>
+            This will mark the found item as <strong>unclaimed</strong> and
+            remove its current match links.
+          </p>
+        </div>
+        <div className={modalStyles["submit-confirm-modal__details"]}>
+          {[
+            ["Item Name", item.name],
+            ["Color", item.color],
+            [
+              "Date Found",
+              new Date(item.dateFound).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              }),
+            ],
+            ["Place Found", item.placeFound],
+            ["Current Status", item.status],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              className={modalStyles["submit-confirm-modal__row"]}
+            >
+              <span className={modalStyles["submit-confirm-modal__label"]}>
+                {label}
+              </span>
+              <span className={modalStyles["submit-confirm-modal__value"]}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className={modalStyles["return-modal__footer"]}>
+        <button
+          className={`${buttonStyles.btn} ${buttonStyles["btn--outline"]}`}
+          onClick={onClose}
+          disabled={isLoading}
+        >
+          Cancel
+        </button>
+        <button
+          className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]}`}
+          onClick={onConfirm}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <FaSpinner className={buttonStyles["spin-icon"]} /> Processing...
+            </>
+          ) : (
+            <>
+              <FaCheck /> Confirm Unclaimed
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 export const MultiMatchSummaryCard = ({ itemName, matchCount, matches }) => {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -815,11 +913,12 @@ export const FoundItemCard = ({
   item,
   currentUser,
   onMarkReturned,
-  onUpdateStatus,
+  onMarkUnclaimed,
   onMarkCollectedOffline,
   isUpdating,
   onViewDetails,
   onViewOfflineDetails,
+  canMarkUnclaimed = false,
 }) => {
   const statusLower = item.status.toLowerCase();
   const statusClass = statusLower.replace(/\s+/g, "-");
@@ -895,10 +994,10 @@ export const FoundItemCard = ({
               <FaWalking /> Collected Offline
             </button>
 
-            {currentUser?.role === "security" && (
+            {currentUser?.role === "security" && canMarkUnclaimed && (
               <button
                 className={`${buttonStyles.btn} ${buttonStyles["btn--sm"]} ${buttonStyles["btn--outline"]}`}
-                onClick={() => onUpdateStatus(item._id, "Unclaimed")}
+                onClick={() => onMarkUnclaimed(item)}
                 disabled={isUpdating}
               >
                 <FaTimes /> Mark Unclaimed
