@@ -22,6 +22,8 @@ const extractBlock = (place) => {
   return match ? match[1] : null;
 };
 
+const isGlobalScopePlace = (place) => !extractBlock(place);
+
 /**
  * Normalize a populated userId object into a safe user response shape.
  * Works whether userId is a plain object (lean) or a Mongoose doc.
@@ -95,12 +97,12 @@ export const checkLostItemMatches = asyncHandler(async (req, res) => {
 // CHECK MATCHES FOR A FOUND ITEM  (staff only)
 //
 // Auth rules (viewing):
-//   Admin   → can view any found item in their own block (regardless of handledBy),
-//             AND any item where handledBy === "security" (for awareness after transfer)
-//   Security → can view any found item where handledBy === "security"
+//   Admin    -> can view their own admin items by stored block ownership,
+//               and any security-handled item.
+//   Security -> can view any item where handledBy === "security".
 //
-// Matching scope is enforced inside matchingService.findMatchesForFoundItem
-// via the location filter — NOT in the controller auth check.
+// Matching scope itself is enforced inside matchingService.findMatchesForFoundItem
+// from placeFound, not just role.
 // ---------------------------------------------------------------------------
 export const checkFoundItemMatches = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -113,15 +115,11 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Access denied. Staff access only.");
   }
 
-  const foundItemBlock = extractBlock(foundItem.placeFound);
-
   if (req.user.role === "admin") {
-    // Admin can access their own block's items.
-    // They cannot access another block's admin items — but they CAN view
-    // security items (those items are global, not block-owned).
-    const isOwnBlock = foundItemBlock === `Block ${req.user.block}`;
+    const isOwnBlockItem =
+      foundItem.handledBy === "admin" && foundItem.block === req.user.block;
     const isSecurityItem = foundItem.handledBy === "security";
-    if (!isOwnBlock && !isSecurityItem) {
+    if (!isOwnBlockItem && !isSecurityItem) {
       throw new ApiError(403, "Access denied. This item belongs to another block.");
     }
   } else if (req.user.role === "security") {
@@ -161,67 +159,13 @@ export const checkFoundItemMatches = asyncHandler(async (req, res) => {
           color: foundItem.color,
           placeFound: foundItem.placeFound,
           handledBy: foundItem.handledBy,
-          matchScope:
-            foundItem.handledBy === "security"
-              ? "global"
-              : `block-local (${foundItemBlock ?? "common"})`,
+          matchScope: isGlobalScopePlace(foundItem.placeFound)
+            ? "global"
+            : `block-local (${extractBlock(foundItem.placeFound) ?? "common"})`,
         },
         matches: mappedMatches,
       },
       "Matches retrieved successfully"
-    )
-  );
-});
-
-// ---------------------------------------------------------------------------
-// TRANSFER FOUND ITEM TO SECURITY + GLOBAL RE-MATCH
-//
-// Called when an admin transfers a found item to security (handledBy changes).
-// The service clears old matches, reverts statuses, and runs a fresh global match.
-// ---------------------------------------------------------------------------
-export const transferToSecurityAndRematch = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const threshold = Math.min(100, Math.max(0, parseInt(req.query.threshold) || 60));
-
-  const foundItem = await FoundItem.findById(id);
-  if (!foundItem) throw new ApiError(404, "Found item not found");
-
-  // Only admins from the same block can initiate a transfer
-  const foundItemBlock = extractBlock(foundItem.placeFound);
-  if (req.user.role !== "admin") {
-    throw new ApiError(403, "Only block admins can transfer items to security.");
-  }
-  if (foundItemBlock !== `Block ${req.user.block}`) {
-    throw new ApiError(403, "You can only transfer items from your own block.");
-  }
-  if (foundItem.handledBy === "security") {
-    throw new ApiError(400, "Item is already handled by security.");
-  }
-
-  // Update handledBy BEFORE calling rematch so the scope resolver sees "security"
-  await FoundItem.findByIdAndUpdate(id, { $set: { handledBy: "security" } });
-
-  const newMatches = await matchingService.rematchAfterTransferToSecurity(id, threshold);
-
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        foundItemId: id,
-        newMatchCount: newMatches.length,
-        matches: newMatches.map((match) => ({
-          lostItem: {
-            id: match.lostItem._id,
-            name: match.lostItem.name,
-            color: match.lostItem.color,
-            placeLost: match.lostItem.placeLost,
-            user: normalizeUser(match.lostItem.userId),
-          },
-          matchScore: match.matchScore,
-          matchDetails: match.matchDetails,
-        })),
-      },
-      `Item transferred to security. ${newMatches.length} new global match(es) found.`
     )
   );
 });
@@ -353,10 +297,9 @@ export const getMatchingStats = asyncHandler(async (req, res) => {
           placeFound: foundItem.placeFound,
           handledBy: foundItem.handledBy,
           dateFound: foundItem.dateFound,
-          matchScope:
-            foundItem.handledBy === "security"
-              ? "global"
-              : `block-local (${extractBlock(foundItem.placeFound) ?? "common"})`,
+          matchScope: isGlobalScopePlace(foundItem.placeFound)
+            ? "global"
+            : `block-local (${extractBlock(foundItem.placeFound) ?? "common"})`,
         },
         lostItem: {
           id: lostItem._id,

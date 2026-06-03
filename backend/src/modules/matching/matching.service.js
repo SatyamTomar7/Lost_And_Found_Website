@@ -2,77 +2,65 @@ import mongoose from "mongoose";
 import { COMMON_LOCATIONS, ITEM_STATUS } from "../../config/constants.js";
 import { FoundItem } from "../found-items/FoundItem.model.js";
 import { LostItem } from "../lost-items/LostItem.model.js";
+
 /**
  * Weights are used to determine the importance of each matching factor.
- * Gates (Name, Color, Date) must pass a minimum threshold before
- * boosters (Place, Brand, Condition) are applied.
+ * Name, color, date, and place act as gates. Brand and condition are boosters.
  */
 const WEIGHTS = Object.freeze({
-  name: 0.45, // GATE + highest weight (fixed dropdown = reliable)
-  color: 0.3, // GATE + second highest (fixed dropdown = reliable)
-  date: 0.1, // GATE + booster (±7 days window)
-  place: 0.1, // booster only
-  brand: 0.05, // booster only (optional field)
+  name: 0.45,
+  color: 0.3,
+  date: 0.1,
+  place: 0.1,
+  brand: 0.05,
 });
 
 const AMBIGUOUS_COLORS = Object.freeze(["Multi-colored", "Other"]);
-const CONDITION_BONUS_POINTS = 3; // Flat points added to final 0-100 score
+const CONDITION_BONUS_POINTS = 3;
+const ANYWHERE_LOCATION = "Unknown";
+const WEAK_PLACE_SCORE = 0.1;
+const WEAK_PLACE_THRESHOLD = 80;
 
 // ---------------------------------------------------------------------------
-// LOCATION SCOPE HELPERS
+// LOCATION HELPERS
 // ---------------------------------------------------------------------------
 
-/**
- * Extract the block prefix from a campus location string.
- * "Block A - Library"  → "Block A"
- * "Main Ground"        → null  (common location, no block)
- */
 const extractBlockFromPlace = (place) => {
   if (!place) return null;
   const match = place.match(/^(Block [A-Z])\s*-/i);
   return match ? match[1] : null;
 };
 
-/**
- * Build the placeLost MongoDB filter for a found item based on its scope.
- *
- * Admin found item  → match lost items from the SAME block OR any common location.
- * Security found item → no restriction (match everything).
- *
- * @param {object} foundItem  - the FoundItem document
- * @returns {object|null}     - a Mongo query fragment, or null (no filter)
- */
-const buildPlaceLostFilter = (foundItem) => {
-  if (foundItem.handledBy === "security") {
-    return null; // Security items match globally — no location restriction
-  }
+const isAnywherePlace = (place) => place?.trim() === ANYWHERE_LOCATION;
 
-  // Admin item: derive block from placeFound
-  const block = extractBlockFromPlace(foundItem.placeFound);
-
-  if (block) {
-    // Match same-block locations OR any common location
-    return {
-      $or: [
-        { placeLost: { $regex: new RegExp(`^${block}\\s*-`, "i") } },
-        { placeLost: { $in: COMMON_LOCATIONS } },
-      ],
-    };
-  }
-
-  // Found item itself is at a common location (no block prefix)
-  // → only match lost items that are also at common locations
-  return { placeLost: { $in: COMMON_LOCATIONS } };
+const isCommonPlace = (place) => {
+  if (!place) return false;
+  return COMMON_LOCATIONS.includes(place.trim());
 };
 
-const MATCH_WINDOW_DAYS = 7;
-// ---------------------------------------------------------------------------
+const isGlobalScopePlace = (place) =>
+  isAnywherePlace(place) || (isCommonPlace(place) && !extractBlockFromPlace(place));
+
+const buildSameBlockOrCommonFilter = (fieldName, block) => ({
+  $or: [
+    { [fieldName]: { $regex: new RegExp(`^${block}\\s*-`, "i") } },
+    { [fieldName]: { $in: COMMON_LOCATIONS } },
+  ],
+});
+
+const buildPlaceLostFilter = (foundItem) => {
+  const block = extractBlockFromPlace(foundItem.placeFound);
+  if (!block || isGlobalScopePlace(foundItem.placeFound)) return null;
+  return buildSameBlockOrCommonFilter("placeLost", block);
+};
+
+const buildPlaceFoundFilter = (lostItem) => {
+  const block = extractBlockFromPlace(lostItem.placeLost);
+  if (!block || isGlobalScopePlace(lostItem.placeLost)) return null;
+  return buildSameBlockOrCommonFilter("placeFound", block);
+};
 
 class MatchingService {
-  // ---------------------------------------------------------------------------
-  // NAME SIMILARITY
-  // Fixed ITEM_NAME list → exact match is the norm, fuzzy only for "Other"
-  // ---------------------------------------------------------------------------
   calculateNameSimilarity(name1, name2) {
     if (!name1 || !name2) return 0;
 
@@ -88,40 +76,30 @@ class MatchingService {
     return Math.max(levenScore, tokenScore, substrScore);
   }
 
-  // ---------------------------------------------------------------------------
-  // COLOR SIMILARITY
-  // Fixed COLORS list → exact match is the norm
-  // ---------------------------------------------------------------------------
   calculateColorSimilarity(color1, color2) {
     if (!color1 || !color2) return 0;
     if (color1 === color2) return 1;
 
-    if (AMBIGUOUS_COLORS.includes(color1) && AMBIGUOUS_COLORS.includes(color2))
+    if (AMBIGUOUS_COLORS.includes(color1) && AMBIGUOUS_COLORS.includes(color2)) {
       return 0.4;
+    }
 
-    if (AMBIGUOUS_COLORS.includes(color1) || AMBIGUOUS_COLORS.includes(color2))
+    if (AMBIGUOUS_COLORS.includes(color1) || AMBIGUOUS_COLORS.includes(color2)) {
       return 0.2;
+    }
 
     return 0;
   }
 
-  // ---------------------------------------------------------------------------
-  // DATE: ±7 DAYS WINDOW (hard gate)
-  // ---------------------------------------------------------------------------
   checkDateProximity(dateLost, dateFound) {
     if (!dateLost || !dateFound) return 0;
 
     const diffDays = this.getDayDiff(dateLost, dateFound);
     if (diffDays > 7) return 0;
 
-    // Linear decay: same day = 1.0, day 7 ≈ 0.13
     return Math.round((1 - diffDays / 8) * 100) / 100;
   }
 
-  // ---------------------------------------------------------------------------
-  // PLACE SIMILARITY
-  // Follows "Block X - Area" pattern from CAMPUS_LOCATIONS
-  // ---------------------------------------------------------------------------
   calculatePlaceSimilarity(place1, place2) {
     if (!place1 || !place2) return 0;
 
@@ -129,24 +107,28 @@ class MatchingService {
     const p2 = place2.trim();
 
     if (p1 === p2) return 1;
+    if (isAnywherePlace(p1) || isAnywherePlace(p2)) return WEAK_PLACE_SCORE;
 
-    const isBlockLocation = (p) => /^Block [A-Z] - /i.test(p);
+    const p1Block = extractBlockFromPlace(p1);
+    const p2Block = extractBlockFromPlace(p2);
+    const p1IsCommon = isCommonPlace(p1) && !p1Block;
+    const p2IsCommon = isCommonPlace(p2) && !p2Block;
 
-    const p1IsBlock = isBlockLocation(p1);
-    const p2IsBlock = isBlockLocation(p2);
-
-    if (p1IsBlock && p2IsBlock) {
-      return extractBlockFromPlace(p1) === extractBlockFromPlace(p2) ? 0.7 : 0;
+    if (p1Block && p2Block) {
+      return p1Block === p2Block ? 0.6 : 0;
     }
 
-    if (p1 === "Anywhere" || p2 === "Anywhere") return 0.5;
+    if ((p1Block && p2IsCommon) || (p2Block && p1IsCommon)) {
+      return WEAK_PLACE_SCORE;
+    }
 
-    return 0.6; // both are common/general areas
+    if (p1IsCommon && p2IsCommon) {
+      return 0.2;
+    }
+
+    return 0;
   }
 
-  // ---------------------------------------------------------------------------
-  // BRAND SIMILARITY (free text, optional)
-  // ---------------------------------------------------------------------------
   calculateBrandSimilarity(brand1, brand2) {
     if (!brand1 || !brand2) return 0;
     return this.levenshteinSimilarity(
@@ -155,48 +137,27 @@ class MatchingService {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // MAIN MATCH SCORE
-  // ---------------------------------------------------------------------------
-  /**
-   * GATES (all must pass or score = 0):
-   *   1. Name similarity  ≥ 0.85
-   *   2. Color similarity ≥ 0.85 (or ≥ 0.15 if either side is ambiguous)
-   *   3. Date within ±7 days
-   *
-   * BOOSTERS (improve score, no penalty if missing):
-   *   - Place similarity
-   *   - Brand similarity
-   *   - Condition match (+3 pts flat bonus)
-   */
   calculateMatchScore(lostItem, foundItem) {
     try {
-      // ── GATE 1: Name ──
-      const nameSim = this.calculateNameSimilarity(
-        lostItem.name,
-        foundItem.name
-      );
+      const nameSim = this.calculateNameSimilarity(lostItem.name, foundItem.name);
       if (nameSim < 0.85) return 0;
 
-      // ── GATE 2: Color ──
-      const colorSim = this.calculateColorSimilarity(
-        lostItem.color,
-        foundItem.color
-      );
+      const colorSim = this.calculateColorSimilarity(lostItem.color, foundItem.color);
       const eitherAmbiguous =
         AMBIGUOUS_COLORS.includes(lostItem.color) ||
         AMBIGUOUS_COLORS.includes(foundItem.color);
       const colorGate = eitherAmbiguous ? 0.15 : 0.85;
       if (colorSim < colorGate) return 0;
 
-      // ── GATE 3: Date ±7 days ──
-      const dateScore = this.checkDateProximity(
-        lostItem.dateLost,
-        foundItem.dateFound
-      );
+      const dateScore = this.checkDateProximity(lostItem.dateLost, foundItem.dateFound);
       if (dateScore === 0) return 0;
 
-      // ── All gates passed → calculate weighted score ──
+      const placeScore = this.calculatePlaceSimilarity(
+        lostItem.placeLost,
+        foundItem.placeFound
+      );
+      if (placeScore === 0) return 0;
+
       let totalScore = 0;
       let totalWeight = 0;
 
@@ -208,16 +169,7 @@ class MatchingService {
       addMetric(nameSim, WEIGHTS.name);
       addMetric(colorSim, WEIGHTS.color);
       addMetric(dateScore, WEIGHTS.date);
-
-      if (lostItem.placeLost && foundItem.placeFound) {
-        addMetric(
-          this.calculatePlaceSimilarity(
-            lostItem.placeLost,
-            foundItem.placeFound
-          ),
-          WEIGHTS.place
-        );
-      }
+      addMetric(placeScore, WEIGHTS.place);
 
       if (lostItem.brand && foundItem.brand) {
         addMetric(
@@ -243,12 +195,27 @@ class MatchingService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // FIND MATCHES FOR A LOST ITEM
-  // No scope restriction here — a student's lost item should see ALL eligible
-  // found items regardless of which admin/security added them. Scope is enforced
-  // on the found-item side when staff run matching.
-  // ---------------------------------------------------------------------------
+  getEffectiveThreshold(baseThreshold, lostItem, foundItem) {
+    const placeScore = this.calculatePlaceSimilarity(
+      lostItem.placeLost,
+      foundItem.placeFound
+    );
+
+    if (placeScore === WEAK_PLACE_SCORE) {
+      return Math.max(baseThreshold, WEAK_PLACE_THRESHOLD);
+    }
+
+    return baseThreshold;
+  }
+
+  getMatchScope(placeFound) {
+    if (isGlobalScopePlace(placeFound)) {
+      return "global";
+    }
+
+    return `block-local (${extractBlockFromPlace(placeFound) ?? "common"})`;
+  }
+
   async findMatchesForLostItem(lostItemId, threshold = 60) {
     const session = await mongoose.startSession();
 
@@ -265,57 +232,26 @@ class MatchingService {
           "Lost item not found, inactive, or not in pending state"
         );
       }
-      const colorFilter = {
-        $in: [lostItem.color, ...AMBIGUOUS_COLORS],
-      };
 
+      const colorFilter = { $in: [lostItem.color, ...AMBIGUOUS_COLORS] };
       const minDate = new Date(lostItem.dateLost);
       minDate.setDate(minDate.getDate() - 7);
 
       const maxDate = new Date(lostItem.dateLost);
       maxDate.setDate(maxDate.getDate() + 7);
 
-      // ---------------------------------------------------
-      // LOCATION FILTER LOGIC
-      //
-      // If lost item belongs to a block:
-      //   → match same block + common places
-      //
-      // If lost item belongs to a common place:
-      //   → search ALL found items
-      // ---------------------------------------------------
-
-      const lostItemBlock = extractBlockFromPlace(lostItem.placeLost);
-
-      const placeFoundFilter = lostItemBlock
-        ? {
-            $or: [
-              {
-                placeFound: {
-                  $regex: new RegExp(`^${lostItemBlock}\\s*-`, "i"),
-                },
-              },
-              {
-                placeFound: {
-                  $in: COMMON_LOCATIONS,
-                },
-              },
-            ],
-          }
-        : {};
+      const placeFoundFilter = buildPlaceFoundFilter(lostItem);
 
       const foundItems = await FoundItem.find({
         isActive: true,
-        status: {
-          $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED],
-        },
+        status: { $in: [ITEM_STATUS.FOUND, ITEM_STATUS.MATCHED] },
         name: lostItem.name,
         color: colorFilter,
         dateFound: {
           $gte: minDate,
           $lte: maxDate,
         },
-        ...placeFoundFilter,
+        ...(placeFoundFilter ?? {}),
       })
         .populate("createdBy", "name role block")
         .session(session);
@@ -325,8 +261,13 @@ class MatchingService {
 
       for (const foundItem of foundItems) {
         const matchScore = this.calculateMatchScore(lostItem, foundItem);
+        const effectiveThreshold = this.getEffectiveThreshold(
+          threshold,
+          lostItem,
+          foundItem
+        );
 
-        if (matchScore >= threshold) {
+        if (matchScore >= effectiveThreshold) {
           matches.push({
             foundItem,
             matchScore,
@@ -374,30 +315,22 @@ class MatchingService {
       }
 
       await session.commitTransaction();
-
       return matches.sort((a, b) => b.matchScore - a.matchScore);
     } catch (error) {
       await session.abortTransaction();
-
       console.error(
         "Transaction Aborted in findMatchesForLostItem:",
         error.message
       );
-
       throw error;
     } finally {
       session.endSession();
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // FIND MATCHES FOR A FOUND ITEM  (location-scoped)
-  //
-  // Admin found item  → placeLost must be same block OR a common location
-  // Security found item → no placeLost restriction (global university match)
-  // ---------------------------------------------------------------------------
   async findMatchesForFoundItem(foundItemId, threshold = 60) {
     const session = await mongoose.startSession();
+
     try {
       session.startTransaction();
 
@@ -411,6 +344,7 @@ class MatchingService {
           "Found item not found, inactive, or not available for matching"
         );
       }
+
       const colorFilter = { $in: [foundItem.color, ...AMBIGUOUS_COLORS] };
 
       const minDate = new Date(foundItem.dateFound);
@@ -418,7 +352,6 @@ class MatchingService {
       const maxDate = new Date(foundItem.dateFound);
       maxDate.setDate(maxDate.getDate() + 7);
 
-      // ── Location scope filter (the core of this feature) ──
       const placeLostFilter = buildPlaceLostFilter(foundItem);
 
       const lostItems = await LostItem.find({
@@ -430,7 +363,7 @@ class MatchingService {
           $gte: minDate,
           $lte: maxDate,
         },
-        ...(placeLostFilter ?? {}), // spread nothing for security items
+        ...(placeLostFilter ?? {}),
       })
         .populate(
           "userId",
@@ -443,7 +376,13 @@ class MatchingService {
 
       for (const lostItem of lostItems) {
         const matchScore = this.calculateMatchScore(lostItem, foundItem);
-        if (matchScore >= threshold) {
+        const effectiveThreshold = this.getEffectiveThreshold(
+          threshold,
+          lostItem,
+          foundItem
+        );
+
+        if (matchScore >= effectiveThreshold) {
           matches.push({
             lostItem,
             matchScore,
@@ -462,6 +401,7 @@ class MatchingService {
           },
           { session }
         );
+
         await LostItem.updateMany(
           { _id: { $in: matchedIds } },
           {
@@ -486,9 +426,6 @@ class MatchingService {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // MATCH DETAILS (for UI breakdown display)
-  // ---------------------------------------------------------------------------
   getMatchDetails(lostItem, foundItem) {
     const dateScore = this.checkDateProximity(
       lostItem.dateLost,
@@ -522,10 +459,7 @@ class MatchingService {
       },
       placeMatch: {
         score: Math.round(
-          this.calculatePlaceSimilarity(
-            lostItem.placeLost,
-            foundItem.placeFound
-          ) * 100
+          this.calculatePlaceSimilarity(lostItem.placeLost, foundItem.placeFound) * 100
         ),
         lostValue: lostItem.placeLost,
         foundValue: foundItem.placeFound,
@@ -534,8 +468,7 @@ class MatchingService {
         lostItem.brand && foundItem.brand
           ? {
               score: Math.round(
-                this.calculateBrandSimilarity(lostItem.brand, foundItem.brand) *
-                  100
+                this.calculateBrandSimilarity(lostItem.brand, foundItem.brand) * 100
               ),
               lostValue: lostItem.brand,
               foundValue: foundItem.brand,
@@ -549,17 +482,11 @@ class MatchingService {
       },
       scopeInfo: {
         handledBy: foundItem.handledBy,
-        matchScope:
-          foundItem.handledBy === "security"
-            ? "global"
-            : `block-local (${extractBlockFromPlace(foundItem.placeFound) ?? "common"})`,
+        matchScope: this.getMatchScope(foundItem.placeFound),
       },
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // HELPERS
-  // ---------------------------------------------------------------------------
   levenshteinSimilarity(str1, str2) {
     const longer = str1.length > str2.length ? str1 : str2;
     if (longer.length === 0) return 1;
@@ -592,6 +519,7 @@ class MatchingService {
               );
       }
     }
+
     return matrix[str2.length][str1.length];
   }
 

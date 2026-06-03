@@ -1,12 +1,23 @@
 import { body, param } from "express-validator";
 import {
   ALL_LOCATIONS,
+  BLOCK_LOCATIONS,
   COLORS,
+  COMMON_LOCATIONS,
   FOUND_ITEM_RECOVERY_MODES,
   ITEM_CONDITIONS,
   ITEM_NAME,
+  USER_ROLES,
 } from "../../config/constants.js";
 import { handleValidationErrors } from "../../shared/validation/validate-request.js";
+
+const getAllowedLocationsForRole = (role, block) => {
+  if (role === USER_ROLES.SECURITY) return ALL_LOCATIONS;
+  if (role === USER_ROLES.ADMIN) {
+    return [...(BLOCK_LOCATIONS[block] || []), ...COMMON_LOCATIONS];
+  }
+  return [];
+};
 
 const getMinAllowedDate = (recoveryMode = FOUND_ITEM_RECOVERY_MODES.NORMAL) => {
   const minDate = new Date();
@@ -80,7 +91,31 @@ const validateFoundItem = [
 
   body("placeFound")
     .isIn(ALL_LOCATIONS)
-    .withMessage("Please select a valid campus location"),
+    .withMessage("Please select a valid campus location")
+    .custom((value, { req }) => {
+      const allowedLocations = getAllowedLocationsForRole(
+        req.user?.role,
+        req.user?.block
+      );
+
+      if (
+        req.user?.role === USER_ROLES.ADMIN &&
+        !allowedLocations.includes(value)
+      ) {
+        throw new Error(
+          "Admins can only select locations from their own block or common campus areas"
+        );
+      }
+
+      if (
+        req.user?.role === USER_ROLES.SECURITY &&
+        !allowedLocations.includes(value)
+      ) {
+        throw new Error("Please select a valid campus location");
+      }
+
+      return true;
+    }),
 
   body("storageLocation")
     .optional({ checkFalsy: true })

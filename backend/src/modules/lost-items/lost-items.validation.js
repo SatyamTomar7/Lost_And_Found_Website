@@ -1,11 +1,22 @@
 import { body } from "express-validator";
 import {
   ALL_LOCATIONS,
+  BLOCK_LOCATIONS,
   COLORS,
+  COMMON_LOCATIONS,
   ITEM_CONDITIONS,
   ITEM_NAME,
+  USER_ROLES,
 } from "../../config/constants.js";
 import { handleValidationErrors } from "../../shared/validation/validate-request.js";
+
+const getAllowedLocationsForRole = (role, block) => {
+  if (role === USER_ROLES.SECURITY) return ALL_LOCATIONS;
+  if (role === USER_ROLES.STUDENT || role === USER_ROLES.ADMIN) {
+    return [...(BLOCK_LOCATIONS[block] || []), ...COMMON_LOCATIONS];
+  }
+  return [];
+};
 
 const getMinAllowedDate = () => {
   const minDate = new Date();
@@ -53,7 +64,25 @@ const validateLostItem = [
 
   body("placeLost")
     .isIn(ALL_LOCATIONS)
-    .withMessage("Please select a valid ALL location"),
+    .withMessage("Please select a valid campus location")
+    .custom((value, { req }) => {
+      const allowedLocations = getAllowedLocationsForRole(
+        req.user?.role,
+        req.user?.block
+      );
+
+      if (
+        (req.user?.role === USER_ROLES.STUDENT ||
+          req.user?.role === USER_ROLES.ADMIN) &&
+        !allowedLocations.includes(value)
+      ) {
+        throw new Error(
+          "You can only select locations from your own block or common campus areas"
+        );
+      }
+
+      return true;
+    }),
 
   body("contactInfo.phone")
     .optional({ checkFalsy: true })
