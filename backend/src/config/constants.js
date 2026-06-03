@@ -187,7 +187,6 @@ const COMMON_LOCATIONS = [
   "Common Point (Hostel)",
   "Hosteler Mess",
   "Dayscholar Mess",
-  "Near Hostel",
   "Unknown",
 ];
 
