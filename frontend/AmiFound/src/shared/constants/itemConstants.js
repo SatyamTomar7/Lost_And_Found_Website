@@ -143,8 +143,16 @@ export const COMMON_LOCATIONS = [
   "Road Between Block C & E",
   "Road Between Block D & E",
 
+  "H1 Hostel",
+  "H2 Hostel",
+  "H3 Hostel",
+  "H4 Hostel",
+  "H5 Hostel",
+  "Common Point (Hostel)",
+  "Hosteler Mess",
+  "Dayscholar Mess",
   "Near Hostel",
-  "Other",
+  "Unknown",
 ];
 export const COURSES = [
   "B.Tech",
