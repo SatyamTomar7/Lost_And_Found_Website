@@ -11,6 +11,7 @@ import managementStyles from "./ManagementDashboard.module.css";
 import {
   BLOCKS,
   FOUND_STATUSES,
+  FOUND_ITEM_RECOVERY_MODES,
   LOST_STATUSES,
   MGMT_STAT_CARDS,
   MGMT_TABS,
@@ -29,6 +30,11 @@ import {
   getDirectorLostItems,
   getDirectorStudents,
 } from "./services/managementService";
+
+const formatRecoveryMode = (recoveryMode) =>
+  recoveryMode === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED
+    ? "Enquiry Recovered"
+    : "Manual";
 
 function MgmtFilterBar({
   blockFilter,
@@ -466,6 +472,7 @@ function MgmtFoundItemsPanel() {
             <tr>
               <th>Item</th>
               <th>Admin (Block)</th>
+              <th>Recovery Mode</th>
               <th>Brand</th>
               <th>Place found</th>
               <th>Date found</th>
@@ -474,17 +481,17 @@ function MgmtFoundItemsPanel() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && <ShimmerRows cols={7} />}
+            {isLoading && <ShimmerRows cols={8} />}
             {isError && (
               <tr>
-                <td colSpan={7} className={managementStyles["dd-error-cell"]}>
+                <td colSpan={8} className={managementStyles["dd-error-cell"]}>
                   {error.message}
                 </td>
               </tr>
             )}
             {!isLoading && !isError && !data?.data?.length && (
               <tr>
-                <td colSpan={7} className={managementStyles["dd-empty-cell"]}>
+                <td colSpan={8} className={managementStyles["dd-empty-cell"]}>
                   No found items found.
                 </td>
               </tr>
@@ -504,6 +511,12 @@ function MgmtFoundItemsPanel() {
                       {item.createdBy?.name || "-"}
                     </span>
                   </div>
+                </td>
+                <td
+                  data-label="Recovery Mode"
+                  className={managementStyles["dd-muted"]}
+                >
+                  {formatRecoveryMode(item.recoveryMode)}
                 </td>
                 <td data-label="Brand" className={managementStyles["dd-muted"]}>
                   {item.brand || "-"}

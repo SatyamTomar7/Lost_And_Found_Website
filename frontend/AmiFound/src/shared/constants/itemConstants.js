@@ -148,7 +148,7 @@ export const COMMON_LOCATIONS = [
   "H3 Hostel",
   "H4 Hostel",
   "H5 Hostel",
-  "Common Point (Hostel)",
+  "Hostel Common Area",
   "Hosteler Mess",
   "Dayscholar Mess",
   "Unknown",
