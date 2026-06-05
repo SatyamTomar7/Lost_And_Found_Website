@@ -554,9 +554,6 @@ for (const item of affectedLostItems) {
 });
 export const markAsUnclaimed = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const unclaimedCutoffDate = new Date();
-  unclaimedCutoffDate.setHours(0, 0, 0, 0);
-  unclaimedCutoffDate.setDate(unclaimedCutoffDate.getDate() - 6);
 
   // Fetch before update — capture matched users for notifications
   const existingFoundItem = await FoundItem.findOne({
@@ -584,16 +581,6 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
     throw new ApiError(
       404,
       "Found item not found or you lack permission for this block"
-    );
-  }
-
-  if (
-    !existingFoundItem.dateFound ||
-    new Date(existingFoundItem.dateFound) >= unclaimedCutoffDate
-  ) {
-    throw new ApiError(
-      400,
-      "Only found items older than 7 days can be marked as unclaimed"
     );
   }
 
