@@ -964,6 +964,7 @@ export default function OperationalView({
                         currentUser={currentUser}
                         onMarkReturned={handleMarkReturned}
                         onMarkUnclaimed={handleMarkUnclaimed}
+                        canMarkUnclaimed
                         onMarkCollectedOffline={handleMarkOffline}
                         isUpdating={isAnyUpdating}
                         onViewDetails={handleViewDetails}
@@ -1109,6 +1110,7 @@ export default function OperationalView({
                         currentUser={currentUser}
                         onMarkReturned={handleMarkReturned}
                         onMarkUnclaimed={handleMarkUnclaimed}
+                        canMarkUnclaimed
                         onMarkCollectedOffline={handleMarkOffline}
                         isUpdating={isAnyUpdating}
                         onViewDetails={handleViewDetails}
