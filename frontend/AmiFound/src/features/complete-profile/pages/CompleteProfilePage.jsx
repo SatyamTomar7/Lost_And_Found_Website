@@ -9,7 +9,7 @@ import {
   fetchCurrentUser,
 } from "../../auth/services/authService.js";
 import {
-  BRANCHES,
+  COURSE_BRANCHES,
   COURSES,
   YEAR_OPTIONS,
   SECTION_OPTIONS,
@@ -178,13 +178,23 @@ const CompleteProfile = ({ setCurrentUser }) => {
   const handleConfirm = () => mutation.mutate(pendingData);
 
   const selectedYear = watch("year");
+  const selectedCourse = watch("course");
+
   useEffect(() => {
     setValue("semester", "");
   }, [selectedYear, setValue]);
 
+  useEffect(() => {
+    setValue("branch", "");
+  }, [selectedCourse, setValue]);
+
   const semesterOptions = selectedYear
     ? getSemestersForYear(selectedYear)
     : ["1", "2", "3", "4", "5", "6", "7", "8"];
+  const branchOptions = selectedCourse
+    ? COURSE_BRANCHES[selectedCourse] || []
+    : [];
+  const isBranchDisabled = !selectedCourse || branchOptions.length === 0;
 
   return (
     <div className="page active">
@@ -249,9 +259,16 @@ const CompleteProfile = ({ setCurrentUser }) => {
                     <select
                       className={`${styles["cp-select"]}${errors.branch ? ` ${styles["cp-input--error"]}` : ""}`}
                       {...register("branch")}
+                      disabled={isBranchDisabled}
                     >
-                      <option value="">Select Branch</option>
-                      {BRANCHES.map((branch) => (
+                      <option value="">
+                        {!selectedCourse
+                          ? "Select Course First"
+                          : branchOptions.length === 0
+                            ? "No Branch Available"
+                            : "Select Branch"}
+                      </option>
+                      {branchOptions.map((branch) => (
                         <option key={branch} value={branch}>
                           {branch}
                         </option>

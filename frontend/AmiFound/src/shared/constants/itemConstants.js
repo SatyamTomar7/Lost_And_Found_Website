@@ -156,10 +156,10 @@ export const COMMON_LOCATIONS = [
 export const COURSES = [
   "B.Tech",
   "M.Tech",
-  "BCA",
-  "MCA",
   "B.Sc",
   "M.Sc",
+  "BCA",
+  "MCA",
   "BBA",
   "MBA",
   "B.Com",
@@ -174,43 +174,120 @@ export const COURSES = [
   "B.Des",
   "M.Des",
   "B.Arch",
-  "M.Plan"
+  "M.Plan",
+  "PhD",
+  "B.Sc + M.Sc",
+  "Bachelor of Interior Design",
+  "Master of Interior Design",
+  "Bachelor in Clinical Psychology",
 ];
 
-export const BRANCHES = [
-  "CSE",
-  "IT",
-  "ECE",
-  "Mechanical Engineering",
-  "Civil Engineering",
-  "Biotechnology",
-  "Structural Engineering",
-  "VLSI Design",
-  "Computer Science",
-  "AI & Cyber Security",
-  "Environmental Science",
-  "Forensic Science",
-  "Animation & Visual Graphics",
-  "Biology",
-  "Fashion Design",
-  "Interior Design",
-  "Architecture",
-  "Urban & Regional Planning",
-  "Pharmacy",
-  "Pharmaceutics",
-  "Pharmacology",
-  "Psychology",
-  "Applied Psychology",
-  "Clinical Psychology",
-  "Journalism & Mass Communication",
-  "English",
-  "Economics",
-  "Political Science",
-  "History",
-  "Management",
-  "Law",
-  "Commerce",
-];
+export const COURSE_BRANCHES = {
+  "B.Tech": [
+    "Civil Engineering",
+    "Computer Science & Engineering",
+    "Electronics & Communication Engineering",
+    "Information Technology",
+    "Mechanical Engineering",
+    "Biotechnology",
+  ],
+  "M.Tech": [
+    "Civil Engineering",
+    "Computer Science & Engineering",
+    "Electronics & Communication Engineering",
+    "Mechanical Engineering",
+    "Biotechnology",
+    "Structural Engineering",
+    "VLSI Design",
+  ],
+  "B.Sc": [
+    "Biology",
+    "Biotechnology",
+    "Clinical Psychology",
+    "Computer Science",
+    "Forensic Sciences",
+    "Animation & Visual Graphics",
+  ],
+  "M.Sc": [
+    "Biotechnology",
+    "Environmental Sciences",
+    "Artificial Intelligence & Cyber Security",
+  ],
+  BCA: [
+    "General",
+    "Artificial Intelligence & Cyber Security",
+  ],
+  MCA: [
+    "General",
+  ],
+  BBA: [
+    "General",
+  ],
+  MBA: [
+    "General",
+  ],
+  "B.Com": [
+    "General",
+  ],
+  BA: [
+    "Economics",
+    "English",
+    "History",
+    "Journalism & Mass Communication",
+    "Political Science",
+    "Applied Psychology",
+  ],
+  MA: [
+    "English",
+    "Journalism & Mass Communication",
+    "Applied Psychology",
+    "Clinical Psychology",
+  ],
+  "B.Pharm": [
+    "General",
+  ],
+  "M.Pharm": [
+    "Pharmaceutics",
+    "Pharmacology",
+  ],
+  "BA LLB": [
+    "General",
+  ],
+  "BBA LLB": [
+    "General",
+  ],
+  LLB: [
+    "General",
+  ],
+  LLM: [
+    "General",
+  ],
+  "B.Des": [
+    "Fashion Design",
+  ],
+  "M.Des": [
+    "Fashion Design",
+  ],
+  "B.Arch": [
+    "General",
+  ],
+  "M.Plan": [
+    "Urban & Regional Planning",
+  ],
+  PhD: [],
+  "B.Sc + M.Sc": [
+    "Biotechnology (Dual Degree)",
+  ],
+  "Bachelor of Interior Design": [
+    "General",
+  ],
+  "Master of Interior Design": [
+    "General",
+  ],
+  "Bachelor in Clinical Psychology": [
+    "General",
+  ],
+};
 
 export const SEMESTER_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 export const NOTIFICATION_TYPES = {
