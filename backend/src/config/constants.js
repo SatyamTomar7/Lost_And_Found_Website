@@ -190,6 +190,115 @@ const COMMON_LOCATIONS = [
   "Unknown",
 ];
 
+const COURSE_BRANCHES = {
+  "B.Tech": [
+    "Civil Engineering",
+    "Computer Science & Engineering",
+    "Electronics & Communication Engineering",
+    "Information Technology",
+    "Mechanical Engineering",
+    "Biotechnology",
+  ],
+  "M.Tech": [
+    "Civil Engineering",
+    "Computer Science & Engineering",
+    "Electronics & Communication Engineering",
+    "Mechanical Engineering",
+    "Biotechnology",
+    "Structural Engineering",
+    "VLSI Design",
+  ],
+  "B.Sc": [
+    "Biology",
+    "Biotechnology",
+    "Clinical Psychology",
+    "Computer Science",
+    "Forensic Sciences",
+    "Animation & Visual Graphics",
+  ],
+  "M.Sc": [
+    "Biotechnology",
+    "Environmental Sciences",
+    "Artificial Intelligence & Cyber Security",
+  ],
+  BCA: [
+    "General",
+    "Artificial Intelligence & Cyber Security",
+  ],
+  MCA: [
+    "General",
+  ],
+  BBA: [
+    "General",
+  ],
+  MBA: [
+    "General",
+  ],
+  "B.Com": [
+    "General",
+  ],
+  BA: [
+    "Economics",
+    "English",
+    "History",
+    "Journalism & Mass Communication",
+    "Political Science",
+    "Applied Psychology",
+  ],
+  MA: [
+    "English",
+    "Journalism & Mass Communication",
+    "Applied Psychology",
+    "Clinical Psychology",
+  ],
+  "B.Pharm": [
+    "General",
+  ],
+  "M.Pharm": [
+    "Pharmaceutics",
+    "Pharmacology",
+  ],
+  "BA LLB": [
+    "General",
+  ],
+  "BBA LLB": [
+    "General",
+  ],
+  LLB: [
+    "General",
+  ],
+  LLM: [
+    "General",
+  ],
+  "B.Des": [
+    "Fashion Design",
+  ],
+  "M.Des": [
+    "Fashion Design",
+  ],
+  "B.Arch": [
+    "General",
+  ],
+  "M.Plan": [
+    "Urban & Regional Planning",
+  ],
+  PhD: [],
+  "B.Sc + M.Sc": [
+    "Biotechnology (Dual Degree)",
+  ],
+  "Bachelor of Interior Design": [
+    "General",
+  ],
+  "Master of Interior Design": [
+    "General",
+  ],
+  "Bachelor in Clinical Psychology": [
+    "General",
+  ],
+};
+
+const COURSES = Object.keys(COURSE_BRANCHES);
+
 const ALL_LOCATIONS = [
   ...Object.values(BLOCK_LOCATIONS).flat(),
   ...COMMON_LOCATIONS,
@@ -209,5 +318,7 @@ export {
   ITEM_NAME,
   ITEM_CONDITIONS,
   ITEM_CONDITIONS_VALUES,
+  COURSES,
+  COURSE_BRANCHES,
   FILE_UPLOAD,
 };

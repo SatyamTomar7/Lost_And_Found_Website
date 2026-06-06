@@ -1,5 +1,6 @@
 import { body } from "express-validator";
 import { handleValidationErrors } from "../../shared/validation/validate-request.js";
+import { COURSE_BRANCHES, COURSES } from "../../config/constants.js";
 
 const validateUserRegistration = [
   body("name")
@@ -112,6 +113,8 @@ const validateCompleteProfile = [
     .trim()
     .notEmpty()
     .withMessage("Course is required")
+    .isIn(COURSES)
+    .withMessage("Invalid course selected")
     .isLength({ max: 100 })
     .withMessage("Course name too long"),
 
@@ -119,6 +122,16 @@ const validateCompleteProfile = [
     .trim()
     .notEmpty()
     .withMessage("Branch is required")
+    .custom((branch, { req }) => {
+      const course = req.body.course?.trim();
+      const allowedBranches = COURSE_BRANCHES[course] || [];
+
+      if (!allowedBranches.includes(branch)) {
+        throw new Error("Selected branch is not valid for the chosen course");
+      }
+
+      return true;
+    })
     .isLength({ max: 100 })
     .withMessage("Branch name too long"),
 
