@@ -277,6 +277,7 @@
   padding: 1rem 1.5rem;
   border-top: 1px solid #e5e7eb;
   background: #f9fafb;
+  flex-wrap: wrap;
 }
 
 /* ── Return Details Modal ───────────────────────────────────────────────── */
@@ -569,6 +570,7 @@
   color: var(--text-primary, #111827);
   font-weight: 600;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 /* Warning icon color for modal header */
@@ -647,11 +649,20 @@
 
   .return-modal__footer {
     flex-direction: column-reverse;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding-top: 0.85rem;
+    padding-bottom: calc(0.9rem + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -10px 24px rgba(17, 24, 39, 0.08);
   }
 
   .return-modal__footer > * {
     width: 100%;
     justify-content: center;
+    min-height: 50px;
+    font-size: 0.95rem;
+    white-space: normal;
   }
 
   .return-details__claimant-row {
@@ -685,6 +696,12 @@
     padding-bottom: 1rem;
   }
 
+  .return-details__body {
+    gap: 1rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .return-modal__title-group {
     gap: 0.5rem;
   }
@@ -701,6 +718,12 @@
 
   .return-modal__list-item {
     padding: 0.8rem;
+  }
+
+  .return-modal__footer {
+    gap: 0.65rem;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
   }
 
   .return-modal__list-item-meta,
@@ -726,6 +749,15 @@
 
   .return-details__claimant-val {
     grid-column: 2;
+    font-size: 12.5px;
+  }
+
+  .submit-confirm-modal__warning {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .submit-confirm-modal__label,
+  .submit-confirm-modal__value {
     font-size: 12.5px;
   }
 }
