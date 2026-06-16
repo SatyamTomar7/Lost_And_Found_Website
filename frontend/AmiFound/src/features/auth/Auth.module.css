@@ -6,7 +6,7 @@
   margin-bottom: var(--sp-8);
   font-weight: var(--fw-semibold);
   font-size: var(--text-sm);
-  color: var(--text-primary);
+  color: var(--navy-dark);
 }
 .form-label-row {
   display: flex;
@@ -21,6 +21,7 @@
 .form-control {
   display: block;
   width: 100%;
+  min-height: 46px;
   padding: var(--sp-12) var(--sp-16);
   font-family: var(--font-body);
   font-size: var(--text-md);
@@ -153,15 +154,14 @@ input[type="radio"] {
   padding: var(--sp-20);
 }
 .auth-card {
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--surface);
   border-radius: var(--r-2xl);
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(21, 58, 107, 0.08);
   padding: var(--sp-48);
   width: 100%;
   max-width: 480px;
-  box-shadow: var(--shadow-xl);
+  box-shadow: 0 18px 40px rgba(17, 24, 39, 0.16);
   position: relative;
-  backdrop-filter: blur(12px);
 }
 /* Gradient border accent */
 .auth-card::before {
@@ -185,6 +185,7 @@ input[type="radio"] {
 .auth-header p {
   color: var(--text-secondary);
   margin: 0;
+  font-size: var(--text-md);
 }
 
 .auth-form {
@@ -199,7 +200,7 @@ input[type="radio"] {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   transition: color var(--dur-fast) var(--ease);
   padding: 0;
 }
@@ -314,7 +315,7 @@ input[type="radio"] {
   background: rgba(30, 80, 142, 0.05);
   border-left: 3px solid var(--navy);
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   line-height: var(--leading-normal);
 }
@@ -371,7 +372,7 @@ input[type="radio"] {
   }
 
   .auth-header p {
-    font-size: var(--text-sm);
+    font-size: var(--text-md);
   }
 
   .form-label-row {
@@ -386,6 +387,7 @@ input[type="radio"] {
   }
 
   .form-control {
+    min-height: 48px;
     padding: 11px 14px;
     font-size: 16px;
   }

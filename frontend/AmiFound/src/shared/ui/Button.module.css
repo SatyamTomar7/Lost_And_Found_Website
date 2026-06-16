@@ -3,6 +3,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--sp-8);
+  min-height: 44px;
   padding: var(--sp-12) var(--sp-24);
   border-radius: var(--r-md);
   font-family: var(--font-body);
@@ -39,29 +40,30 @@
 }
 
 .btn--primary {
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--surface);
   color: var(--navy);
   font-weight: var(--fw-bold);
-  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(21, 58, 107, 0.12);
+  box-shadow: var(--shadow-sm);
 }
 .btn--primary:hover {
-  background: #fff;
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+  background: var(--surface-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .btn--secondary,
 .btn--outline {
   background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
-  color: #fff;
+  color: var(--navy-dark);
   font-weight: var(--fw-bold);
   box-shadow: var(--shadow-gold);
 }
 .btn--secondary:hover,
 .btn--outline:hover {
-  background: rgba(255, 255, 255, 0.96);
-  color: var(--navy);
-  transform: translateY(-2px);
+  background: linear-gradient(135deg, #ffd34a 0%, var(--gold) 100%);
+  color: var(--navy-dark);
+  transform: translateY(-1px);
 }
 
 .btn--sm {
@@ -73,6 +75,7 @@
   padding: var(--sp-16) var(--sp-32);
   font-size: var(--text-lg);
   border-radius: var(--r-lg);
+  min-height: 50px;
 }
 .btn--full-width {
   width: 100%;
@@ -130,9 +133,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 500;
-  padding: 6px 14px;
+  padding: 8px 14px;
   border-radius: 6px;
   cursor: pointer;
   transition:
@@ -166,7 +169,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-weight: 600;
   padding: 9px 20px;
   border-radius: 6px;
@@ -188,5 +191,18 @@
 .btn--self-resolve-confirm:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .btn {
+    width: 100%;
+    min-height: 46px;
+    padding: var(--sp-12) var(--sp-16);
+  }
+
+  .btn--sm,
+  .btn--lg {
+    width: 100%;
+  }
 }
 

@@ -1,12 +1,11 @@
 .header {
-  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
-  border-bottom: 3px solid rgba(255, 255, 255, 0.25);
-  padding: var(--sp-20) 0;
+  background: linear-gradient(135deg, #f7c623 0%, #e4aa0a 100%);
+  border-bottom: 2px solid rgba(21, 58, 107, 0.12);
+  padding: var(--sp-16) 0;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   transition: padding var(--dur-normal) var(--ease);
 }
 .header :global(.container) {
@@ -45,8 +44,9 @@
 
 .user-summary {
   margin-right: 16px;
-  color: var(--text-secondary);
-  font-size: 14px;
+  color: var(--navy-dark);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
   display: flex;
   align-items: center;
 }
@@ -57,7 +57,7 @@
 
 @media (max-width: 768px) {
   .header {
-    padding: var(--sp-16) 0;
+    padding: var(--sp-14) 0;
   }
   .header :global(.container) {
     padding: 0 var(--sp-16);
@@ -73,10 +73,11 @@
 
 @media (max-width: 480px) {
   .header {
-    padding: var(--sp-12) 0;
+    padding: var(--sp-10) 0;
   }
   .header :global(.container) {
     padding: 0 var(--sp-12);
+    gap: var(--sp-8);
   }
   .nav-brand .logo {
     font-size: var(--text-lg);
@@ -84,6 +85,9 @@
   }
   .nav-brand .logo svg {
     font-size: var(--text-xl);
+  }
+  .user-summary {
+    display: none;
   }
 }
 

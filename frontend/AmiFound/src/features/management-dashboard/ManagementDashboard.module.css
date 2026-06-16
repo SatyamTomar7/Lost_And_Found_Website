@@ -267,7 +267,7 @@
   letter-spacing: 0.03em;
 }
 .dd-sub {
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   color: var(--text-secondary);
   margin-top: var(--sp-2);
 }
@@ -280,7 +280,7 @@
   font-family: var(--font-body);
   font-weight: var(--fw-medium);
   color: var(--text-secondary);
-  background: var(--surface);
+  background: var(--surface-soft);
   border: 1px solid rgba(0, 0, 0, 0.1);
   padding: var(--sp-8) var(--sp-16);
   border-radius: var(--r-md);
@@ -309,7 +309,7 @@
   margin-bottom: var(--sp-32);
 }
 .dd-stat {
-  background: var(--surface);
+  background: var(--surface-soft);
   border: 1px solid rgba(0, 0, 0, 0.07);
   border-radius: var(--r-lg);
   padding: var(--sp-16) var(--sp-20);
@@ -414,7 +414,7 @@
   flex-wrap: wrap;
   gap: var(--sp-12);
   padding: var(--sp-12) var(--sp-16);
-  background: rgba(30, 80, 142, 0.03);
+  background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(30, 80, 142, 0.08);
   border-radius: var(--r-lg) var(--r-lg) 0 0;
   border-bottom: none;
@@ -445,7 +445,7 @@
 }
 .dd-select {
   font-family: var(--font-body);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: var(--fw-medium);
   color: var(--text-primary);
   background: var(--surface);
@@ -502,7 +502,7 @@
 /* ── Table ─────────────────────────────────────────────────────────────── */
 .dd-table-wrap {
   overflow-x: auto;
-  background: var(--surface);
+  background: var(--surface-soft);
   border: 1px solid rgba(0, 0, 0, 0.07);
   border-radius: var(--r-lg);
 }
@@ -517,7 +517,7 @@
 .dd-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
 }
 .dd-table th {
   padding: var(--sp-10) var(--sp-16);
@@ -560,7 +560,7 @@
 }
 .dd-item-sub {
   display: block;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   margin-top: 1px;
 }
@@ -849,7 +849,7 @@
     display: none;
   }
   .dd-tab {
-    padding: var(--sp-8) var(--sp-12);
+    padding: 10px 12px;
   }
   .dd-filter-bar {
     gap: var(--sp-8);
@@ -965,7 +965,7 @@
   }
 
   .dd-table tbody tr {
-    background: var(--surface);
+    background: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.07);
     border-radius: var(--r-lg);
     padding: 10px 12px;
@@ -989,7 +989,7 @@
     content: attr(data-label);
     display: block;
     margin-bottom: 4px;
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
