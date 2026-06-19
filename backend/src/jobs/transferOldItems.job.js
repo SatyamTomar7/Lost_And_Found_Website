@@ -34,7 +34,7 @@ const runTransferOldItems = async (trigger = "scheduled") => {
   try {
     const sevenDaysAgoCutoff = new Date();
     sevenDaysAgoCutoff.setHours(0, 0, 0, 0);
-    sevenDaysAgoCutoff.setDate(sevenDaysAgoCutoff.getDate() - 7);
+    sevenDaysAgoCutoff.setDate(sevenDaysAgoCutoff.getDate() - 6);
 
     const oldItems = await FoundItem.find({
       handledBy: USER_ROLES.ADMIN,
