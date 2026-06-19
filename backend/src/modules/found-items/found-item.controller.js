@@ -186,7 +186,7 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
 
     const cutoffDate = new Date();
     cutoffDate.setHours(0, 0, 0, 0);
-    cutoffDate.setDate(cutoffDate.getDate() - 6);
+    cutoffDate.setDate(cutoffDate.getDate() - 7);
 
     query.dateFound =
       age === "active"
