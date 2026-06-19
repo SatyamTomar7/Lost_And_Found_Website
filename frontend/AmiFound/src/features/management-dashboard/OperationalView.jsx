@@ -509,7 +509,7 @@ export default function OperationalView({
   const securityDateCutoff = useMemo(() => {
     const cutoff = new Date();
     cutoff.setHours(0, 0, 0, 0);
-    cutoff.setDate(cutoff.getDate() - 7);
+    cutoff.setDate(cutoff.getDate() - 6);
     return cutoff;
   }, []);
 
