@@ -30,6 +30,8 @@ export const ITEM_NAME = [
   "Earbuds",
   "Earphones",
   "Headphones",
+  "Helmet",
+  "Bag",
   "Laptop",
   "Mobile Phone",
   "Student ID Card",
@@ -54,7 +56,8 @@ export const ITEM_NAME = [
   "Earrings",
   "Necklace",
   "Ring",
-  "Wristwatch",
+  "Non-SmartWatch",
+  "Umbrella",
   "Other",
 ];
 
