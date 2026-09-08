@@ -2,6 +2,7 @@ const DB_NAME = "LOST_AND_FOUND_AMITY";
 const USER_ROLES = {
   STUDENT: "student",
   ADMIN: "admin",
+  SUPER_ADMIN: "super_admin",
   DIRECTOR: "director",
   SECURITY: "security",
 };
@@ -18,6 +19,8 @@ const ITEM_NAME = [
   "Earbuds",
   "Earphones",
   "Headphones",
+  "Helmet",
+  "Bag",
   "Laptop",
   "Mobile Phone",
   "Student ID Card",
@@ -42,7 +45,8 @@ const ITEM_NAME = [
   "Earrings",
   "Necklace",
   "Ring",
-  "Wristwatch",
+  "Non-SmartWatch",
+  "Umbrella",
   "Other",
 ];
 

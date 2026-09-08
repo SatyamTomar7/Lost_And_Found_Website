@@ -5,9 +5,10 @@
   "main": "src/app/server.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test src/modules/admin-management/*.test.js",
     "dev": "nodemon src/app/server.js",
     "start": "node src/app/server.js",
+    "create:super-admin": "node src/scripts/create-super-admin.js",
     "format": "prettier --write ."
   },
   "keywords": [

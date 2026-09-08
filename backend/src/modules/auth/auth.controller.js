@@ -577,10 +577,11 @@ if (user.role === USER_ROLES.STUDENT && !user.isEmailVerified) {
     };
   }
 
-  // Director + Security Response
+  // Director, security, and super admin response
   else if (
     user.role === USER_ROLES.DIRECTOR ||
-    user.role === USER_ROLES.SECURITY
+    user.role === USER_ROLES.SECURITY ||
+    user.role === USER_ROLES.SUPER_ADMIN
   ) {
     userData = {
       id: user._id,

@@ -6,6 +6,7 @@ import matchRoutes from "../modules/matching/match.routes.js";
 import notificationRoutes from "../modules/notifications/notification.routes.js";
 import uploadRoutes from "../modules/uploads/upload.routes.js";
 import managementRoutes from "../modules/management/management.routes.js";
+import adminManagementRoutes from "../modules/admin-management/admin-management.routes.js";
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -33,6 +34,7 @@ export const registerRoutes = (app) => {
   app.use("/api/notifications", apiLimiter, notificationRoutes);
   app.use("/api/upload", uploadRoutes);
   app.use("/api/management", managementRoutes);
+  app.use("/api/admin-management", adminManagementRoutes);
 
   app.get("/api/health", (_req, res) => {
     res.status(200).json({
