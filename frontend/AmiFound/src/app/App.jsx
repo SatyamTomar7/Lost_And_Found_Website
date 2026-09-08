@@ -34,14 +34,18 @@ import NotFoundPage from "../shared/pages/NotFoundPage";
 
 const HomePage = lazy(() => import("../features/home/pages/HomePage"));
 const UnifiedAuthPage = lazy(() => import("../features/auth/pages/AuthPage"));
-const StudentDashboard = lazy(() =>
-  import("../features/student-dashboard/pages/StudentDashboardPage"),
+const StudentDashboard = lazy(
+  () => import("../features/student-dashboard/pages/StudentDashboardPage"),
 );
-const ManagementDashboard = lazy(() =>
-  import("../features/management-dashboard/pages/ManagementDashboardPage"),
+const ManagementDashboard = lazy(
+  () =>
+    import("../features/management-dashboard/pages/ManagementDashboardPage"),
 );
-const CompleteProfile = lazy(() =>
-  import("../features/complete-profile/pages/CompleteProfilePage"),
+const SuperAdminDepartmentPage = lazy(
+  () => import("../features/admin-management/pages/SuperAdminDepartmentPage"),
+);
+const CompleteProfile = lazy(
+  () => import("../features/complete-profile/pages/CompleteProfilePage"),
 );
 
 const PageLoader = () => (
@@ -106,7 +110,9 @@ class ChunkErrorBoundary extends Component {
             <FaExclamationTriangle
               className={loaderStyles["chunk-error-icon"]}
             />
-            <p>Failed to load page. Please check your connection and refresh.</p>
+            <p>
+              Failed to load page. Please check your connection and refresh.
+            </p>
             <button
               className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${loaderStyles["chunk-retry-btn"]}`}
               onClick={this.handleRetry}
@@ -331,8 +337,14 @@ function AppContent() {
               }
             />
 
-            <Route path="/student-auth" element={<Navigate to="/login" replace />} />
-            <Route path="/admin-auth" element={<Navigate to="/login" replace />} />
+            <Route
+              path="/student-auth"
+              element={<Navigate to="/login" replace />}
+            />
+            <Route
+              path="/admin-auth"
+              element={<Navigate to="/login" replace />}
+            />
 
             <Route
               path="/complete-profile"
@@ -405,6 +417,18 @@ function AppContent() {
                     setLoading={setLoading}
                     showMessage={showMessage}
                   />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/super-admin/departments"
+              element={
+                <ProtectedRoute
+                  user={currentUser}
+                  allowedRoles={["super_admin"]}
+                >
+                  <SuperAdminDepartmentPage showMessage={showMessage} />
                 </ProtectedRoute>
               }
             />
