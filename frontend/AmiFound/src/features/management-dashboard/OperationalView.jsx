@@ -74,7 +74,8 @@ export default function OperationalView({
   const [offlineDetailsModalItem, setOfflineDetailsModalItem] = useState(null);
   const [collectOfflineItem, setCollectOfflineItem] = useState(null);
   const [unclaimedModalItem, setUnclaimedModalItem] = useState(null);
-  const [collectOfflineServerError, setCollectOfflineServerError] = useState(null);
+  const [collectOfflineServerError, setCollectOfflineServerError] =
+    useState(null);
   const [pendingFormData, setPendingFormData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const queryClient = useQueryClient();
@@ -149,22 +150,22 @@ export default function OperationalView({
     isError: activeFoundItemsError,
     error: activeFoundItemsErrorDetails,
   } = useQuery({
-      queryKey: [...OP_QUERY_KEYS.foundItems, "security-active"],
-      queryFn: async () => {
-        const r = await getDepartmentFoundItems({
-          ...securityFetchAllParams,
-          recoveryMode: DASHBOARD_RECOVERY_MODES.NORMAL,
-          age: "active",
-        });
-        return r.data.data || [];
-      },
-      enabled: isSecurity && activeTab === "active-found",
-      staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
-      gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
-      refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
-      refetchIntervalInBackground: false,
-      refetchOnWindowFocus: true,
-    });
+    queryKey: [...OP_QUERY_KEYS.foundItems, "security-active"],
+    queryFn: async () => {
+      const r = await getDepartmentFoundItems({
+        ...securityFetchAllParams,
+        recoveryMode: DASHBOARD_RECOVERY_MODES.NORMAL,
+        age: "active",
+      });
+      return r.data.data || [];
+    },
+    enabled: isSecurity && activeTab === "active-found",
+    staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
+    gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
+    refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  });
 
   const {
     data: oldFoundItems = [],
@@ -172,22 +173,22 @@ export default function OperationalView({
     isError: oldFoundItemsError,
     error: oldFoundItemsErrorDetails,
   } = useQuery({
-      queryKey: [...OP_QUERY_KEYS.foundItems, "security-old"],
-      queryFn: async () => {
-        const r = await getDepartmentFoundItems({
-          ...securityFetchAllParams,
-          recoveryMode: DASHBOARD_RECOVERY_MODES.NORMAL,
-          age: "old",
-        });
-        return r.data.data || [];
-      },
-      enabled: isSecurity && activeTab === "old-found-items",
-      staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
-      gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
-      refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
-      refetchIntervalInBackground: false,
-      refetchOnWindowFocus: true,
-    });
+    queryKey: [...OP_QUERY_KEYS.foundItems, "security-old"],
+    queryFn: async () => {
+      const r = await getDepartmentFoundItems({
+        ...securityFetchAllParams,
+        recoveryMode: DASHBOARD_RECOVERY_MODES.NORMAL,
+        age: "old",
+      });
+      return r.data.data || [];
+    },
+    enabled: isSecurity && activeTab === "old-found-items",
+    staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
+    gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
+    refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+  });
 
   const {
     data: enquiryRecoveredItems = [],
@@ -195,14 +196,14 @@ export default function OperationalView({
     isError: enquiryRecoveredItemsError,
     error: enquiryRecoveredItemsErrorDetails,
   } = useQuery({
-      queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
-      queryFn: async () => {
-        const r = await getDepartmentFoundItems({
-          ...securityFetchAllParams,
-          recoveryMode: DASHBOARD_RECOVERY_MODES.ENQUIRY_RECOVERED,
-        });
-        return r.data.data || [];
-      },
+    queryKey: OP_QUERY_KEYS.enquiryRecoveredItems,
+    queryFn: async () => {
+      const r = await getDepartmentFoundItems({
+        ...securityFetchAllParams,
+        recoveryMode: DASHBOARD_RECOVERY_MODES.ENQUIRY_RECOVERED,
+      });
+      return r.data.data || [];
+    },
     enabled: isSecurity && activeTab === "enquiry-recovered",
     staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
     gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
@@ -275,7 +276,8 @@ export default function OperationalView({
             FOUND_ITEM_RECOVERY_MODES.NORMAL;
 
           setActiveTab(
-            submittedRecoveryMode === FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED
+            submittedRecoveryMode ===
+              FOUND_ITEM_RECOVERY_MODES.ENQUIRY_RECOVERED
               ? "enquiry-recovered"
               : "active-found",
           );
@@ -292,7 +294,12 @@ export default function OperationalView({
     onError: (error) => {
       applyBackendFormErrors(setError, error);
       setPendingFormData(null);
-      showMessage(error?.message || "Failed to add found item.", "error");
+      showMessage(
+        error?.errors?.[0]?.message ||
+          error?.message ||
+          "Failed to add found item.",
+        "error",
+      );
     },
     onSettled: () => setLoading(false),
   });
@@ -314,10 +321,12 @@ export default function OperationalView({
           item._id === itemId ? { ...item, status: newStatus } : item,
         ),
       );
-      queryClient.setQueryData(OP_QUERY_KEYS.enquiryRecoveredItems, (old = []) =>
-        old.map((item) =>
-          item._id === itemId ? { ...item, status: newStatus } : item,
-        ),
+      queryClient.setQueryData(
+        OP_QUERY_KEYS.enquiryRecoveredItems,
+        (old = []) =>
+          old.map((item) =>
+            item._id === itemId ? { ...item, status: newStatus } : item,
+          ),
       );
       setLoading(true);
       return { previousFoundItems: prev, previousEnquiryItems: prevEnquiry };
@@ -376,17 +385,19 @@ export default function OperationalView({
             : item,
         ),
       );
-      queryClient.setQueryData(OP_QUERY_KEYS.enquiryRecoveredItems, (old = []) =>
-        old.map((item) =>
-          item._id === itemId
-            ? {
-                ...item,
-                status: "offline returned",
-                matchedLostItemIds: [],
-                claimedBy,
-              }
-            : item,
-        ),
+      queryClient.setQueryData(
+        OP_QUERY_KEYS.enquiryRecoveredItems,
+        (old = []) =>
+          old.map((item) =>
+            item._id === itemId
+              ? {
+                  ...item,
+                  status: "offline returned",
+                  matchedLostItemIds: [],
+                  claimedBy,
+                }
+              : item,
+          ),
       );
       setLoading(true);
       return {
@@ -445,7 +456,10 @@ export default function OperationalView({
   const handleMarkUnclaimed = useCallback((item) => {
     setUnclaimedModalItem(item);
   }, []);
-  const handleMarkReturned = useCallback((item) => setReturnModalItem(item), []);
+  const handleMarkReturned = useCallback(
+    (item) => setReturnModalItem(item),
+    [],
+  );
   const handleUnclaimedConfirm = useCallback(() => {
     if (!unclaimedModalItem) return;
 
@@ -466,7 +480,10 @@ export default function OperationalView({
     },
     [updateStatusMutation],
   );
-  const handleViewDetails = useCallback((item) => setDetailsModalItem(item), []);
+  const handleViewDetails = useCallback(
+    (item) => setDetailsModalItem(item),
+    [],
+  );
   const handleMarkOffline = useCallback((item) => {
     setCollectOfflineServerError(null);
     setCollectOfflineItem(item);
@@ -488,7 +505,9 @@ export default function OperationalView({
       setPendingFormData({
         ...data,
         recoveryMode: isSecurity
-          ? data.recoveryMode || selectedRecoveryMode || FOUND_ITEM_RECOVERY_MODES.NORMAL
+          ? data.recoveryMode ||
+            selectedRecoveryMode ||
+            FOUND_ITEM_RECOVERY_MODES.NORMAL
           : FOUND_ITEM_RECOVERY_MODES.NORMAL,
       }),
     [isSecurity, selectedRecoveryMode],
@@ -521,7 +540,8 @@ export default function OperationalView({
 
   const isNewFoundItem = useCallback(
     (item) => {
-      if (!item || isEnquiryRecoveredItem(item) || !item.dateFound) return false;
+      if (!item || isEnquiryRecoveredItem(item) || !item.dateFound)
+        return false;
       return new Date(item.dateFound) >= securityDateCutoff;
     },
     [isEnquiryRecoveredItem, securityDateCutoff],
@@ -529,7 +549,8 @@ export default function OperationalView({
 
   const isOldFoundItem = useCallback(
     (item) => {
-      if (!item || isEnquiryRecoveredItem(item) || !item.dateFound) return false;
+      if (!item || isEnquiryRecoveredItem(item) || !item.dateFound)
+        return false;
       return new Date(item.dateFound) < securityDateCutoff;
     },
     [isEnquiryRecoveredItem, securityDateCutoff],
@@ -678,7 +699,10 @@ export default function OperationalView({
                 >
                   <div className={authStyles["form-row"]}>
                     <div className={authStyles["form-group"]}>
-                      <label htmlFor="itemname" className={authStyles["form-label"]}>
+                      <label
+                        htmlFor="itemname"
+                        className={authStyles["form-label"]}
+                      >
                         Item Name *
                       </label>
                       <select
@@ -701,7 +725,10 @@ export default function OperationalView({
                       )}
                     </div>
                     <div className={authStyles["form-group"]}>
-                      <label htmlFor="itemColor" className={authStyles["form-label"]}>
+                      <label
+                        htmlFor="itemColor"
+                        className={authStyles["form-label"]}
+                      >
                         Color *
                       </label>
                       <select
@@ -718,7 +745,10 @@ export default function OperationalView({
                         ))}
                       </select>
                       {errors.color && (
-                        <div className={authStyles["error-message"]} role="alert">
+                        <div
+                          className={authStyles["error-message"]}
+                          role="alert"
+                        >
                           {errors.color.message}
                         </div>
                       )}
@@ -726,23 +756,33 @@ export default function OperationalView({
                   </div>
                   <div className={authStyles["form-row"]}>
                     <div className={authStyles["form-group"]}>
-                      <label className={authStyles["form-label"]}>Item Condition *</label>
-                      <div className={managementStyles["condition-radio-group"]}>
-                        {[ITEM_CONDITIONS.NEW, ITEM_CONDITIONS.USED].map((val) => (
-                          <label
-                            key={val}
-                            className={managementStyles["condition-radio-option"]}
-                          >
-                            <input
-                              type="radio"
-                              value={val}
-                              {...register("condition")}
-                              disabled={isFormDisabled}
-                              className={managementStyles["condition-radio-input"]}
-                            />
-                            {val}
-                          </label>
-                        ))}
+                      <label className={authStyles["form-label"]}>
+                        Item Condition *
+                      </label>
+                      <div
+                        className={managementStyles["condition-radio-group"]}
+                      >
+                        {[ITEM_CONDITIONS.NEW, ITEM_CONDITIONS.USED].map(
+                          (val) => (
+                            <label
+                              key={val}
+                              className={
+                                managementStyles["condition-radio-option"]
+                              }
+                            >
+                              <input
+                                type="radio"
+                                value={val}
+                                {...register("condition")}
+                                disabled={isFormDisabled}
+                                className={
+                                  managementStyles["condition-radio-input"]
+                                }
+                              />
+                              {val}
+                            </label>
+                          ),
+                        )}
                       </div>
                       {errors.condition && (
                         <div
@@ -753,7 +793,10 @@ export default function OperationalView({
                       )}
                     </div>
                     <div className={authStyles["form-group"]}>
-                      <label htmlFor="brand" className={authStyles["form-label"]}>
+                      <label
+                        htmlFor="brand"
+                        className={authStyles["form-label"]}
+                      >
                         Brand (optional)
                       </label>
                       <input
@@ -771,7 +814,10 @@ export default function OperationalView({
                   </div>
                   <div className={authStyles["form-row"]}>
                     <div className={authStyles["form-group"]}>
-                      <label htmlFor="placeFound" className={authStyles["form-label"]}>
+                      <label
+                        htmlFor="placeFound"
+                        className={authStyles["form-label"]}
+                      >
                         Place Found *
                       </label>
                       <select
@@ -797,7 +843,10 @@ export default function OperationalView({
                       )}
                     </div>
                     <div className={authStyles["form-group"]}>
-                      <label htmlFor="dateFound" className={authStyles["form-label"]}>
+                      <label
+                        htmlFor="dateFound"
+                        className={authStyles["form-label"]}
+                      >
                         Date Found *
                       </label>
                       <input
@@ -847,7 +896,10 @@ export default function OperationalView({
                     </div>
                   )}
                   <div className={authStyles["form-group"]}>
-                    <label htmlFor="description" className={authStyles["form-label"]}>
+                    <label
+                      htmlFor="description"
+                      className={authStyles["form-label"]}
+                    >
                       Description (optional)
                     </label>
                     <textarea
@@ -872,7 +924,8 @@ export default function OperationalView({
                     className={`${buttonStyles.btn} ${buttonStyles["btn--primary"]} ${buttonStyles["btn--full-width"]}`}
                     disabled={isFormDisabled}
                   >
-                    <FaPlus /> {submitMutation.isPending ? "Adding..." : "Add Found Item"}
+                    <FaPlus />{" "}
+                    {submitMutation.isPending ? "Adding..." : "Add Found Item"}
                   </button>
                   {errors.root && (
                     <div className={authStyles["error-message"]}>

@@ -64,7 +64,15 @@ const Header = ({ currentUser, currentAdmin, onLogout }) => {
           {isDashboard && (currentUser || currentAdmin) && (
             <>
               <span className={styles["user-summary"]}>
-                {currentUser ? (
+                {currentUser?.role === "admin" ? (
+                  <>
+                    <FaUserShield
+                      className={styles["user-summary-icon"]}
+                      aria-hidden="true"
+                    />
+                    {currentUser.block || "-"} Block Admin
+                  </>
+                ) : currentUser ? (
                   <>
                     <FaUserGraduate
                       className={styles["user-summary-icon"]}
@@ -78,7 +86,7 @@ const Header = ({ currentUser, currentAdmin, onLogout }) => {
                       className={styles["user-summary-icon"]}
                       aria-hidden="true"
                     />
-                    {currentAdmin.block} block
+                    {currentAdmin.block || "-"} Block Admin
                   </>
                 )}
               </span>
@@ -106,8 +114,14 @@ const Header = ({ currentUser, currentAdmin, onLogout }) => {
             </button>
 
             {isHelpOpen && (
-              <div className={styles["help-panel"]} id="help-panel" role="dialog">
-                <p className={styles["help-title"]}>Need help with a lost item?</p>
+              <div
+                className={styles["help-panel"]}
+                id="help-panel"
+                role="dialog"
+              >
+                <p className={styles["help-title"]}>
+                  Need help with a lost item?
+                </p>
                 <a
                   href={`tel:${SUPPORT_PHONE}`}
                   className={styles["help-link"]}
