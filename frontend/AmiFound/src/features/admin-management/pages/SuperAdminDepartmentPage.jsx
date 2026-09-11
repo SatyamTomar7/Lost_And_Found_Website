@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LuArrowRight,
+  LuLayoutDashboard,
   LuRefreshCw,
   LuSave,
   LuShieldCheck,
 } from "react-icons/lu";
+import { useNavigate } from "react-router-dom";
 import buttonStyles from "../../../shared/ui/Button.module.css";
 import styles from "../SuperAdminDepartment.module.css";
 import {
@@ -18,6 +20,7 @@ const BLOCKS = ["A", "B", "C", "D", "E"];
 
 export default function SuperAdminDepartmentPage({ showMessage }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [assignments, setAssignments] = useState([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
@@ -115,14 +118,23 @@ export default function SuperAdminDepartmentPage({ showMessage }) {
             verified batch.
           </p>
         </div>
-        <button
-          type="button"
-          className={`${buttonStyles.btn} ${buttonStyles["btn--outline"]} ${buttonStyles["btn--sm"]}`}
-          onClick={refresh}
-          disabled={assignmentsQuery.isFetching || saveMutation.isPending}
-        >
-          <LuRefreshCw size={15} /> Refresh
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={`${buttonStyles.btn} ${buttonStyles["btn--outline"]} ${buttonStyles["btn--sm"]}`}
+            onClick={() => navigate("/super-admin-dashboard")}
+          >
+            <LuLayoutDashboard size={15} /> View Dashboard
+          </button>
+          <button
+            type="button"
+            className={`${buttonStyles.btn} ${buttonStyles["btn--outline"]} ${buttonStyles["btn--sm"]}`}
+            onClick={refresh}
+            disabled={assignmentsQuery.isFetching || saveMutation.isPending}
+          >
+            <LuRefreshCw size={15} /> Refresh
+          </button>
+        </div>
       </header>
 
       {assignmentsQuery.isLoading ? (
