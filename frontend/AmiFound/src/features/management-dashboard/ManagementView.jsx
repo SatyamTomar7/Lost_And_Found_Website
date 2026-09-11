@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LuBuilding2,
   LuChevronLeft,
   LuChevronRight,
   LuFilter,
+  LuSettings2,
   LuRefreshCw,
   LuTrash2,
 } from "react-icons/lu";
@@ -648,6 +650,7 @@ function MgmtFoundItemsPanel({ canManage }) {
 export default function ManagementView({ role, onBackToOps }) {
   const [activeTab, setActiveTab] = useState("admins");
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["director-analytics"],
@@ -687,6 +690,15 @@ export default function ManagementView({ role, onBackToOps }) {
           </p>
         </div>
         <div className={managementStyles["topbar-actions"]}>
+          {role === "super_admin" && (
+            <button
+              className={managementStyles["dd-refresh-btn"]}
+              onClick={() => navigate("/super-admin/departments")}
+              aria-label="Open admin management"
+            >
+              <LuSettings2 size={14} /> Admin Management
+            </button>
+          )}
           {role === "security" && onBackToOps && (
             <button
               className={managementStyles["dd-refresh-btn"]}
