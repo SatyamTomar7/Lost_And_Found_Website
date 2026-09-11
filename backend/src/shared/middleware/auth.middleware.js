@@ -65,9 +65,14 @@ export const isStudent = authorizeRoles(USER_ROLES.STUDENT);
 export const isAdminOnly = authorizeRoles(USER_ROLES.ADMIN);
 export const isAdminOrSecurity = authorizeRoles(
   USER_ROLES.ADMIN,
-  USER_ROLES.SECURITY,
+  USER_ROLES.SECURITY
 );
 export const isDirectorOnly = authorizeRoles(USER_ROLES.DIRECTOR);
+export const isManagementStaff = authorizeRoles(
+  USER_ROLES.DIRECTOR,
+  USER_ROLES.SECURITY,
+  USER_ROLES.SUPER_ADMIN
+);
 export const optionalAuth = asyncHandler(async (req, _, next) => {
   let token;
 
