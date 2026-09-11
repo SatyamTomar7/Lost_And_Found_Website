@@ -6,6 +6,9 @@ import {
   getAllFoundItems,
   getAllStudents,
   getAllAdmins,
+  deleteStudent,
+  deleteLostItem,
+  deleteFoundItem,
 } from "./management.controller.js";
 
 import {
@@ -17,7 +20,14 @@ import { USER_ROLES } from "../../config/constants.js";
 const router = Router();
 
 // Protect all managements routes
-router.use(protect, authorizeRoles(USER_ROLES.DIRECTOR, USER_ROLES.SECURITY));
+router.use(
+  protect,
+  authorizeRoles(
+    USER_ROLES.DIRECTOR,
+    USER_ROLES.SECURITY,
+    USER_ROLES.SUPER_ADMIN
+  )
+);
 
 // Analytics
 router.get("/analytics", getDirectorAnalytics);
@@ -33,5 +43,21 @@ router.get("/students", getAllStudents);
 
 // Admins + Security
 router.get("/admins", getAllAdmins);
+
+router.delete(
+  "/students/:id",
+  authorizeRoles(USER_ROLES.SUPER_ADMIN),
+  deleteStudent
+);
+router.delete(
+  "/lostitems/:id",
+  authorizeRoles(USER_ROLES.SUPER_ADMIN),
+  deleteLostItem
+);
+router.delete(
+  "/founditems/:id",
+  authorizeRoles(USER_ROLES.SUPER_ADMIN),
+  deleteFoundItem
+);
 
 export default router;

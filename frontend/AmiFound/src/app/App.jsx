@@ -434,6 +434,22 @@ function AppContent() {
             />
 
             <Route
+              path="/super-admin-dashboard"
+              element={
+                <ProtectedRoute
+                  user={currentUser}
+                  allowedRoles={["super_admin"]}
+                >
+                  <ManagementDashboardRoute
+                    currentUser={currentUser}
+                    setLoading={setLoading}
+                    showMessage={showMessage}
+                  />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/management-dashboard"
               element={
                 currentUser ? (

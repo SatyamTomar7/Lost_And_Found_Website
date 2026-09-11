@@ -24,17 +24,16 @@ export const getDirectorAnalytics = () =>
 // ==================== ADMINS ====================
 
 export const getDirectorAdmins = ({ page = 1, limit = 10 } = {}) =>
-  apiFetch(
-    `${API_URL}/management/admins${buildQuery({ page, limit })}`,
-    { headers: getAuthHeaders() }
-  );
+  apiFetch(`${API_URL}/management/admins${buildQuery({ page, limit })}`, {
+    headers: getAuthHeaders(),
+  });
 
 // ==================== STUDENTS ====================
 
 export const getDirectorStudents = ({ page = 1, limit = 10, block } = {}) =>
   apiFetch(
     `${API_URL}/management/students${buildQuery({ page, limit, block })}`,
-    { headers: getAuthHeaders() }
+    { headers: getAuthHeaders() },
   );
 
 // ==================== LOST ITEMS ====================
@@ -47,7 +46,7 @@ export const getDirectorLostItems = ({
 } = {}) =>
   apiFetch(
     `${API_URL}/management/lostitems${buildQuery({ page, limit, block, status })}`,
-    { headers: getAuthHeaders() }
+    { headers: getAuthHeaders() },
   );
 
 // ==================== FOUND ITEMS ====================
@@ -60,5 +59,11 @@ export const getDirectorFoundItems = ({
 } = {}) =>
   apiFetch(
     `${API_URL}/management/founditems${buildQuery({ page, limit, block, status })}`,
-    { headers: getAuthHeaders() }
+    { headers: getAuthHeaders() },
   );
+
+export const deleteManagementResource = (resource, id) =>
+  apiFetch(`${API_URL}/management/${resource}/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });

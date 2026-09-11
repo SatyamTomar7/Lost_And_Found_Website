@@ -6,6 +6,7 @@ import {
   LuChevronRight,
   LuFilter,
   LuRefreshCw,
+  LuTrash2,
 } from "react-icons/lu";
 import managementStyles from "./ManagementDashboard.module.css";
 import {
@@ -16,12 +17,7 @@ import {
   MGMT_STAT_CARDS,
   MGMT_TABS,
 } from "./constants";
-import {
-  BlockBadge,
-  MgmtAvatar,
-  Pill,
-  ShimmerRows,
-} from "./shared-components";
+import { BlockBadge, MgmtAvatar, Pill, ShimmerRows } from "./shared-components";
 import { fmtDate } from "./helpers";
 import {
   getDirectorAdmins,
@@ -29,6 +25,7 @@ import {
   getDirectorFoundItems,
   getDirectorLostItems,
   getDirectorStudents,
+  deleteManagementResource,
 } from "./services/managementService";
 
 const formatRecoveryMode = (recoveryMode) =>
@@ -140,6 +137,39 @@ function MgmtPagination({ page, setPage, totalPages }) {
   );
 }
 
+function DeleteButton({ resource, id, label }) {
+  const queryClient = useQueryClient();
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Delete ${label}? This action cannot be undone.`))
+      return;
+    setDeleting(true);
+    try {
+      await deleteManagementResource(resource, id);
+      await queryClient.invalidateQueries();
+    } catch (error) {
+      window.alert(error.message || `Unable to delete ${label}.`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className={managementStyles["dd-delete-btn"]}
+      onClick={handleDelete}
+      disabled={deleting}
+      aria-label={`Delete ${label}`}
+      title={`Delete ${label}`}
+    >
+      <LuTrash2 size={14} />
+      {deleting ? "Deleting" : "Delete"}
+    </button>
+  );
+}
+
 function AdminsPanel() {
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, error } = useQuery({
@@ -184,7 +214,9 @@ function AdminsPanel() {
                 <td data-label="Name">
                   <div className={managementStyles["dd-name-cell"]}>
                     <MgmtAvatar name={a.name} />
-                    <span className={managementStyles["dd-name"]}>{a.name}</span>
+                    <span className={managementStyles["dd-name"]}>
+                      {a.name}
+                    </span>
                   </div>
                 </td>
                 <td
@@ -234,7 +266,7 @@ function AdminsPanel() {
   );
 }
 
-function StudentsPanel() {
+function StudentsPanel({ canManage }) {
   const [page, setPage] = useState(1);
   const [blockFilter, setBlockFilter] = useState("");
   const handleBlockFilter = (val) => {
@@ -265,6 +297,7 @@ function StudentsPanel() {
               <th>Semester</th>
               <th>Block</th>
               <th>Section</th>
+              {canManage && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -289,8 +322,12 @@ function StudentsPanel() {
                   <div className={managementStyles["dd-name-cell"]}>
                     <MgmtAvatar name={s.name} />
                     <div>
-                      <span className={managementStyles["dd-name"]}>{s.name}</span>
-                      <span className={managementStyles["dd-item-sub"]}>{s.email}</span>
+                      <span className={managementStyles["dd-name"]}>
+                        {s.name}
+                      </span>
+                      <span className={managementStyles["dd-item-sub"]}>
+                        {s.email}
+                      </span>
                     </div>
                   </div>
                 </td>
@@ -301,8 +338,12 @@ function StudentsPanel() {
                   {s.enrollmentNumber}
                 </td>
                 <td data-label="Course / Branch">
-                  <span className={managementStyles["dd-name"]}>{s.course}</span>
-                  <span className={managementStyles["dd-item-sub"]}>{s.branch}</span>
+                  <span className={managementStyles["dd-name"]}>
+                    {s.course}
+                  </span>
+                  <span className={managementStyles["dd-item-sub"]}>
+                    {s.branch}
+                  </span>
                 </td>
                 <td data-label="Semester">
                   <span
@@ -314,9 +355,21 @@ function StudentsPanel() {
                 <td data-label="Block">
                   <BlockBadge block={s.block} />
                 </td>
-                <td data-label="Section" className={managementStyles["dd-muted"]}>
+                <td
+                  data-label="Section"
+                  className={managementStyles["dd-muted"]}
+                >
                   {s.section || "-"}
                 </td>
+                {canManage && (
+                  <td data-label="Actions">
+                    <DeleteButton
+                      resource="students"
+                      id={s._id}
+                      label={`student ${s.name}`}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -331,7 +384,7 @@ function StudentsPanel() {
   );
 }
 
-function MgmtLostItemsPanel() {
+function MgmtLostItemsPanel({ canManage }) {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const handleStatusFilter = (val) => {
@@ -363,6 +416,7 @@ function MgmtLostItemsPanel() {
               <th>Place lost</th>
               <th>Date lost</th>
               <th>Status</th>
+              {canManage && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -384,9 +438,13 @@ function MgmtLostItemsPanel() {
             {data?.data?.map((item) => (
               <tr key={item._id}>
                 <td data-label="Item">
-                  <span className={managementStyles["dd-name"]}>{item.name}</span>
+                  <span className={managementStyles["dd-name"]}>
+                    {item.name}
+                  </span>
                   {item.color && (
-                    <span className={managementStyles["dd-item-sub"]}>{item.color}</span>
+                    <span className={managementStyles["dd-item-sub"]}>
+                      {item.color}
+                    </span>
                   )}
                 </td>
                 <td data-label="Reported by">
@@ -418,6 +476,15 @@ function MgmtLostItemsPanel() {
                 <td data-label="Status">
                   <Pill status={item.status} />
                 </td>
+                {canManage && (
+                  <td data-label="Actions">
+                    <DeleteButton
+                      resource="lostitems"
+                      id={item._id}
+                      label={`lost item ${item.name}`}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -432,7 +499,7 @@ function MgmtLostItemsPanel() {
   );
 }
 
-function MgmtFoundItemsPanel() {
+function MgmtFoundItemsPanel({ canManage }) {
   const [page, setPage] = useState(1);
   const [blockFilter, setBlockFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -478,6 +545,7 @@ function MgmtFoundItemsPanel() {
               <th>Date found</th>
               <th>Claimed by</th>
               <th>Status</th>
+              {canManage && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -499,9 +567,13 @@ function MgmtFoundItemsPanel() {
             {data?.data?.map((item) => (
               <tr key={item._id}>
                 <td data-label="Item">
-                  <span className={managementStyles["dd-name"]}>{item.name}</span>
+                  <span className={managementStyles["dd-name"]}>
+                    {item.name}
+                  </span>
                   {item.color && (
-                    <span className={managementStyles["dd-item-sub"]}>{item.color}</span>
+                    <span className={managementStyles["dd-item-sub"]}>
+                      {item.color}
+                    </span>
                   )}
                 </td>
                 <td data-label="Admin (Block)">
@@ -550,6 +622,15 @@ function MgmtFoundItemsPanel() {
                 <td data-label="Status">
                   <Pill status={item.status} />
                 </td>
+                {canManage && (
+                  <td data-label="Actions">
+                    <DeleteButton
+                      resource="founditems"
+                      id={item._id}
+                      label={`found item ${item.name}`}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -593,7 +674,11 @@ export default function ManagementView({ role, onBackToOps }) {
         <div>
           <div className={managementStyles["dd-topbar-left"]}>
             <span className={managementStyles["dd-title"]}>
-              {role === "director" ? "Director Dashboard" : "Management View"}
+              {role === "super_admin"
+                ? "Super Admin Dashboard"
+                : role === "director"
+                  ? "Director Dashboard"
+                  : "Management View"}
             </span>
             <span className={managementStyles["dd-badge"]}>AmiFound</span>
           </div>
@@ -647,7 +732,9 @@ export default function ManagementView({ role, onBackToOps }) {
                 <Icon size={17} aria-hidden="true" />
               </div>
               <div className={managementStyles["dd-stat-label"]}>{label}</div>
-              <div className={managementStyles["dd-stat-value"]}>{value ?? "-"}</div>
+              <div className={managementStyles["dd-stat-value"]}>
+                {value ?? "-"}
+              </div>
             </div>
           ))}
         </div>
@@ -674,9 +761,15 @@ export default function ManagementView({ role, onBackToOps }) {
       </div>
 
       {activeTab === "admins" && <AdminsPanel />}
-      {activeTab === "students" && <StudentsPanel />}
-      {activeTab === "lostitems" && <MgmtLostItemsPanel />}
-      {activeTab === "founditems" && <MgmtFoundItemsPanel />}
+      {activeTab === "students" && (
+        <StudentsPanel canManage={role === "super_admin"} />
+      )}
+      {activeTab === "lostitems" && (
+        <MgmtLostItemsPanel canManage={role === "super_admin"} />
+      )}
+      {activeTab === "founditems" && (
+        <MgmtFoundItemsPanel canManage={role === "super_admin"} />
+      )}
     </div>
   );
 }

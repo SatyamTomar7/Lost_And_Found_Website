@@ -1,7 +1,7 @@
 export const ROLE_ROUTES = {
   student: "/student-dashboard",
   admin: "/admin-dashboard",
-  super_admin: "/super-admin/departments",
+  super_admin: "/super-admin-dashboard",
   director: "/director-dashboard",
   security: "/security-dashboard",
 };

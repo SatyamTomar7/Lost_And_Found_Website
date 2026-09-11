@@ -10,8 +10,8 @@ export default function ManagementDashboard({
   const role = currentUser?.role;
   const [securityView, setSecurityView] = useState("operations");
 
-  if (role === "director") {
-    return <ManagementView role="director" onBackToOps={null} />;
+  if (role === "director" || role === "super_admin") {
+    return <ManagementView role={role} onBackToOps={null} />;
   }
 
   if (role === "admin") {
