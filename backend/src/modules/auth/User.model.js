@@ -65,6 +65,11 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    passwordResetVersion: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
     passwordChangedAt: {
       type: Date,
       default: null,

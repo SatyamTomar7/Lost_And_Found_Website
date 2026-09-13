@@ -6,6 +6,11 @@ import { ApiError } from "../../shared/utils/ApiError.js";
 import { ApiResponse } from "../../shared/utils/ApiResponse.js";
 import { asyncHandler } from "../../shared/utils/asyncHandler.js";
 import { User } from "./User.model.js";
+import {
+  consumePasswordResetSession,
+  createPasswordResetToken,
+  verifyPasswordResetToken,
+} from "./password-reset.service.js";
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
@@ -300,22 +305,39 @@ export const verifyResetOTP = asyncHandler(async (req, res) => {
   }
 
   // Mark OTP used so it cannot be reused
-  await User.findByIdAndUpdate(user._id, {
-    $set: {
-      passwordResetOTPUsed: true,
+  const resetSessionUser = await User.findOneAndUpdate(
+    {
+      _id: user._id,
+      passwordResetOTPUsed: false,
     },
-    $unset: {
-      passwordResetOTP: "",
-      passwordResetOTPExpiry: "",
+    {
+      $set: {
+        passwordResetOTPUsed: true,
+      },
+      $unset: {
+        passwordResetOTP: "",
+        passwordResetOTPExpiry: "",
+      },
+      $inc: {
+        passwordResetVersion: 1,
+      },
     },
-  });
+    { new: true }
+  ).select("+passwordResetVersion");
 
-  // Issue short-lived reset token (10 min window to set password)
-  const resetToken = jwt.sign(
-    { userId: user._id, purpose: "password_reset" },
-    process.env.JWT_SECRET,
-    { expiresIn: "10m" }
-  );
+  if (!resetSessionUser) {
+    throw new ApiError(400, "Invalid or expired OTP");
+  }
+
+  /*
+   * Incrementing the version as part of the OTP transition invalidates every
+   * previously issued reset token before the new token is returned.
+   */
+  const resetToken = createPasswordResetToken({
+    userId: user._id,
+    resetVersion: resetSessionUser.passwordResetVersion,
+    secret: process.env.JWT_SECRET,
+  });
 
   return res
     .status(200)
@@ -337,29 +359,31 @@ export const resetPassword = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Password must be at least 6 characters");
   }
 
-  // Verify reset token
   let decoded;
   try {
-    decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+    decoded = verifyPasswordResetToken(resetToken, process.env.JWT_SECRET);
   } catch {
     throw new ApiError(400, "Reset session expired. Please start again.");
   }
 
-  if (decoded.purpose !== "password_reset") {
+  if (
+    decoded.purpose !== "password_reset" ||
+    typeof decoded.userId !== "string" ||
+    !Number.isInteger(decoded.resetVersion)
+  ) {
     throw new ApiError(400, "Invalid reset token");
   }
 
-  const user = await User.findById(decoded.userId);
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
+  const user = await consumePasswordResetSession({
+    User,
+    userId: decoded.userId,
+    resetVersion: decoded.resetVersion,
+    newPassword,
+  });
 
-  user.password = newPassword;
-  user.passwordResetOTP = null;
-  user.passwordResetOTPExpiry = null;
-  user.passwordResetOTPUsed = false;
-  user.passwordResetOTPLastSentAt = null;
-  await user.save();
+  if (!user) {
+    throw new ApiError(400, "Reset session expired. Please start again.");
+  }
 
   emailService
     .sendPasswordResetConfirmation(user.email, user.name)
