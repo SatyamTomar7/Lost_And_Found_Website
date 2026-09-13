@@ -10,9 +10,12 @@ const USER_ROLES = {
 // Departments/Blocks
 const DEPARTMENTS = ["Block A", "Block B", "Block C", "Block D", "Block E"];
 const FILE_UPLOAD = {
-  MAX_SIZE: 5 * 1024 * 1024, // 5MB
+  MAX_SIZE:
+    Number.parseInt(process.env.UPLOAD_MAX_FILE_SIZE, 10) || 5 * 1024 * 1024,
   ALLOWED_TYPES: ["image/jpeg", "image/png", "image/jpg", "image/webp"],
   UPLOAD_PATH: "uploads/items/",
+  CLOUDINARY_TIMEOUT_MS:
+    Number.parseInt(process.env.UPLOAD_CLOUDINARY_TIMEOUT_MS, 10) || 60_000,
 };
 
 const ITEM_NAME = [
