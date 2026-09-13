@@ -9,7 +9,12 @@ const pendingUploadSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    claimedAt: { type: Date, default: null }, // set when a LostItem is saved
+    claimedAt: { type: Date, default: null },
+    claimedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   { timestamps: true }
 );
@@ -19,6 +24,13 @@ const pendingUploadSchema = new mongoose.Schema(
 pendingUploadSchema.index(
   { createdAt: 1 },
   { expireAfterSeconds: 7200, partialFilterExpression: { claimedAt: null } }
+);
+pendingUploadSchema.index(
+  { claimedAt: 1 },
+  {
+    expireAfterSeconds: 86400,
+    partialFilterExpression: { claimedAt: { $gt: new Date(0) } },
+  }
 );
 
 export const PendingUpload = mongoose.model(

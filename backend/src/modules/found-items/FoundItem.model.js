@@ -41,6 +41,33 @@ const foundItemSchema = new Schema(
       required: true,
       default: "admin",
     },
+    transferState: {
+      type: String,
+      enum: ["pending", "processing", "completed", "retryable"],
+      default: "pending",
+      index: true,
+    },
+    transferJobId: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    transferStartedAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    transferCompletedAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    transferLastError: {
+      type: String,
+      default: null,
+      select: false,
+      maxlength: 500,
+    },
     recoveryMode: {
       type: String,
       enum: Object.values(FOUND_ITEM_RECOVERY_MODES),
@@ -235,6 +262,7 @@ foundItemSchema.index({ block: 1, createdAt: -1 });
 foundItemSchema.index({ status: 1, dateFound: -1 });
 foundItemSchema.index({ handledBy: 1, recoveryMode: 1, createdAt: -1 });
 foundItemSchema.index({ handledBy: 1, recoveryMode: 1, dateFound: -1 });
+foundItemSchema.index({ handledBy: 1, transferState: 1, dateFound: 1 });
 foundItemSchema.index({ createdBy: 1 });
 foundItemSchema.index({ matchedLostItemIds: 1 });
 export const FoundItem = mongoose.model("FoundItem", foundItemSchema);

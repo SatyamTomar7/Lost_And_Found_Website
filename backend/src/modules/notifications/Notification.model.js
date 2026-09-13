@@ -96,6 +96,21 @@ notificationSchema.index(
     },
   }
 );
+notificationSchema.index(
+  {
+    userId: 1,
+    type: 1,
+    "data.foundItemId": 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      type: NOTIFICATION_TYPES.ITEM_TRANSFERRED,
+      "data.foundItemId": { $exists: true },
+      "data.lostItemId": { $exists: false },
+    },
+  }
+);
 //Mark as read method
 
 notificationSchema.methods.markAsRead = function () {
