@@ -9,7 +9,9 @@ import matchingService from "../matching/matching.service.js";
 import { buildMatchNotificationMessage } from "../matching/match-notification-message.js";
 import { Notification } from "../notifications/Notification.model.js";
 import { PendingUpload } from "../uploads/PendingUpload.model.js";
+import { claimPendingUpload } from "../uploads/pending-upload.service.js";
 import { deleteImage } from "../uploads/upload.service.js";
+import logger from "../../shared/utils/logger.js";
 import { LostItem } from "./LostItem.model.js";
 
 export const submitLostItem = asyncHandler(async (req, res) => {
@@ -17,6 +19,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Complete profile first");
   }
   let uploadedPublicId = null; // track so we can rollback on failure
+  let claimedPendingUpload = false;
   // --- Build image array from whichever mode was used ---
   let images = [];
 
@@ -29,10 +32,9 @@ export const submitLostItem = asyncHandler(async (req, res) => {
     const publicId = req.body.photoPublicId;
 
     // Validate: must be a PendingUpload owned by this user, not yet claimed
-    const pending = await PendingUpload.findOne({
+    const pending = await claimPendingUpload(PendingUpload, {
       publicId,
       userId: req.user.id,
-      claimedAt: null,
     });
     if (!pending) {
       throw new ApiError(400, "Invalid or already used image reference");
@@ -40,6 +42,7 @@ export const submitLostItem = asyncHandler(async (req, res) => {
 
     images = [{ url: pending.url, publicId }];
     uploadedPublicId = publicId; // for rollback if DB save fails
+    claimedPendingUpload = true;
   }
 
   // --- Save to DB ---
@@ -68,23 +71,59 @@ export const submitLostItem = asyncHandler(async (req, res) => {
   } catch (err) {
     // Rollback: delete the Cloudinary image if DB failed
     if (uploadedPublicId) {
-      await deleteImage(uploadedPublicId).catch((e) =>
-        console.error("Rollback delete failed:", e)
-      );
-      // Also remove the pending record
-      await PendingUpload.deleteOne({ publicId: uploadedPublicId }).catch(
-        () => {}
-      );
-    }
-    throw new ApiError(500, err.message || "Failed to save lost item");
-  }
+      if (!claimedPendingUpload) {
+        try {
+          await deleteImage(uploadedPublicId);
+        } catch (cleanupError) {
+          logger.error(
+            {
+              requestId: req.requestId,
+              error: {
+                name: cleanupError?.name || "Error",
+                message: cleanupError?.message || "Unknown cleanup error",
+                ...(cleanupError?.stack && { stack: cleanupError.stack }),
+              },
+            },
+            "Cloudinary rollback cleanup failed"
+          );
+        }
+      }
 
-  // --- Mark pending upload as claimed (Mode B) ---
-  if (req.body.photoPublicId) {
-    await PendingUpload.updateOne(
-      { publicId: req.body.photoPublicId },
-      { $set: { claimedAt: new Date() } }
+      try {
+        await PendingUpload.updateOne(
+          {
+            publicId: uploadedPublicId,
+            userId: req.user.id,
+            ...(claimedPendingUpload && { claimedBy: req.user.id }),
+          },
+          { $set: { claimedAt: null, claimedBy: null } }
+        );
+      } catch (releaseError) {
+        logger.error(
+          {
+            requestId: req.requestId,
+            error: {
+              name: releaseError?.name || "Error",
+              message: releaseError?.message || "Unknown release error",
+              ...(releaseError?.stack && { stack: releaseError.stack }),
+            },
+          },
+          "Pending upload claim release failed"
+        );
+      }
+    }
+    logger.error(
+      {
+        requestId: req.requestId,
+        error: {
+          name: err?.name || "Error",
+          message: err?.message || "Unknown database error",
+          ...(err?.stack && { stack: err.stack }),
+        },
+      },
+      "Failed to save lost item"
     );
+    throw new ApiError(500, "Failed to save lost item");
   }
 
   await lostItem.populate(
