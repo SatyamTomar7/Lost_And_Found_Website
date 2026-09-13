@@ -7,11 +7,16 @@ import { errorHandler } from "../shared/middleware/errorHandler.middleware.js";
 import { socketHandler } from "./socket.js";
 import { registerRoutes } from "./routes.js";
 import process from "../config/env.js";
+import { requestIdMiddleware } from "../shared/middleware/requestId.middleware.js";
+import { requestLoggerMiddleware } from "../shared/middleware/requestLogger.middleware.js";
 
 const app = express();
 
 app.set("trust proxy", 1);
 const httpServer = createServer(app);
+
+app.use(requestIdMiddleware);
+app.use(requestLoggerMiddleware);
 
 // 1. SOCKET.IO SETUP
 const io = new Server(httpServer, {
