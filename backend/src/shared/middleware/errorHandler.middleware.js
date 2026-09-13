@@ -1,73 +1,95 @@
 import { ApiError } from "../utils/ApiError.js";
+import logger from "../utils/logger.js";
 
-const errorHandler = (err, req, res, next) => {
-  let fieldErrors = Array.isArray(err.errors) ? err.errors : [];
+const isDevelopment = () => process.env.NODE_ENV === "development";
 
-  if (!err.statusCode || err.statusCode >= 500) {
-    console.error("Server Error:", err);
-  }
+const getRequestLogFields = (req, statusCode, err) => ({
+  requestId: req.requestId,
+  method: req.method,
+  path: req.originalUrl || req.path,
+  statusCode,
+  error: {
+    name: err?.name || "Error",
+    message: err?.message || "Unknown error",
+    ...(err?.stack && { stack: err.stack }),
+  },
+  ...(req.user?._id && { userId: req.user._id.toString() }),
+  ...(req.ip && { ip: req.ip }),
+  ...(req.get("user-agent") && { userAgent: req.get("user-agent") }),
+});
+
+const getKnownErrorResponse = (err) => {
+  let statusCode = 500;
+  let message = "Internal server error";
+  let fieldErrors = Array.isArray(err?.errors) ? err.errors : [];
 
   if (err instanceof ApiError) {
-    return res.status(err.statusCode).json({
-      success: false,
+    return {
+      statusCode: err.statusCode,
       message: err.message,
-      errors: err.errors || [],
-      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-    });
+      fieldErrors,
+      known: true,
+    };
   }
 
-  let statusCode = 500;
-  let message = err.message || "Server Error";
-
-  if (err.name === "CastError") {
+  if (err?.name === "CastError") {
     statusCode = 400;
     message = "Invalid resource ID format";
-  }
-
-  if (err.code === 11000) {
+  } else if (err?.code === 11000) {
     statusCode = 400;
     message = "Duplicate field value entered";
     const field = err.keyValue ? Object.keys(err.keyValue)[0] : null;
-    if (field === "email") {
-      message = "Email already registered";
-    }
-    if (field === "enrollmentNumber") {
-      message = "Enrollment number already exists";
-    }
-    if (field === "phoneNumber") {
-      message = "Phone number already exists";
-    }
-    if (field) {
-      fieldErrors = [{ field, message, value: err.keyValue?.[field] }];
-    }
-  }
 
-  if (err.name === "ValidationError") {
+    if (field === "email") message = "Email already registered";
+    if (field === "enrollmentNumber")
+      message = "Enrollment number already exists";
+    if (field === "phoneNumber") message = "Phone number already exists";
+    if (field) fieldErrors = [{ field, message }];
+  } else if (err?.name === "ValidationError") {
     statusCode = 400;
-    fieldErrors = Object.entries(err.errors).map(([field, value]) => ({
+    fieldErrors = Object.entries(err.errors || {}).map(([field, value]) => ({
       field,
       message: value.message,
-      value: value.value,
     }));
-    message = fieldErrors.map((val) => val.message).join(", ");
-  }
-
-  if (err.name === "TokenExpiredError") {
+    message = fieldErrors.map((value) => value.message).join(", ");
+  } else if (err?.name === "TokenExpiredError") {
     statusCode = 401;
     message = "Token expired. Please log in again.";
-  }
-
-  if (err.name === "JsonWebTokenError") {
+  } else if (err?.name === "JsonWebTokenError") {
     statusCode = 401;
     message = "Invalid token. Please log in again.";
+  } else {
+    return { statusCode, message, fieldErrors, known: false };
   }
 
-  res.status(statusCode).json({
-    success: false,
-    message,
-    errors: fieldErrors,
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-  });
+  return { statusCode, message, fieldErrors, known: true };
 };
 
-export { errorHandler };
+const createErrorHandler = (log = logger) => (err, req, res, _next) => {
+  const response = getKnownErrorResponse(err);
+  const isUnexpected = !response.known || response.statusCode >= 500;
+
+  if (isUnexpected) {
+    log.error(
+      getRequestLogFields(req, response.statusCode, err),
+      "Unhandled server error"
+    );
+  }
+
+  const body = {
+    success: false,
+    message:
+      isUnexpected && !isDevelopment()
+        ? "Internal server error"
+        : response.message,
+    errors: response.fieldErrors,
+    requestId: req.requestId,
+    ...(isDevelopment() && err?.stack && { stack: err.stack }),
+  };
+
+  return res.status(response.statusCode).json(body);
+};
+
+const errorHandler = createErrorHandler();
+
+export { createErrorHandler, errorHandler, getKnownErrorResponse };
