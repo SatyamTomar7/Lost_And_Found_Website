@@ -2,6 +2,7 @@
 import {
   uploadSingle,
   uploadMultiple,
+  storeUploadedFile,
   deleteImage,
   getThumbnailUrl,
 } from "./upload.service.js";
@@ -9,6 +10,7 @@ import { ApiError } from "../../shared/utils/ApiError.js";
 import { ApiResponse } from "../../shared/utils/ApiResponse.js";
 import { asyncHandler } from "../../shared/utils/asyncHandler.js";
 import { PendingUpload } from "./PendingUpload.model.js";
+import logger from "../../shared/utils/logger.js";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -33,17 +35,79 @@ const normalizeFile = (file) => ({
   format: file.mimetype?.split("/")[1] ?? null,
 });
 
+const runUploadMiddleware = async (req, res, middleware) => {
+  try {
+    await runMiddleware(req, res, middleware);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    if (error?.code === "LIMIT_FILE_SIZE") {
+      throw new ApiError(400, "Image exceeds the maximum allowed size");
+    }
+    throw new ApiError(400, "Upload request is invalid");
+  }
+};
+
+const uploadAndStoreFile = async (file, requestId) => {
+  try {
+    return await storeUploadedFile(file);
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode < 500) throw error;
+    logger.error(
+      {
+        requestId,
+        error: {
+          name: error?.name || "Error",
+          message: error?.message || "Unknown upload provider error",
+          ...(error?.stack && { stack: error.stack }),
+        },
+      },
+      "Cloudinary upload failed"
+    );
+    throw new ApiError(502, "Image upload provider unavailable");
+  }
+};
+
+const uploadAndStoreFiles = async (files, requestId) => {
+  const storedFiles = [];
+
+  try {
+    for (const file of files) {
+      storedFiles.push(await uploadAndStoreFile(file, requestId));
+    }
+    return storedFiles;
+  } catch (error) {
+    const cleanupResults = await Promise.allSettled(
+      storedFiles.map((file) => deleteImage(file.filename))
+    );
+
+    cleanupResults
+      .filter((result) => result.status === "rejected")
+      .forEach((result) => {
+        logger.error(
+          {
+            requestId,
+            error: {
+              name: result.reason?.name || "Error",
+              message: result.reason?.message || "Unknown cleanup error",
+              ...(result.reason?.stack && { stack: result.reason.stack }),
+            },
+          },
+          "Cloudinary cleanup failed after partial upload failure"
+        );
+      });
+
+    throw error;
+  }
+};
+
 // ─── Controllers ──────────────────────────────────────────────────────────────
 
 export const uploadSingleImage = asyncHandler(async (req, res) => {
   // Run multer middleware
-  try {
-    await runMiddleware(req, res, uploadSingle);
-  } catch (err) {
-    throw new ApiError(400, err?.message || "File upload failed");
-  }
+  await runUploadMiddleware(req, res, uploadSingle);
 
   if (!req.file) throw new ApiError(400, "No image file provided");
+  req.file = await uploadAndStoreFile(req.file, req.requestId);
 
   const { filename: publicId, path: url } = req.file;
 
@@ -52,7 +116,21 @@ export const uploadSingleImage = asyncHandler(async (req, res) => {
   try {
     await PendingUpload.create({ publicId, url, userId: req.user.id });
   } catch (dbErr) {
-    await deleteImage(publicId).catch(() => {}); // best-effort cleanup
+    try {
+      await deleteImage(publicId);
+    } catch (cleanupError) {
+      logger.error(
+        {
+          requestId: req.requestId,
+          error: {
+            name: cleanupError?.name || "Error",
+            message: cleanupError?.message || "Unknown cleanup error",
+            ...(cleanupError?.stack && { stack: cleanupError.stack }),
+          },
+        },
+        "Cloudinary cleanup failed after upload tracking failure"
+      );
+    }
     throw new ApiError(500, "Failed to track upload — please try again");
   }
 
@@ -64,13 +142,10 @@ export const uploadSingleImage = asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const uploadMultipleImages = asyncHandler(async (req, res) => {
-  try {
-    await runMiddleware(req, res, uploadMultiple);
-  } catch (err) {
-    throw new ApiError(400, err?.message || "Multiple file upload failed");
-  }
+  await runUploadMiddleware(req, res, uploadMultiple);
 
   if (!req.files?.length) throw new ApiError(400, "No image files provided");
+  req.files = await uploadAndStoreFiles(req.files, req.requestId);
 
   const pendingDocs = req.files.map((f) => ({
     publicId: f.filename,
@@ -82,9 +157,24 @@ export const uploadMultipleImages = asyncHandler(async (req, res) => {
   try {
     await PendingUpload.insertMany(pendingDocs, { ordered: false });
   } catch (dbErr) {
-    await Promise.allSettled(
+    const cleanupResults = await Promise.allSettled(
       req.files.map((f) => deleteImage(f.filename))
     );
+    cleanupResults
+      .filter((result) => result.status === "rejected")
+      .forEach((result) => {
+        logger.error(
+          {
+            requestId: req.requestId,
+            error: {
+              name: result.reason?.name || "Error",
+              message: result.reason?.message || "Unknown cleanup error",
+              ...(result.reason?.stack && { stack: result.reason.stack }),
+            },
+          },
+          "Cloudinary cleanup failed after upload tracking failure"
+        );
+      });
     throw new ApiError(500, "Failed to track uploads — please try again");
   }
 
