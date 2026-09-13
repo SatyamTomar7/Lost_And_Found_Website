@@ -81,6 +81,13 @@ npm start
 
 # API Routes
 
+## Health Probes
+
+| Method | Route | Description |
+| ------ | ----- | ----------- |
+| GET | `/api/health/live` | Lightweight process liveness probe |
+| GET | `/api/health/ready` | Readiness probe; returns `503` when MongoDB is unavailable or the server is draining |
+
 ## Authentication
 
 | Method | Route                       | Description                |

@@ -8,6 +8,8 @@ import {
   startTransferOldItemsJob,
   stopTransferOldItemsJob,
 } from "../jobs/transferOldItems.job.js";
+import { setDraining } from "../shared/health/health.service.js";
+import logger from "../shared/utils/logger.js";
 
 const port = process.env.PORT || 3000;
 
@@ -22,23 +24,28 @@ const shutdown = async (signal) => {
   if (isShuttingDown) return;
 
   isShuttingDown = true;
+  setDraining(true);
 
-  console.log(
-    `\n[Server] ${signal} received — shutting down gracefully`
-  );
+  logger.info({ signal }, "Graceful shutdown started");
 
   try {
     // Stop cron jobs
     stopTransferOldItemsJob();
 
+    // Stop accepting new Socket.IO connections before closing HTTP traffic.
+    io.close();
+
     // Close HTTP server
     await new Promise((resolve, reject) => {
       httpServer.close((err) => {
+        if (err?.code === "ERR_SERVER_NOT_RUNNING") {
+          return resolve();
+        }
         if (err) {
           return reject(err);
         }
 
-        console.log("[Server] HTTP server closed");
+        logger.info("HTTP server closed");
         resolve();
       });
     });
@@ -46,13 +53,20 @@ const shutdown = async (signal) => {
     // Close MongoDB connection
     await mongoose.connection.close();
 
-    console.log("[Server] MongoDB connection closed");
+    logger.info("MongoDB connection closed");
 
     process.exit(0);
   } catch (error) {
-    console.error(
-      "[Server] Error during graceful shutdown:",
-      error
+    logger.error(
+      {
+        signal,
+        error: {
+          name: error?.name || "Error",
+          message: error?.message || "Unknown shutdown error",
+          ...(error?.stack && { stack: error.stack }),
+        },
+      },
+      "Graceful shutdown failed"
     );
 
     process.exit(1);
@@ -64,9 +78,7 @@ setTimeout(() => {}, 0).unref();
 
 const forceShutdownTimer = () => {
   setTimeout(() => {
-    console.error(
-      "[Server] Shutdown timeout — forcing exit"
-    );
+    logger.error("Shutdown timeout; forcing exit");
 
     process.exit(1);
   }, 10_000).unref();
@@ -89,10 +101,7 @@ process.on("SIGINT", () => {
 // Unhandled Errors
 // ─────────────────────────────────────────────────────────────
 process.on("unhandledRejection", (reason) => {
-  console.error(
-    "[Server] Unhandled promise rejection:",
-    reason
-  );
+  logger.error({ reason }, "Unhandled promise rejection");
 
   forceShutdownTimer();
 
@@ -100,10 +109,7 @@ process.on("unhandledRejection", (reason) => {
 });
 
 process.on("uncaughtException", (err) => {
-  console.error(
-    "[Server] Uncaught exception:",
-    err
-  );
+  logger.error({ err }, "Uncaught exception");
 
   forceShutdownTimer();
 
@@ -114,10 +120,7 @@ process.on("uncaughtException", (err) => {
 // HTTP Server Errors
 // ─────────────────────────────────────────────────────────────
 httpServer.on("error", (error) => {
-  console.error(
-    "[Server] HTTP server error:",
-    error
-  );
+  logger.error({ err: error }, "HTTP server error");
 
   forceShutdownTimer();
 
@@ -130,19 +133,14 @@ httpServer.on("error", (error) => {
 connectDB()
   .then(() => {
     httpServer.listen(port, () => {
-      console.log(
-        `✅ Server running on port ${port}`
-      );
+      logger.info({ port }, "Server started");
 
       // Start scheduled cron jobs
       startTransferOldItemsJob(io);
     });
   })
   .catch((err) => {
-    console.error(
-      "[Server] MongoDB connection failed:",
-      err
-    );
+    logger.error({ err }, "MongoDB connection failed");
 
     process.exit(1);
   });

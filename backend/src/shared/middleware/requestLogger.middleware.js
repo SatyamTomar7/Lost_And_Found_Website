@@ -10,7 +10,7 @@ export const createRequestLoggerMiddleware = (log = logger) => (req, res, next) 
     const responseTimeMs =
       Number(process.hrtime.bigint() - startedAt) / 1_000_000;
 
-    if (req.path === "/api/health" && statusCode < 400) {
+    if (req.path.startsWith("/api/health") && statusCode < 400) {
       return;
     }
 

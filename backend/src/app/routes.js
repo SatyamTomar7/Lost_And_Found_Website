@@ -7,6 +7,11 @@ import notificationRoutes from "../modules/notifications/notification.routes.js"
 import uploadRoutes from "../modules/uploads/upload.routes.js";
 import managementRoutes from "../modules/management/management.routes.js";
 import adminManagementRoutes from "../modules/admin-management/admin-management.routes.js";
+import {
+  getLegacyHealth,
+  getLiveness,
+  getReadiness,
+} from "../shared/health/health.service.js";
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -36,12 +41,8 @@ export const registerRoutes = (app) => {
   app.use("/api/management", managementRoutes);
   app.use("/api/admin-management", adminManagementRoutes);
 
-  app.get("/api/health", (_req, res) => {
-    res.status(200).json({
-      success: true,
-      message: "Lost and Found API is running",
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    });
-  });
+  // Keep the legacy endpoint response compatible while adding explicit probes.
+  app.get("/api/health", getLegacyHealth);
+  app.get("/api/health/live", getLiveness);
+  app.get("/api/health/ready", getReadiness);
 };
