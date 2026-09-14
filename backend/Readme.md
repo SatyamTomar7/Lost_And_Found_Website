@@ -29,14 +29,13 @@ Create a `.env` file in the root directory:
 ```env
 PORT=5000
 
-MONGODB_URI=your_mongodb_connection_string
+MONGODB_URI=mongodb://localhost:27017/lost_and_found
 
 NODE_ENV=development
-CORS_ORIGIN=*
-
 JWT_SECRET=your_jwt_secret
-JWT_EXPIRE=24h
+JWT_EXPIRE=15m
 OTP_EXPIRE=10
+TRUST_PROXY=false
 
 CLIENT_ID=your_google_client_id
 CLIENT_SECRET=your_google_client_secret
@@ -49,6 +48,10 @@ CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
+
+In production, `MONGODB_URI` must include the intended database name. The
+server preserves an existing database path and query parameters. `CLIENT_URL`
+must be one exact non-wildcard HTTPS origin; `CORS_ORIGIN` is not used.
 
 Start development server:
 

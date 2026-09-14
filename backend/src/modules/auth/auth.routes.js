@@ -11,11 +11,9 @@ import {
   verifyResetOTP,
   resetPassword,
   completeProfile,
+  refresh,
 } from "./auth.controller.js";
-import {
-  protect,
-  isStudent,
-} from "../../shared/middleware/auth.middleware.js";
+import { protect, isStudent } from "../../shared/middleware/auth.middleware.js";
 import {
   validateLogin,
   validateOTPVerification,
@@ -23,6 +21,7 @@ import {
   validateForgotPassword,
   validateVerifyResetOTP,
   validateResetPassword,
+  validateResendOTP,
   validateCompleteProfile,
 } from "./auth.validation.js";
 
@@ -41,11 +40,12 @@ const router = Router();
 
 router.post("/register", validateUserRegistration, register);
 router.post("/verify-otp", validateOTPVerification, verifyOTP);
-router.post("/resend-otp", otpLimiter, resendOTP);
+router.post("/resend-otp", otpLimiter, validateResendOTP, resendOTP);
 router.post("/login", validateLogin, login);
+router.post("/refresh", refresh);
 
 router.get("/me", protect, getMe);
-router.post("/logout", protect, logout);
+router.post("/logout", logout);
 router.patch(
   "/complete-profile",
   protect,

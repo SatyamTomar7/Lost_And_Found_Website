@@ -65,6 +65,16 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    passwordResetOTPFailedAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    passwordResetOTPLockedUntil: {
+      type: Date,
+      default: null,
+      select: false,
+    },
     passwordResetVersion: {
       type: Number,
       default: 0,
@@ -187,7 +197,7 @@ userSchema.methods.getJWTToken = function () {
   };
 
   return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || "24h",
+    expiresIn: process.env.JWT_EXPIRE || "15m",
   });
 };
 
@@ -207,6 +217,8 @@ userSchema.methods.generatePasswordResetOTP = async function () {
   this.passwordResetOTP = await bcrypt.hash(otp, 10);
   this.passwordResetOTPUsed = false;
   this.passwordResetOTPLastSentAt = new Date();
+  this.passwordResetOTPFailedAttempts = 0;
+  this.passwordResetOTPLockedUntil = null;
   const expireMinutes = parseInt(process.env.OTP_EXPIRE) || 10;
   this.passwordResetOTPExpiry = new Date(
     Date.now() + expireMinutes * 60 * 1000

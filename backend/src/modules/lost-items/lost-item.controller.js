@@ -13,6 +13,12 @@ import { claimPendingUpload } from "../uploads/pending-upload.service.js";
 import { deleteImage } from "../uploads/upload.service.js";
 import logger from "../../shared/utils/logger.js";
 import { LostItem } from "./LostItem.model.js";
+import {
+  decodeCursor,
+  encodeCursor,
+  getCursorFilter,
+  getPageLimit,
+} from "../../shared/pagination/cursor.js";
 
 export const submitLostItem = asyncHandler(async (req, res) => {
   if (!req.user.profileCompleted) {
@@ -48,15 +54,8 @@ export const submitLostItem = asyncHandler(async (req, res) => {
   // --- Save to DB ---
   let lostItem;
   try {
-    const {
-      name,
-      color,
-      condition,
-      dateLost,
-      placeLost,
-      description,
-      brand
-    } = req.body;
+    const { name, color, condition, dateLost, placeLost, description, brand } =
+      req.body;
     lostItem = await LostItem.create({
       name,
       color,
@@ -207,48 +206,46 @@ export const submitLostItem = asyncHandler(async (req, res) => {
 });
 
 export const getMyLostItems = asyncHandler(async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
   const { status } = req.query;
 
   const query = {
     userId: req.user.id,
     isActive: true,
+    ...getCursorFilter(cursor),
   };
   if (status) query.status = status;
 
-  const [lostItems, total] = await Promise.all([
-    LostItem.find(query)
+  const lostItems = await LostItem.find(query)
 
-      .populate({
-        path: "matchedFoundItemIds",
-        select: "name block originalBlock handledBy createdBy status",
-        populate: {
-          path: "createdBy",
-          select: "name role block",
-        },
-      })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .skip((page - 1) * limit)
-      .lean(),
-    LostItem.countDocuments(query),
-  ]);
+    .populate({
+      path: "matchedFoundItemIds",
+      select: "name block originalBlock handledBy createdBy status",
+      populate: {
+        path: "createdBy",
+        select: "name role block",
+      },
+    })
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(limit + 1)
+    .lean();
 
-  const totalPages = Math.ceil(total / limit);
+  const hasNextPage = lostItems.length > limit;
+  const pageItems = lostItems.slice(0, limit);
 
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: lostItems.length,
+        count: pageItems.length,
         pagination: {
-          page,
-          pages: totalPages,
-          total,
           limit,
+          nextCursor: hasNextPage
+            ? encodeCursor(pageItems[pageItems.length - 1])
+            : null,
         },
-        data: lostItems,
+        data: pageItems,
       },
       lostItems.length > 0
         ? "Items fetched successfully"
@@ -355,12 +352,12 @@ export const deleteLostItem = asyncHandler(async (req, res) => {
 export const searchLostItems = asyncHandler(async (req, res) => {
   const { q, color, dateFrom, dateTo } = req.query;
 
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
 
   const query = {
     isActive: true,
+    ...getCursorFilter(cursor),
   };
 
   if (q) {
@@ -408,30 +405,28 @@ export const searchLostItems = asyncHandler(async (req, res) => {
   const [lostItems, total] = await Promise.all([
     LostItem.find(query)
       .populate("userId", userSelect)
-      .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
-      .limit(limit)
-      .skip((page - 1) * limit)
+      .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1, _id: -1 })
+      .limit(limit + 1)
       .lean(),
-
-    LostItem.countDocuments(query),
   ]);
 
-  const totalPages = Math.ceil(total / limit);
+  const hasNextPage = lostItems.length > limit;
+  const pageItems = lostItems.slice(0, limit);
 
   return res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: lostItems.length,
+        count: pageItems.length,
 
         pagination: {
-          page,
-          pages: totalPages,
-          total,
           limit,
+          nextCursor: hasNextPage
+            ? encodeCursor(pageItems[pageItems.length - 1])
+            : null,
         },
 
-        data: lostItems,
+        data: pageItems,
       },
 
       "Items searched successfully"

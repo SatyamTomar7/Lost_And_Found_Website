@@ -77,6 +77,7 @@ const notificationSchema = new Schema(
   }
 );
 
+notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ isRead: 1, priority: -1 });
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
@@ -107,7 +108,6 @@ notificationSchema.index(
     partialFilterExpression: {
       type: NOTIFICATION_TYPES.ITEM_TRANSFERRED,
       "data.foundItemId": { $exists: true },
-      "data.lostItemId": { $exists: false },
     },
   }
 );

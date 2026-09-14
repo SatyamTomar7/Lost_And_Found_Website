@@ -3,6 +3,20 @@
 export const DEFAULT_TIMEOUT = 10000; // 10 seconds — standard API calls
 export const UPLOAD_TIMEOUT = 30000; // 30 seconds — file uploads on slow connections
 
+let authHandlers = {
+  getToken: () => null,
+  refresh: null,
+  onFailure: null,
+};
+
+export const configureAuthHandlers = (handlers) => {
+  authHandlers = { ...authHandlers, ...handlers };
+};
+
+const notifyAuthFailure = () => {
+  authHandlers.onFailure?.();
+};
+
 /**
  * Core fetch helper shared across all service files.
  *
@@ -25,6 +39,7 @@ export const apiFetch = async (
   url,
   options = {},
   timeout = DEFAULT_TIMEOUT,
+  hasRetried = false,
 ) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -32,10 +47,37 @@ export const apiFetch = async (
   try {
     const response = await fetch(url, {
       ...options,
+      credentials: options.credentials || "include",
       signal: controller.signal,
     });
 
     if (!response.ok) {
+      if (
+        response.status === 401 &&
+        !hasRetried &&
+        authHandlers.refresh &&
+        !options.skipAuthRefresh &&
+        options.headers?.Authorization
+      ) {
+        try {
+          const token = await authHandlers.refresh();
+          return apiFetch(
+            url,
+            {
+              ...options,
+              headers: {
+                ...options.headers,
+                Authorization: `Bearer ${token}`,
+              },
+            },
+            timeout,
+            true,
+          );
+        } catch (refreshError) {
+          notifyAuthFailure();
+          throw refreshError;
+        }
+      }
       const contentType = response.headers.get("content-type");
 
       let body = {};
@@ -58,6 +100,10 @@ export const apiFetch = async (
       if (typeof body === "object" && body !== null) {
         error.errors = body.errors;
         error.response = body;
+      }
+
+      if (response.status === 401) {
+        notifyAuthFailure();
       }
 
       throw error;

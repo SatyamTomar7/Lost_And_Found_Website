@@ -15,5 +15,4 @@ export const useStudentLostItems = ({ enabled = false } = {}) =>
     enabled,
     staleTime: STUDENT_DASHBOARD_QUERY_TIMINGS.dataStaleTime,
     gcTime: STUDENT_DASHBOARD_QUERY_TIMINGS.dataGcTime,
-    refetchOnWindowFocus: true,
   });

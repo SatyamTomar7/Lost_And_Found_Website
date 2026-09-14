@@ -1,43 +1,62 @@
-import { apiFetch } from "../../../shared/lib/apiClient";
+import { apiFetch, configureAuthHandlers } from "../../../shared/lib/apiClient";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-const AUTH_TOKEN_KEY = "authToken";
-const USER_ROLE_KEY = "userRole";
+let accessToken = null;
+let refreshPromise = null;
 
-// ==================== HELPER FUNCTIONS ====================
-
-export const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
-
-export const getStoredUserRole = () => localStorage.getItem(USER_ROLE_KEY);
-
-export const setAuthSession = (token, role) => {
-  if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
-  if (role) localStorage.setItem(USER_ROLE_KEY, role);
+export const getAuthToken = () => accessToken;
+export const getStoredUserRole = () => null;
+export const setAuthSession = (token) => {
+  accessToken = token || null;
 };
-
 export const clearAuthSession = () => {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
-  localStorage.removeItem(USER_ROLE_KEY);
+  accessToken = null;
 };
-
 export const getAuthHeaders = () => {
-  const token = getAuthToken();
   const headers = { "Content-Type": "application/json" };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   return headers;
 };
+export const isAuthenticated = () => !!accessToken;
+export const clearAuth = clearAuthSession;
+
+export const refreshAccessToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = apiFetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      skipAuthRefresh: true,
+    })
+      .then((result) => {
+        if (!result?.data?.token) throw new Error("Session refresh failed");
+        accessToken = result.data.token;
+        return accessToken;
+      })
+      .catch((error) => {
+        clearAuthSession();
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+};
+
+configureAuthHandlers({
+  getToken: getAuthToken,
+  refresh: refreshAccessToken,
+  onFailure: () => {
+    clearAuthSession();
+    if (window.location.pathname !== "/login") {
+      window.location.assign("/login");
+    }
+  },
+});
 
 export const isValidAmityEmail = (email) =>
   email.endsWith("@s.amity.edu") || email.endsWith("@gwa.amity.edu");
-
 export const isValidStudentRegistrationEmail = (email) =>
   email.endsWith("@s.amity.edu");
-
-export const isAuthenticated = () => !!getAuthToken();
-
-export const clearAuth = clearAuthSession;
-
-// ==================== AUTH ====================
 
 export const register = async (name, email, password) =>
   apiFetch(`${API_URL}/auth/register`, {
@@ -52,14 +71,12 @@ export const verifyOTP = async (email, otp) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, otp }),
   });
-
 export const resendOTP = async (email) =>
   apiFetch(`${API_URL}/auth/resend-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-
 export const login = async (email, password) =>
   apiFetch(`${API_URL}/auth/login`, {
     method: "POST",
@@ -68,75 +85,24 @@ export const login = async (email, password) =>
   });
 
 export const logout = async () => {
-  // Best-effort — clear token regardless of server response or timeout
   try {
-    const response = await fetch(`${API_URL}/auth/logout`, {
+    const data = await apiFetch(`${API_URL}/auth/logout`, {
       method: "POST",
       headers: getAuthHeaders(),
     });
-    let data = null;
-
-    try {
-      data = await response.json();
-    } catch {
-      data = { success: true };
-    }
     clearAuthSession();
     return data;
-  } catch (err) {
+  } finally {
     clearAuthSession();
-    throw err;
   }
 };
 
 export const checkCurrentUser = async () => {
-  const token = getAuthToken();
-
-  if (!token) {
-    return {
-      success: false,
-      hasToken: false,
-      shouldLogout: true,
-      errorType: null,
-      user: null,
-    };
-  }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-
   try {
-    const response = await fetch(`${API_URL}/auth/me`, {
+    if (!accessToken) await refreshAccessToken();
+    const result = await apiFetch(`${API_URL}/auth/me`, {
       headers: getAuthHeaders(),
-      signal: controller.signal,
     });
-
-    // REAL invalid token
-    if (response.status === 401) {
-      clearAuthSession();
-
-      return {
-        success: false,
-        hasToken: true,
-        shouldLogout: true,
-        errorType: "unauthorized",
-        user: null,
-      };
-    }
-
-    // Other server errors
-    if (!response.ok) {
-      return {
-        success: false,
-        hasToken: true,
-        shouldLogout: false,
-        errorType: "server",
-        user: null,
-      };
-    }
-
-    const result = await response.json();
-
     return {
       success: true,
       hasToken: true,
@@ -145,30 +111,21 @@ export const checkCurrentUser = async () => {
       user: result.data || null,
     };
   } catch (error) {
-    // Network error / timeout
-    console.error("Session recovery failed:", error);
-
+    clearAuthSession();
     return {
       success: false,
-      hasToken: true,
-      shouldLogout: false,
-      errorType: "network",
+      hasToken: false,
+      shouldLogout: true,
+      errorType: error?.status >= 500 ? "server" : "unauthorized",
       user: null,
     };
-  } finally {
-    clearTimeout(timer);
   }
 };
 
 export const fetchCurrentUser = async () => {
   const result = await checkCurrentUser();
-
-  if (!result.success || !result.user) {
-    const error = new Error("Failed to fetch current user");
-    error.shouldLogout = result.shouldLogout;
-    throw error;
-  }
-
+  if (!result.success || !result.user)
+    throw new Error("Failed to fetch current user");
   return result.user;
 };
 
@@ -178,23 +135,18 @@ export const completeProfile = async (data) =>
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
-
-// ==================== STUDENT PASSWORD RESET ====================
-
 export const forgotPassword = async (email) =>
   apiFetch(`${API_URL}/auth/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
-
 export const verifyResetOTP = async (email, otp) =>
   apiFetch(`${API_URL}/auth/verify-reset-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, otp }),
   });
-
 export const resetPassword = async (resetToken, newPassword, confirmPassword) =>
   apiFetch(`${API_URL}/auth/reset-password`, {
     method: "POST",

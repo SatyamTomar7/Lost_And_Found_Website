@@ -21,6 +21,7 @@ import {
 } from "./constants";
 import { BlockBadge, MgmtAvatar, Pill, ShimmerRows } from "./shared-components";
 import { fmtDate } from "./helpers";
+import { useCursorPagination } from "./hooks/useCursorPagination";
 import {
   getDirectorAdmins,
   getDirectorAnalytics,
@@ -112,25 +113,31 @@ function MgmtFilterBar({
   );
 }
 
-function MgmtPagination({ page, setPage, totalPages }) {
-  if (!totalPages || totalPages <= 1) return null;
+function MgmtPagination({
+  page,
+  hasPreviousPage,
+  hasNextPage,
+  goPrevious,
+  goNext,
+}) {
+  if (!hasPreviousPage && !hasNextPage) return null;
   return (
     <div className={managementStyles["dd-pagination"]}>
       <button
         className={managementStyles["dd-page-btn"]}
-        onClick={() => setPage((p) => Math.max(1, p - 1))}
-        disabled={page === 1}
+        onClick={goPrevious}
+        disabled={!hasPreviousPage}
         aria-label="Previous page"
       >
         <LuChevronLeft size={15} />
       </button>
       <span className={managementStyles["dd-page-info"]}>
-        Page <strong>{page}</strong> of <strong>{totalPages}</strong>
+        Page <strong>{page}</strong>
       </span>
       <button
         className={managementStyles["dd-page-btn"]}
-        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-        disabled={page === totalPages}
+        onClick={goNext}
+        disabled={!hasNextPage}
         aria-label="Next page"
       >
         <LuChevronRight size={15} />
@@ -173,12 +180,20 @@ function DeleteButton({ resource, id, label }) {
 }
 
 function AdminsPanel() {
-  const [page, setPage] = useState(1);
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["director-admins", page],
-    queryFn: () => getDirectorAdmins({ page, limit: 10 }),
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    page,
+    hasPreviousPage,
+    hasNextPage,
+    goPrevious,
+    goNext,
+  } = useCursorPagination({
+    queryKey: ["director-admins"],
+    queryFn: getDirectorAdmins,
     staleTime: 3 * 60 * 1000,
-    select: (res) => res.data,
   });
 
   return (
@@ -261,25 +276,36 @@ function AdminsPanel() {
       </div>
       <MgmtPagination
         page={page}
-        setPage={setPage}
-        totalPages={data?.pagination?.totalPages}
+        hasPreviousPage={hasPreviousPage}
+        hasNextPage={hasNextPage}
+        goPrevious={goPrevious}
+        goNext={goNext}
       />
     </>
   );
 }
 
 function StudentsPanel({ canManage }) {
-  const [page, setPage] = useState(1);
   const [blockFilter, setBlockFilter] = useState("");
   const handleBlockFilter = (val) => {
     setBlockFilter(val);
-    setPage(1);
   };
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["director-students", page, blockFilter],
-    queryFn: () => getDirectorStudents({ page, limit: 10, block: blockFilter }),
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    page,
+    hasPreviousPage,
+    hasNextPage,
+    goPrevious,
+    goNext,
+  } = useCursorPagination({
+    queryKey: ["director-students"],
+    queryFn: ({ cursor, limit }) =>
+      getDirectorStudents({ cursor, limit, block: blockFilter }),
+    filters: [blockFilter],
     staleTime: 3 * 60 * 1000,
-    select: (res) => res.data,
   });
 
   return (
@@ -379,26 +405,36 @@ function StudentsPanel({ canManage }) {
       </div>
       <MgmtPagination
         page={page}
-        setPage={setPage}
-        totalPages={data?.pagination?.totalPages}
+        hasPreviousPage={hasPreviousPage}
+        hasNextPage={hasNextPage}
+        goPrevious={goPrevious}
+        goNext={goNext}
       />
     </>
   );
 }
 
 function MgmtLostItemsPanel({ canManage }) {
-  const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const handleStatusFilter = (val) => {
     setStatusFilter(val);
-    setPage(1);
   };
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["director-lostitems", page, statusFilter],
-    queryFn: () =>
-      getDirectorLostItems({ page, limit: 10, status: statusFilter }),
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    page,
+    hasPreviousPage,
+    hasNextPage,
+    goPrevious,
+    goNext,
+  } = useCursorPagination({
+    queryKey: ["director-lostitems"],
+    queryFn: ({ cursor, limit }) =>
+      getDirectorLostItems({ cursor, limit, status: statusFilter }),
+    filters: [statusFilter],
     staleTime: 2 * 60 * 1000,
-    select: (res) => res.data,
   });
 
   return (
@@ -494,36 +530,45 @@ function MgmtLostItemsPanel({ canManage }) {
       </div>
       <MgmtPagination
         page={page}
-        setPage={setPage}
-        totalPages={data?.pagination?.totalPages}
+        hasPreviousPage={hasPreviousPage}
+        hasNextPage={hasNextPage}
+        goPrevious={goPrevious}
+        goNext={goNext}
       />
     </>
   );
 }
 
 function MgmtFoundItemsPanel({ canManage }) {
-  const [page, setPage] = useState(1);
   const [blockFilter, setBlockFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const handleBlockFilter = (val) => {
     setBlockFilter(val);
-    setPage(1);
   };
   const handleStatusFilter = (val) => {
     setStatusFilter(val);
-    setPage(1);
   };
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["director-founditems", page, blockFilter, statusFilter],
-    queryFn: () =>
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    page,
+    hasPreviousPage,
+    hasNextPage,
+    goPrevious,
+    goNext,
+  } = useCursorPagination({
+    queryKey: ["director-founditems"],
+    queryFn: ({ cursor, limit }) =>
       getDirectorFoundItems({
-        page,
-        limit: 10,
+        cursor,
+        limit,
         block: blockFilter,
         status: statusFilter,
       }),
+    filters: [blockFilter, statusFilter],
     staleTime: 2 * 60 * 1000,
-    select: (res) => res.data,
   });
 
   return (
@@ -640,8 +685,10 @@ function MgmtFoundItemsPanel({ canManage }) {
       </div>
       <MgmtPagination
         page={page}
-        setPage={setPage}
-        totalPages={data?.pagination?.totalPages}
+        hasPreviousPage={hasPreviousPage}
+        hasNextPage={hasNextPage}
+        goPrevious={goPrevious}
+        goNext={goNext}
       />
     </>
   );
