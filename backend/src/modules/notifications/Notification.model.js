@@ -107,7 +107,6 @@ notificationSchema.index(
     partialFilterExpression: {
       type: NOTIFICATION_TYPES.ITEM_TRANSFERRED,
       "data.foundItemId": { $exists: true },
-      "data.lostItemId": { $exists: false },
     },
   }
 );
