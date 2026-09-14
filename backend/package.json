@@ -18,8 +18,10 @@
   "author": "Satyam Tomar",
   "license": "ISC",
   "devDependencies": {
+    "mongodb-memory-server": "^11.2.0",
     "nodemon": "^3.1.10",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "supertest": "^7.2.2"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
