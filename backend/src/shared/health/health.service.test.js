@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import mongoose from "mongoose";
 import test from "node:test";
 import {
+  getRoot,
   getLegacyHealth,
   getLiveness,
   getReadiness,
@@ -23,6 +24,18 @@ const createResponse = () => ({
 
 test.afterEach(() => {
   setDraining(false);
+});
+
+test("root response is safe and confirms the API is running", () => {
+  const response = createResponse();
+
+  getRoot({}, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body, {
+    success: true,
+    message: "Lost and Found API is running",
+  });
 });
 
 test("liveness is independent of MongoDB state and returns a minimal response", () => {
