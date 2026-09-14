@@ -2,6 +2,7 @@ import { StrictMode, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App.jsx";
+import AppErrorBoundary from "../shared/components/AppErrorBoundary.jsx";
 
 // ─── Smart retry: never retry 4xx (auth/not-found/validation errors) ─────────
 // Retrying a 401 or 404 is pointless and wastes a round-trip.
@@ -16,11 +17,11 @@ const shouldRetry = (failureCount, error) => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime:           1000 * 60 * 5,  // Data stays fresh for 5 minutes
-      gcTime:              1000 * 60 * 10, // Cache held for 10 minutes (after all observers unmount)
-      retry:               shouldRetry,    // FIX #1: skip retries on 4xx errors
-      refetchOnWindowFocus: false,         // Don't silently refetch on tab switch
-      refetchOnReconnect:  true,           // FIX #2: 'always' refetches even fresh data; 'true' only refetches stale
+      staleTime: 1000 * 60 * 5, // Data stays fresh for 5 minutes
+      gcTime: 1000 * 60 * 10, // Cache held for 10 minutes (after all observers unmount)
+      retry: shouldRetry, // FIX #1: skip retries on 4xx errors
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true, // FIX #2: 'always' refetches even fresh data; 'true' only refetches stale
     },
     mutations: {
       retry: 0, // Never retry mutations — side effects must not be duplicated
@@ -36,7 +37,7 @@ const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() =>
       import("@tanstack/react-query-devtools").then((m) => ({
         default: m.ReactQueryDevtools,
-      }))
+      })),
     )
   : null;
 
@@ -47,8 +48,8 @@ const rootElement = document.getElementById("root");
 
 if (!rootElement) {
   throw new Error(
-    '[main.jsx] Could not find #root element. ' +
-    'Check that index.html contains <div id="root"></div>.'
+    "[main.jsx] Could not find #root element. " +
+      'Check that index.html contains <div id="root"></div>.',
   );
 }
 
@@ -56,7 +57,9 @@ if (!rootElement) {
 createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
       {ReactQueryDevtools && (
         // Suspense needed because ReactQueryDevtools is lazy in dev
         <Suspense fallback={null}>
@@ -64,5 +67,5 @@ createRoot(rootElement).render(
         </Suspense>
       )}
     </QueryClientProvider>
-  </StrictMode>
+  </StrictMode>,
 );

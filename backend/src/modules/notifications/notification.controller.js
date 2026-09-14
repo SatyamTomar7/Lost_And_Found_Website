@@ -5,27 +5,36 @@ import { ApiError } from "../../shared/utils/ApiError.js";
 import { ApiResponse } from "../../shared/utils/ApiResponse.js";
 import { asyncHandler } from "../../shared/utils/asyncHandler.js";
 import { Notification } from "./Notification.model.js";
+import {
+  decodeCursor,
+  encodeCursor,
+  getCursorFilter,
+  getPageLimit,
+} from "../../shared/pagination/cursor.js";
 export const getNotifications = asyncHandler(async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
-  const skip = (page - 1) * limit;
+  const limit = getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
 
-  const query = { userId: req.user.id };
+  const query = { userId: req.user.id, ...getCursorFilter(cursor) };
 
   const [notifications, total, unreadCount] = await Promise.all([
     Notification.find(query)
       .populate("data.lostItemId", "name  color")
-      .populate("data.foundItemId", "name color block originalBlock placeFound handledBy")
+      .populate(
+        "data.foundItemId",
+        "name color block originalBlock placeFound handledBy"
+      )
       .populate("data.createdBy", "name role block")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit + 1)
       .lean(),
     Notification.countDocuments(query),
     Notification.countDocuments({ userId: req.user.id, isRead: false }),
   ]);
 
-  const hydratedNotifications = notifications.map((notification) => {
+  const hasNextPage = notifications.length > limit;
+  const pageNotifications = notifications.slice(0, limit);
+  const hydratedNotifications = pageNotifications.map((notification) => {
     if (
       notification.type === NOTIFICATION_TYPES.MATCH_FOUND &&
       !notification.message &&
@@ -62,10 +71,11 @@ export const getNotifications = asyncHandler(async (req, res) => {
         notifications: hydratedNotifications,
         unreadCount,
         pagination: {
-          page,
-          pages: Math.ceil(total / limit),
           total,
           limit,
+          nextCursor: hasNextPage
+            ? encodeCursor(pageNotifications[pageNotifications.length - 1])
+            : null,
         },
       },
       "Notifications fetched successfully"
@@ -97,14 +107,8 @@ export const markAsRead = asyncHandler(async (req, res) => {
     isRead: false,
   });
 
-  if (
-    id.toLowerCase() !== "all" &&
-    result.matchedCount === 0
-  ) {
-    throw new ApiError(
-      404,
-      "Notification not found or already read"
-    );
+  if (id.toLowerCase() !== "all" && result.matchedCount === 0) {
+    throw new ApiError(404, "Notification not found or already read");
   }
 
   res.status(200).json(
@@ -120,7 +124,6 @@ export const markAsRead = asyncHandler(async (req, res) => {
     )
   );
 });
-
 
 export const markAllAsRead = asyncHandler(async (req, res) => {
   const userId = req.user.id;

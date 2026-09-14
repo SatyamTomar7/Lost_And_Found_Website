@@ -141,7 +141,6 @@ export default function OperationalView({
     gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
     refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const {
@@ -164,7 +163,6 @@ export default function OperationalView({
     gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
     refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const {
@@ -187,7 +185,6 @@ export default function OperationalView({
     gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
     refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const {
@@ -209,7 +206,6 @@ export default function OperationalView({
     gcTime: OPERATIONAL_QUERY_TIMINGS.dataGcTime,
     refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const { data: matches = [], isLoading: matchesLoading } = useQuery({
@@ -222,7 +218,6 @@ export default function OperationalView({
     staleTime: OPERATIONAL_QUERY_TIMINGS.dataStaleTime,
     refetchInterval: OPERATIONAL_QUERY_TIMINGS.activeTabRefetchInterval,
     refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
   });
 
   const { data: notificationData = { notifications: [], unreadCount: 0 } } =
@@ -239,7 +234,6 @@ export default function OperationalView({
       staleTime: OPERATIONAL_QUERY_TIMINGS.notificationStaleTime,
       refetchInterval: OPERATIONAL_QUERY_TIMINGS.notificationRefetchInterval,
       refetchIntervalInBackground: false,
-      refetchOnWindowFocus: true,
     });
 
   const { notifications, unreadCount } = notificationData;

@@ -13,6 +13,10 @@ export const configureAuthHandlers = (handlers) => {
   authHandlers = { ...authHandlers, ...handlers };
 };
 
+const notifyAuthFailure = () => {
+  authHandlers.onFailure?.();
+};
+
 /**
  * Core fetch helper shared across all service files.
  *
@@ -55,19 +59,24 @@ export const apiFetch = async (
         !options.skipAuthRefresh &&
         options.headers?.Authorization
       ) {
-        const token = await authHandlers.refresh();
-        return apiFetch(
-          url,
-          {
-            ...options,
-            headers: {
-              ...options.headers,
-              Authorization: `Bearer ${token}`,
+        try {
+          const token = await authHandlers.refresh();
+          return apiFetch(
+            url,
+            {
+              ...options,
+              headers: {
+                ...options.headers,
+                Authorization: `Bearer ${token}`,
+              },
             },
-          },
-          timeout,
-          true,
-        );
+            timeout,
+            true,
+          );
+        } catch (refreshError) {
+          notifyAuthFailure();
+          throw refreshError;
+        }
       }
       const contentType = response.headers.get("content-type");
 
@@ -91,6 +100,10 @@ export const apiFetch = async (
       if (typeof body === "object" && body !== null) {
         error.errors = body.errors;
         error.response = body;
+      }
+
+      if (response.status === 401) {
+        notifyAuthFailure();
       }
 
       throw error;

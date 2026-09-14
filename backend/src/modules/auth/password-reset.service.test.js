@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import {
   consumePasswordResetSession,
   createPasswordResetToken,
+  PASSWORD_RESET_OTP_MAX_ATTEMPTS,
+  recordPasswordResetOtpFailure,
   verifyPasswordResetToken,
 } from "./password-reset.service.js";
 
@@ -15,7 +17,7 @@ const createUserModel = (initialUser) => {
 
   return {
     user,
-    findOneAndUpdate: async (filter, update) => {
+    findOneAndUpdate: (filter, update) => {
       if (
         user._id !== filter._id ||
         user.passwordResetVersion !== filter.passwordResetVersion
@@ -105,10 +107,7 @@ test("the newly hashed password remains usable for normal login", async () => {
     newPassword: "NewPassword1",
   });
 
-  assert.equal(
-    await bcrypt.compare("NewPassword1", User.user.password),
-    true
-  );
+  assert.equal(await bcrypt.compare("NewPassword1", User.user.password), true);
 });
 
 test("only one concurrent attempt can consume a reset session", async () => {
@@ -127,4 +126,46 @@ test("only one concurrent attempt can consume a reset session", async () => {
 
   assert.equal(results.filter(Boolean).length, 1);
   assert.equal(User.user.passwordResetVersion, 4);
+});
+
+test("locks a reset session after the configured number of invalid OTP attempts", async () => {
+  const user = {
+    _id: "user-1",
+    passwordResetOTPUsed: false,
+    passwordResetOTPExpiry: new Date(Date.now() + 60_000),
+    passwordResetOTPFailedAttempts: 0,
+    passwordResetOTPLockedUntil: null,
+  };
+  const User = {
+    findOneAndUpdate: (filter, update) => {
+      if (
+        user._id !== filter._id ||
+        user.passwordResetOTPUsed ||
+        user.passwordResetOTPExpiry <= filter.passwordResetOTPExpiry.$gt ||
+        user.passwordResetOTPFailedAttempts >=
+          filter.passwordResetOTPFailedAttempts.$lt
+      ) {
+        return { select: async () => null };
+      }
+
+      user.passwordResetOTPFailedAttempts +=
+        update.$inc.passwordResetOTPFailedAttempts;
+      return { select: async () => ({ ...user }) };
+    },
+    updateOne: async (_filter, update) => {
+      user.passwordResetOTPLockedUntil =
+        update.$set.passwordResetOTPLockedUntil;
+    },
+  };
+
+  for (let attempt = 0; attempt < PASSWORD_RESET_OTP_MAX_ATTEMPTS; attempt++) {
+    await recordPasswordResetOtpFailure({ User, userId: user._id });
+  }
+
+  assert.equal(user.passwordResetOTPFailedAttempts, 5);
+  assert.equal(user.passwordResetOTPLockedUntil, user.passwordResetOTPExpiry);
+  assert.equal(
+    await recordPasswordResetOtpFailure({ User, userId: user._id }),
+    null
+  );
 });

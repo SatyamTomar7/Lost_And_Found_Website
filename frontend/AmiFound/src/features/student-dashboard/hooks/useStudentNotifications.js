@@ -27,7 +27,6 @@ export const useStudentNotifications = ({ setShowNotifications } = {}) => {
       refetchInterval:
         STUDENT_DASHBOARD_QUERY_TIMINGS.notificationRefetchInterval,
       refetchIntervalInBackground: false,
-      refetchOnWindowFocus: true,
     });
 
   const markReadMutation = useMutation({

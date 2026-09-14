@@ -12,7 +12,24 @@ import { requestLoggerMiddleware } from "../shared/middleware/requestLogger.midd
 
 const app = express();
 
-app.set("trust proxy", 1);
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy === "true") {
+  app.set("trust proxy", true);
+} else if (trustProxy === "false" || !trustProxy) {
+  app.set("trust proxy", false);
+} else if (/^\d+$/.test(trustProxy)) {
+  app.set("trust proxy", Number(trustProxy));
+} else {
+  app.set("trust proxy", trustProxy);
+}
+
+const allowedOrigin = process.env.CLIENT_URL;
+const originValidator = (origin, callback) => {
+  if (!origin || origin === allowedOrigin) {
+    return callback(null, true);
+  }
+  return callback(new Error("Origin is not allowed"));
+};
 const httpServer = createServer(app);
 
 app.use(requestIdMiddleware);
@@ -21,7 +38,7 @@ app.use(requestLoggerMiddleware);
 // 1. SOCKET.IO SETUP
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL,
+    origin: originValidator,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -34,7 +51,7 @@ app.set("socketio", io);
 // 2. CORS - MUST BE FIRST (to handle Preflight and Limiter errors)
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: originValidator,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],

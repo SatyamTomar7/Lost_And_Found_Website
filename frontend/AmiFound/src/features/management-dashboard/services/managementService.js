@@ -23,42 +23,42 @@ export const getDirectorAnalytics = () =>
 
 // ==================== ADMINS ====================
 
-export const getDirectorAdmins = ({ page = 1, limit = 10 } = {}) =>
-  apiFetch(`${API_URL}/management/admins${buildQuery({ page, limit })}`, {
+export const getDirectorAdmins = ({ cursor, limit = 10 } = {}) =>
+  apiFetch(`${API_URL}/management/admins${buildQuery({ cursor, limit })}`, {
     headers: getAuthHeaders(),
   });
 
 // ==================== STUDENTS ====================
 
-export const getDirectorStudents = ({ page = 1, limit = 10, block } = {}) =>
+export const getDirectorStudents = ({ cursor, limit = 10, block } = {}) =>
   apiFetch(
-    `${API_URL}/management/students${buildQuery({ page, limit, block })}`,
+    `${API_URL}/management/students${buildQuery({ cursor, limit, block })}`,
     { headers: getAuthHeaders() },
   );
 
 // ==================== LOST ITEMS ====================
 
 export const getDirectorLostItems = ({
-  page = 1,
+  cursor,
   limit = 10,
   block,
   status,
 } = {}) =>
   apiFetch(
-    `${API_URL}/management/lostitems${buildQuery({ page, limit, block, status })}`,
+    `${API_URL}/management/lostitems${buildQuery({ cursor, limit, block, status })}`,
     { headers: getAuthHeaders() },
   );
 
 // ==================== FOUND ITEMS ====================
 
 export const getDirectorFoundItems = ({
-  page = 1,
+  cursor,
   limit = 10,
   block,
   status,
 } = {}) =>
   apiFetch(
-    `${API_URL}/management/founditems${buildQuery({ page, limit, block, status })}`,
+    `${API_URL}/management/founditems${buildQuery({ cursor, limit, block, status })}`,
     { headers: getAuthHeaders() },
   );
 

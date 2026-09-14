@@ -4,6 +4,12 @@ import { USER_ROLES } from "../../config/constants.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { ApiResponse } from "../../shared/utils/ApiResponse.js";
 import { asyncHandler } from "../../shared/utils/asyncHandler.js";
+import {
+  decodeCursor,
+  encodeCursor,
+  getCursorFilter,
+  getPageLimit,
+} from "../../shared/pagination/cursor.js";
 
 import { User } from "../auth/User.model.js";
 import { FoundItem } from "../found-items/FoundItem.model.js";
@@ -40,8 +46,7 @@ const reconcileFoundItemStatus = async (foundItemId, session) => {
     return;
   }
 
-  const status =
-    foundItem.matchedLostItemIds?.length > 0 ? "matched" : "found";
+  const status = foundItem.matchedLostItemIds?.length > 0 ? "matched" : "found";
 
   await FoundItem.updateOne(
     { _id: foundItemId },
@@ -70,21 +75,12 @@ export const deleteStudent = asyncHandler(async (req, res) => {
   );
 
   if (!student) {
-    throw new ApiError(
-      404,
-      "Student not found or already deleted"
-    );
+    throw new ApiError(404, "Student not found or already deleted");
   }
 
   res
     .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        {},
-        "Student deleted successfully"
-      )
-    );
+    .json(new ApiResponse(200, {}, "Student deleted successfully"));
 });
 
 export const deleteLostItem = asyncHandler(async (req, res) => {
@@ -113,10 +109,7 @@ export const deleteLostItem = asyncHandler(async (req, res) => {
     );
 
     if (!lostItem) {
-      throw new ApiError(
-        404,
-        "Lost item not found or already deleted"
-      );
+      throw new ApiError(404, "Lost item not found or already deleted");
     }
 
     // 2. Find all FoundItems that were matched with this LostItem
@@ -149,23 +142,14 @@ export const deleteLostItem = asyncHandler(async (req, res) => {
     // If no matched LostItems remain:
     //     status becomes "found"
     for (const foundItem of affectedFoundItems) {
-      await reconcileFoundItemStatus(
-        foundItem._id,
-        session
-      );
+      await reconcileFoundItemStatus(foundItem._id, session);
     }
 
     await session.commitTransaction();
 
     res
       .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          {},
-          "Lost item deleted successfully"
-        )
-      );
+      .json(new ApiResponse(200, {}, "Lost item deleted successfully"));
   } catch (error) {
     await session.abortTransaction();
 
@@ -204,10 +188,7 @@ export const deleteFoundItem = asyncHandler(async (req, res) => {
     );
 
     if (!foundItem) {
-      throw new ApiError(
-        404,
-        "Found item not found or already deleted"
-      );
+      throw new ApiError(404, "Found item not found or already deleted");
     }
 
     // 2. Find all LostItems matched with this FoundItem
@@ -240,23 +221,14 @@ export const deleteFoundItem = asyncHandler(async (req, res) => {
     // If no matched FoundItems remain:
     //     status is recalculated by reconcileLostItemStatus()
     for (const lostItem of affectedLostItems) {
-      await reconcileLostItemStatus(
-        lostItem._id,
-        session
-      );
+      await reconcileLostItemStatus(lostItem._id, session);
     }
 
     await session.commitTransaction();
 
     res
       .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          {},
-          "Found item deleted successfully"
-        )
-      );
+      .json(new ApiResponse(200, {}, "Found item deleted successfully"));
   } catch (error) {
     await session.abortTransaction();
 
@@ -318,13 +290,14 @@ export const getDirectorAnalytics = asyncHandler(async (req, res) => {
   );
 });
 export const getAllLostItems = asyncHandler(async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
 
   const { status, search } = req.query;
 
   const query = {
     isActive: true,
+    ...getCursorFilter(cursor),
   };
 
   // Filter by status
@@ -340,11 +313,10 @@ export const getAllLostItems = asyncHandler(async (req, res) => {
     };
   }
 
-  const [lostItems, total] = await Promise.all([
-    LostItem.find(query)
-      .populate(
-        "userId",
-        `
+  const lostItems = await LostItem.find(query)
+    .populate(
+      "userId",
+      `
         name
         email
         enrollmentNumber
@@ -354,39 +326,35 @@ export const getAllLostItems = asyncHandler(async (req, res) => {
         semester
         block
         `
-      )
-      .populate(
-        "matchedFoundItemIds",
-        `
+    )
+    .populate(
+      "matchedFoundItemIds",
+      `
         name
         block
         status
         `
-      )
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-
-    LostItem.countDocuments(query),
-  ]);
-
-  const totalPages = Math.ceil(total / limit);
+    )
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(limit + 1)
+    .lean();
+  const pageItems = lostItems.slice(0, limit);
 
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: lostItems.length,
+        count: pageItems.length,
 
         pagination: {
-          total,
-          totalPages,
-          currentPage: page,
           limit,
+          nextCursor:
+            lostItems.length > limit
+              ? encodeCursor(pageItems[pageItems.length - 1])
+              : null,
         },
 
-        data: lostItems,
+        data: pageItems,
       },
       lostItems.length > 0
         ? "All lost items fetched successfully"
@@ -395,13 +363,14 @@ export const getAllLostItems = asyncHandler(async (req, res) => {
   );
 });
 export const getAllFoundItems = asyncHandler(async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
 
   const { status, block, search } = req.query;
 
   const query = {
     isActive: true,
+    ...getCursorFilter(cursor),
   };
 
   // Filter by status
@@ -421,28 +390,27 @@ export const getAllFoundItems = asyncHandler(async (req, res) => {
     };
   }
 
-  const [foundItems, total] = await Promise.all([
-    FoundItem.find(query)
-      .populate(
-        "createdBy",
-        `
+  const foundItems = await FoundItem.find(query)
+    .populate(
+      "createdBy",
+      `
     name
     email
     role
     block
   `
-      )
-      .populate({
-        path: "matchedLostItemIds",
-        select: `
+    )
+    .populate({
+      path: "matchedLostItemIds",
+      select: `
           name
           status
           createdAt
           userId
         `,
-        populate: {
-          path: "userId",
-          select: `
+      populate: {
+        path: "userId",
+        select: `
             name
             email
             enrollmentNumber
@@ -452,32 +420,28 @@ export const getAllFoundItems = asyncHandler(async (req, res) => {
             semester
             block
           `,
-        },
-      })
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-
-    FoundItem.countDocuments(query),
-  ]);
-
-  const totalPages = Math.ceil(total / limit);
+      },
+    })
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(limit + 1)
+    .lean();
+  const pageItems = foundItems.slice(0, limit);
 
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: foundItems.length,
+        count: pageItems.length,
 
         pagination: {
-          total,
-          totalPages,
-          currentPage: page,
           limit,
+          nextCursor:
+            foundItems.length > limit
+              ? encodeCursor(pageItems[pageItems.length - 1])
+              : null,
         },
 
-        data: foundItems,
+        data: pageItems,
       },
       foundItems.length > 0
         ? "All found items fetched successfully"
@@ -486,14 +450,15 @@ export const getAllFoundItems = asyncHandler(async (req, res) => {
   );
 });
 export const getAllStudents = asyncHandler(async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
 
   const { block, search, course, branch, semester } = req.query;
 
   const query = {
     role: USER_ROLES.STUDENT,
     isActive: true,
+    ...getCursorFilter(cursor),
   };
 
   // Filter by block
@@ -534,10 +499,9 @@ export const getAllStudents = asyncHandler(async (req, res) => {
     ];
   }
 
-  const [students, total] = await Promise.all([
-    User.find(query)
-      .select(
-        `
+  const students = await User.find(query)
+    .select(
+      `
         name
         email
         enrollmentNumber
@@ -551,31 +515,27 @@ export const getAllStudents = asyncHandler(async (req, res) => {
         profileCompleted
         createdAt
       `
-      )
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-
-    User.countDocuments(query),
-  ]);
-
-  const totalPages = Math.ceil(total / limit);
+    )
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(limit + 1)
+    .lean();
+  const pageItems = students.slice(0, limit);
 
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: students.length,
+        count: pageItems.length,
 
         pagination: {
-          total,
-          totalPages,
-          currentPage: page,
           limit,
+          nextCursor:
+            students.length > limit
+              ? encodeCursor(pageItems[pageItems.length - 1])
+              : null,
         },
 
-        data: students,
+        data: pageItems,
       },
       students.length > 0
         ? "Students fetched successfully"
@@ -584,8 +544,8 @@ export const getAllStudents = asyncHandler(async (req, res) => {
   );
 });
 export const getAllAdmins = asyncHandler(async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
 
   const { role, block, search } = req.query;
 
@@ -594,6 +554,7 @@ export const getAllAdmins = asyncHandler(async (req, res) => {
       $in: [USER_ROLES.ADMIN, USER_ROLES.SECURITY],
     },
     isActive: true,
+    ...getCursorFilter(cursor),
   };
 
   // Filter by specific role
@@ -624,10 +585,9 @@ export const getAllAdmins = asyncHandler(async (req, res) => {
     ];
   }
 
-  const [admins, total] = await Promise.all([
-    User.find(query)
-      .select(
-        `
+  const admins = await User.find(query)
+    .select(
+      `
         name
         email
         role
@@ -637,31 +597,27 @@ export const getAllAdmins = asyncHandler(async (req, res) => {
         lastLogin
         createdAt
       `
-      )
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-
-    User.countDocuments(query),
-  ]);
-
-  const totalPages = Math.ceil(total / limit);
+    )
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(limit + 1)
+    .lean();
+  const pageItems = admins.slice(0, limit);
 
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: admins.length,
+        count: pageItems.length,
 
         pagination: {
-          total,
-          totalPages,
-          currentPage: page,
           limit,
+          nextCursor:
+            admins.length > limit
+              ? encodeCursor(pageItems[pageItems.length - 1])
+              : null,
         },
 
-        data: admins,
+        data: pageItems,
       },
       admins.length > 0 ? "Admins fetched successfully" : "No admins found"
     )

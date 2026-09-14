@@ -45,7 +45,12 @@ export const refreshAccessToken = async () => {
 configureAuthHandlers({
   getToken: getAuthToken,
   refresh: refreshAccessToken,
-  onFailure: clearAuthSession,
+  onFailure: () => {
+    clearAuthSession();
+    if (window.location.pathname !== "/login") {
+      window.location.assign("/login");
+    }
+  },
 });
 
 export const isValidAmityEmail = (email) =>
@@ -119,7 +124,8 @@ export const checkCurrentUser = async () => {
 
 export const fetchCurrentUser = async () => {
   const result = await checkCurrentUser();
-  if (!result.success || !result.user) throw new Error("Failed to fetch current user");
+  if (!result.success || !result.user)
+    throw new Error("Failed to fetch current user");
   return result.user;
 };
 

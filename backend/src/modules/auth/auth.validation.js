@@ -38,6 +38,15 @@ const validateOTPVerification = [
   handleValidationErrors,
 ];
 
+const validateResendOTP = [
+  body("email")
+    .trim()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Valid email required"),
+  handleValidationErrors,
+];
+
 const validateLogin = [
   body("email")
     .trim()
@@ -160,6 +169,7 @@ export {
   validateLogin,
   validateOTPVerification,
   validateResetPassword,
+  validateResendOTP,
   validateUserRegistration,
   validateVerifyResetOTP,
 };

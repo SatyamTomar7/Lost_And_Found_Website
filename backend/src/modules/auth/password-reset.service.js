@@ -2,12 +2,9 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const RESET_PASSWORD_HASH_ROUNDS = 10;
+export const PASSWORD_RESET_OTP_MAX_ATTEMPTS = 5;
 
-export const createPasswordResetToken = ({
-  userId,
-  resetVersion,
-  secret,
-}) =>
+export const createPasswordResetToken = ({ userId, resetVersion, secret }) =>
   jwt.sign(
     {
       userId,
@@ -20,6 +17,36 @@ export const createPasswordResetToken = ({
 
 export const verifyPasswordResetToken = (token, secret) =>
   jwt.verify(token, secret);
+
+export const recordPasswordResetOtpFailure = async ({
+  User,
+  userId,
+  maxAttempts = PASSWORD_RESET_OTP_MAX_ATTEMPTS,
+}) => {
+  const user = await User.findOneAndUpdate(
+    {
+      _id: userId,
+      passwordResetOTPUsed: false,
+      passwordResetOTPExpiry: { $gt: new Date() },
+      passwordResetOTPFailedAttempts: { $lt: maxAttempts },
+      $or: [
+        { passwordResetOTPLockedUntil: null },
+        { passwordResetOTPLockedUntil: { $lte: new Date() } },
+      ],
+    },
+    { $inc: { passwordResetOTPFailedAttempts: 1 } },
+    { new: true }
+  ).select("+passwordResetOTPFailedAttempts +passwordResetOTPLockedUntil");
+
+  if (user && user.passwordResetOTPFailedAttempts >= maxAttempts) {
+    await User.updateOne(
+      { _id: userId, passwordResetOTPUsed: false },
+      { $set: { passwordResetOTPLockedUntil: user.passwordResetOTPExpiry } }
+    );
+  }
+
+  return user;
+};
 
 export const consumePasswordResetSession = async ({
   User,
@@ -45,6 +72,8 @@ export const consumePasswordResetSession = async ({
         passwordResetOTPExpiry: null,
         passwordResetOTPUsed: false,
         passwordResetOTPLastSentAt: null,
+        passwordResetOTPFailedAttempts: 0,
+        passwordResetOTPLockedUntil: null,
       },
       $inc: {
         passwordResetVersion: 1,

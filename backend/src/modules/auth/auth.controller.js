@@ -9,6 +9,8 @@ import { User } from "./User.model.js";
 import {
   consumePasswordResetSession,
   createPasswordResetToken,
+  PASSWORD_RESET_OTP_MAX_ATTEMPTS,
+  recordPasswordResetOtpFailure,
   verifyPasswordResetToken,
 } from "./password-reset.service.js";
 import {
@@ -233,22 +235,21 @@ export const refresh = asyncHandler(async (req, res) => {
   res.cookie(REFRESH_COOKIE_NAME, result.token, getRefreshCookieOptions());
   return res
     .status(200)
-    .json(new ApiResponse(200, { token: user.getJWTToken() }, "Token refreshed"));
+    .json(
+      new ApiResponse(200, { token: user.getJWTToken() }, "Token refreshed")
+    );
 });
 export const resendOTP = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  const genericResponse = new ApiResponse(
+    200,
+    {},
+    "If the account exists and is eligible, a new OTP has been sent."
+  );
 
   const user = await User.findOne({ email });
   if (!user || user.isEmailVerified) {
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          {},
-          "If the account exists and is unverified, a new OTP has been sent."
-        )
-      );
+    return res.status(200).json(genericResponse);
   }
   const cooldown = 2 * 60 * 1000;
 
@@ -256,10 +257,7 @@ export const resendOTP = asyncHandler(async (req, res) => {
     user.otpLastSentAt &&
     Date.now() - user.otpLastSentAt.getTime() < cooldown
   ) {
-    throw new ApiError(
-      429,
-      "Please wait 2 minutes before requesting a new OTP."
-    );
+    return res.status(200).json(genericResponse);
   }
   const otp = await user.generateEmailVerificationOTP();
   await user.save();
@@ -268,15 +266,7 @@ export const resendOTP = asyncHandler(async (req, res) => {
     .sendOTPVerification(email, user.name, otp)
     .catch((err) => console.error("Background Email Error:", err));
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { email: user.email },
-        "If the account exists and is unverified, a new OTP has been sent."
-      )
-    );
+  return res.status(200).json(genericResponse);
 });
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
@@ -288,7 +278,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   const genericResponse = new ApiResponse(
     200,
     {},
-    "If this email exists in our system, an OTP has been sent."
+    "If the account exists and is eligible, an OTP has been sent."
   );
 
   const user = await User.findOne({ email: email.toLowerCase().trim() });
@@ -303,10 +293,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     user.passwordResetOTPLastSentAt &&
     Date.now() - user.passwordResetOTPLastSentAt.getTime() < cooldown
   ) {
-    throw new ApiError(
-      429,
-      "Please wait 2 minutes before requesting a new OTP."
-    );
+    return res.status(200).json(genericResponse);
   }
 
   // with this
@@ -328,27 +315,36 @@ export const verifyResetOTP = asyncHandler(async (req, res) => {
   }
 
   const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
-    "+passwordResetOTP +passwordResetOTPExpiry +passwordResetOTPUsed"
+    "+passwordResetOTP +passwordResetOTPExpiry +passwordResetOTPUsed +passwordResetOTPFailedAttempts +passwordResetOTPLockedUntil"
   );
+  const safeFailure = () =>
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          {},
+          "If the account exists and the OTP is valid, reset instructions will be provided."
+        )
+      );
 
-  if (!user || !user.passwordResetOTP) {
-    throw new ApiError(400, "Invalid or expired OTP");
-  }
-
-  if (user.passwordResetOTPExpiry < new Date()) {
-    throw new ApiError(400, "OTP has expired. Please request a new one.");
-  }
-
-  if (user.passwordResetOTPUsed) {
-    throw new ApiError(
-      400,
-      "OTP has already been used. Please request a new one."
-    );
+  if (
+    !user ||
+    !user.passwordResetOTP ||
+    !user.passwordResetOTPExpiry ||
+    user.passwordResetOTPExpiry < new Date() ||
+    user.passwordResetOTPUsed ||
+    user.passwordResetOTPFailedAttempts >= PASSWORD_RESET_OTP_MAX_ATTEMPTS ||
+    (user.passwordResetOTPLockedUntil &&
+      user.passwordResetOTPLockedUntil > new Date())
+  ) {
+    return safeFailure();
   }
 
   const isOTPValid = await bcrypt.compare(otp, user.passwordResetOTP);
   if (!isOTPValid) {
-    throw new ApiError(400, "Invalid OTP. Please check and try again.");
+    await recordPasswordResetOtpFailure({ User, userId: user._id });
+    return safeFailure();
   }
 
   // Mark OTP used so it cannot be reused
@@ -356,10 +352,19 @@ export const verifyResetOTP = asyncHandler(async (req, res) => {
     {
       _id: user._id,
       passwordResetOTPUsed: false,
+      passwordResetOTPFailedAttempts: {
+        $lt: PASSWORD_RESET_OTP_MAX_ATTEMPTS,
+      },
+      $or: [
+        { passwordResetOTPLockedUntil: null },
+        { passwordResetOTPLockedUntil: { $lte: new Date() } },
+      ],
     },
     {
       $set: {
         passwordResetOTPUsed: true,
+        passwordResetOTPFailedAttempts: 0,
+        passwordResetOTPLockedUntil: null,
       },
       $unset: {
         passwordResetOTP: "",
@@ -551,35 +556,34 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   // Email verification only for students
-if (user.role === USER_ROLES.STUDENT && !user.isEmailVerified) {
+  if (user.role === USER_ROLES.STUDENT && !user.isEmailVerified) {
+    const cooldown = 2 * 60 * 1000;
 
-  const cooldown = 2 * 60 * 1000;
+    if (
+      !user.otpLastSentAt ||
+      Date.now() - user.otpLastSentAt.getTime() >= cooldown
+    ) {
+      const otp = await user.generateEmailVerificationOTP();
 
-  if (
-    !user.otpLastSentAt ||
-    Date.now() - user.otpLastSentAt.getTime() >= cooldown
-  ) {
-    const otp = await user.generateEmailVerificationOTP();
+      await user.save();
 
-    await user.save();
+      emailService
+        .sendOTPVerification(user.email, user.name, otp)
+        .catch((err) => console.error("Email sending failed:", err));
+    }
 
-    emailService
-      .sendOTPVerification(user.email, user.name, otp)
-      .catch((err) => console.error("Email sending failed:", err));
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+        "ACCOUNT_NOT_VERIFIED"
+      )
+    );
   }
-
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      {
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      "ACCOUNT_NOT_VERIFIED"
-    )
-  );
-}
 
   const lastLoginDate = new Date();
 

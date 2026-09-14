@@ -8,17 +8,19 @@ import { emailService } from "../../shared/services/email.service.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { ApiResponse } from "../../shared/utils/ApiResponse.js";
 import { asyncHandler } from "../../shared/utils/asyncHandler.js";
-import {
-  reconcileLostItemStatus,
-} from "../matching/reconcile-match-status.js";
-import {
-  buildMatchNotificationMessage,
-} from "../matching/match-notification-message.js";
+import { reconcileLostItemStatus } from "../matching/reconcile-match-status.js";
+import { buildMatchNotificationMessage } from "../matching/match-notification-message.js";
 import matchingService from "../matching/matching.service.js";
 import { Notification } from "../notifications/Notification.model.js";
 import { User } from "../auth/User.model.js";
 import { LostItem } from "../lost-items/LostItem.model.js";
 import { FoundItem } from "./FoundItem.model.js";
+import {
+  decodeCursor,
+  encodeCursor,
+  getCursorFilter,
+  getPageLimit,
+} from "../../shared/pagination/cursor.js";
 
 const isFetchAllLimit = (value) =>
   typeof value === "string" && value.trim().toLowerCase() === "all";
@@ -157,13 +159,14 @@ export const addFoundItem = asyncHandler(async (req, res) => {
 });
 
 export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1);
   const fetchAll = isFetchAllLimit(req.query.limit);
-  const limit = fetchAll ? null : Math.min(200, Math.max(1, parseInt(req.query.limit) || 10));
+  const limit = fetchAll ? null : getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
   const { status, recoveryMode, age } = req.query;
 
   const query = {
     isActive: true,
+    ...getCursorFilter(cursor),
   };
 
   if (req.user.role === "admin") {
@@ -189,9 +192,7 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
     cutoffDate.setDate(cutoffDate.getDate() - 6);
 
     query.dateFound =
-      age === "active"
-        ? { $gte: cutoffDate }
-        : { $lt: cutoffDate };
+      age === "active" ? { $gte: cutoffDate } : { $lt: cutoffDate };
   }
 
   const itemsQuery = FoundItem.find(query)
@@ -212,7 +213,7 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 });
 
   if (!fetchAll) {
-    itemsQuery.limit(limit).skip((page - 1) * limit);
+    itemsQuery.limit(limit + 1);
   }
 
   const [foundItems, total] = await Promise.all([
@@ -220,20 +221,22 @@ export const getDepartmentFoundItems = asyncHandler(async (req, res) => {
     FoundItem.countDocuments(query),
   ]);
 
-  const totalPages = fetchAll ? 1 : Math.ceil(total / limit);
+  const pageItems = fetchAll ? foundItems : foundItems.slice(0, limit);
+  const hasNextPage = !fetchAll && foundItems.length > limit;
 
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: foundItems.length,
+        count: pageItems.length,
         pagination: {
-          page: fetchAll ? 1 : page,
-          pages: totalPages,
-          total,
           limit: fetchAll ? total : limit,
+          nextCursor:
+            hasNextPage && pageItems.length
+              ? encodeCursor(pageItems[pageItems.length - 1])
+              : null,
         },
-        data: foundItems,
+        data: pageItems,
       },
       foundItems.length > 0
         ? "Found items fetched successfully"
@@ -417,12 +420,9 @@ export const markAsReturned = asyncHandler(async (req, res) => {
       );
 
       // reset status to pending
-for (const item of affectedLostItems) {
-  await reconcileLostItemStatus(
-    item._id,
-    session
-  );
-}
+      for (const item of affectedLostItems) {
+        await reconcileLostItemStatus(item._id, session);
+      }
     }
 
     // ── STEP 4: Pull lostItemId from other found items ────────────────────
@@ -439,8 +439,10 @@ for (const item of affectedLostItems) {
     await session.abortTransaction();
     console.error("Handover Error:", error);
     throw new ApiError(
-      error.statusCode || 500,
-      error.message || "Internal Server Error during handover"
+      error instanceof ApiError && error.statusCode < 500
+        ? error.statusCode
+        : 500,
+      "Unable to complete handover"
     );
   } finally {
     session.endSession();
@@ -633,30 +635,27 @@ export const markAsUnclaimed = asyncHandler(async (req, res) => {
       );
     }
 
-const affectedLostItems = await LostItem.find(
-  {
-    matchedFoundItemIds: id,
-  },
-  "_id",
-  { session }
-);
-await LostItem.updateMany(
-  {
-    matchedFoundItemIds: id,
-  },
-  {
-    $pull: {
-      matchedFoundItemIds: new mongoose.Types.ObjectId(id),
-    },
-  },
-  { session }
-);
-for (const lostItem of affectedLostItems) {
-  await reconcileLostItemStatus(
-    lostItem._id,
-    session
-  );
-}
+    const affectedLostItems = await LostItem.find(
+      {
+        matchedFoundItemIds: id,
+      },
+      "_id",
+      { session }
+    );
+    await LostItem.updateMany(
+      {
+        matchedFoundItemIds: id,
+      },
+      {
+        $pull: {
+          matchedFoundItemIds: new mongoose.Types.ObjectId(id),
+        },
+      },
+      { session }
+    );
+    for (const lostItem of affectedLostItems) {
+      await reconcileLostItemStatus(lostItem._id, session);
+    }
 
     await session.commitTransaction();
   } catch (error) {
@@ -665,8 +664,10 @@ for (const lostItem of affectedLostItems) {
     console.error("Unclaimed Status Error:", error);
 
     throw new ApiError(
-      error.statusCode || 500,
-      error.message || "Failed to mark item as unclaimed"
+      error instanceof ApiError && error.statusCode < 500
+        ? error.statusCode
+        : 500,
+      "Unable to update item status"
     );
   } finally {
     session.endSession();
@@ -841,41 +842,39 @@ export const markAsCollectedOffline = asyncHandler(async (req, res) => {
     }
 
     // Revert matched lost items back to pending
-const affectedLostItems = await LostItem.find(
-  {
-    matchedFoundItemIds: id,
-  },
-  "_id",
-  { session }
-);
+    const affectedLostItems = await LostItem.find(
+      {
+        matchedFoundItemIds: id,
+      },
+      "_id",
+      { session }
+    );
 
-await LostItem.updateMany(
-  {
-    matchedFoundItemIds: id,
-  },
-  {
-    $pull: {
-      matchedFoundItemIds: new mongoose.Types.ObjectId(id),
-    },
-  },
-  { session }
-);
+    await LostItem.updateMany(
+      {
+        matchedFoundItemIds: id,
+      },
+      {
+        $pull: {
+          matchedFoundItemIds: new mongoose.Types.ObjectId(id),
+        },
+      },
+      { session }
+    );
 
-for (const lostItem of affectedLostItems) {
-  await reconcileLostItemStatus(
-    lostItem._id,
-    session
-  );
-}
+    for (const lostItem of affectedLostItems) {
+      await reconcileLostItemStatus(lostItem._id, session);
+    }
 
     await session.commitTransaction();
   } catch (error) {
     await session.abortTransaction();
 
     throw new ApiError(
-      error.statusCode || 500,
-      error.message ||
-        "Failed to mark item as collected offline"
+      error instanceof ApiError && error.statusCode < 500
+        ? error.statusCode
+        : 500,
+      "Unable to mark item as collected offline"
     );
   } finally {
     session.endSession();
@@ -884,8 +883,7 @@ for (const lostItem of affectedLostItems) {
   // Notifications after successful commit
   const io = req.app.get("socketio");
 
-  const previousMatches =
-    existingFoundItem.matchedLostItemIds || [];
+  const previousMatches = existingFoundItem.matchedLostItemIds || [];
 
   if (previousMatches.length > 0) {
     await Promise.all(
@@ -911,12 +909,9 @@ for (const lostItem of affectedLostItems) {
 
         // Realtime socket notification
         if (io) {
-          io.sendNotificationToUser(
-            lostItem.userId._id,
-            {
-              ...notification.toObject(),
-            }
-          );
+          io.sendNotificationToUser(lostItem.userId._id, {
+            ...notification.toObject(),
+          });
         }
 
         // Email notification
@@ -929,9 +924,7 @@ for (const lostItem of affectedLostItems) {
               ? `Block ${req.user.block}`
               : "University Security Department"
           )
-          .catch((err) =>
-            console.error("Email Error:", err)
-          );
+          .catch((err) => console.error("Email Error:", err));
       })
     );
   }
@@ -1080,31 +1073,27 @@ export const deleteFoundItem = asyncHandler(async (req, res) => {
     }
 
     const affectedLostItems = await LostItem.find(
-  {
-    matchedFoundItemIds: id,
-  },
-  "_id",
-  { session }
-);
+      {
+        matchedFoundItemIds: id,
+      },
+      "_id",
+      { session }
+    );
 
-
-await LostItem.updateMany(
-  {
-    matchedFoundItemIds: id,
-  },
-  {
-    $pull: {
-      matchedFoundItemIds: new mongoose.Types.ObjectId(id),
-    },
-  },
-  { session }
-);
-for (const lostItem of affectedLostItems) {
-  await reconcileLostItemStatus(
-    lostItem._id,
-    session
-  );
-}
+    await LostItem.updateMany(
+      {
+        matchedFoundItemIds: id,
+      },
+      {
+        $pull: {
+          matchedFoundItemIds: new mongoose.Types.ObjectId(id),
+        },
+      },
+      { session }
+    );
+    for (const lostItem of affectedLostItems) {
+      await reconcileLostItemStatus(lostItem._id, session);
+    }
 
     await session.commitTransaction();
 
@@ -1115,8 +1104,10 @@ for (const lostItem of affectedLostItems) {
     await session.abortTransaction();
 
     throw new ApiError(
-      error.statusCode || 500,
-      error.message || "Failed to delete found item"
+      error instanceof ApiError && error.statusCode < 500
+        ? error.statusCode
+        : 500,
+      "Unable to delete found item"
     );
   } finally {
     session.endSession();
@@ -1124,10 +1115,10 @@ for (const lostItem of affectedLostItems) {
 });
 export const searchFoundItems = asyncHandler(async (req, res) => {
   const { q, color, block, dateFrom, dateTo, recoveryMode } = req.query;
-  const page = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+  const limit = getPageLimit(req.query.limit);
+  const cursor = decodeCursor(req.query.cursor);
 
-  let query = { isActive: true };
+  let query = { isActive: true, ...getCursorFilter(cursor) };
 
   if (req.user.role === "admin") {
     query.block = req.user.block;
@@ -1157,28 +1148,25 @@ export const searchFoundItems = asyncHandler(async (req, res) => {
     if (dateTo) query.dateFound.$lte = new Date(dateTo);
   }
 
-  const [foundItems, total] = await Promise.all([
-    FoundItem.find(query)
-      .populate("createdBy", "name role block")
-      .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 })
-      .limit(limit)
-      .skip((page - 1) * limit),
-
-    FoundItem.countDocuments(query),
-  ]);
-  const totalPages = Math.ceil(total / limit);
+  const foundItems = await FoundItem.find(query)
+    .populate("createdBy", "name role block")
+    .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1, _id: -1 })
+    .limit(limit + 1)
+    .lean();
+  const pageItems = foundItems.slice(0, limit);
+  const hasNextPage = foundItems.length > limit;
   res.status(200).json(
     new ApiResponse(
       200,
       {
-        count: foundItems.length,
+        count: pageItems.length,
         pagination: {
-          page,
-          pages: totalPages,
-          total,
           limit,
+          nextCursor: hasNextPage
+            ? encodeCursor(pageItems[pageItems.length - 1])
+            : null,
         },
-        data: foundItems,
+        data: pageItems,
       },
       "Items searched successfully"
     )
