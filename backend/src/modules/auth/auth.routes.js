@@ -11,6 +11,7 @@ import {
   verifyResetOTP,
   resetPassword,
   completeProfile,
+  refresh,
 } from "./auth.controller.js";
 import {
   protect,
@@ -43,9 +44,10 @@ router.post("/register", validateUserRegistration, register);
 router.post("/verify-otp", validateOTPVerification, verifyOTP);
 router.post("/resend-otp", otpLimiter, resendOTP);
 router.post("/login", validateLogin, login);
+router.post("/refresh", refresh);
 
 router.get("/me", protect, getMe);
-router.post("/logout", protect, logout);
+router.post("/logout", logout);
 router.patch(
   "/complete-profile",
   protect,

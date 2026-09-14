@@ -11,6 +11,22 @@ import {
   createPasswordResetToken,
   verifyPasswordResetToken,
 } from "./password-reset.service.js";
+import {
+  clearRefreshCookie,
+  createRefreshSession,
+  readRefreshToken,
+  REFRESH_COOKIE_NAME,
+  revokeRefreshSessions,
+  revokeRefreshToken,
+  rotateRefreshSession,
+  getRefreshCookieOptions,
+} from "./refresh-session.service.js";
+
+const issueSession = async (user, res) => {
+  const { token, session } = await createRefreshSession(user._id);
+  res.cookie(REFRESH_COOKIE_NAME, token, getRefreshCookieOptions());
+  return { token: user.getJWTToken(), session };
+};
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
@@ -121,7 +137,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     },
   });
 
-  const token = user.getJWTToken();
+  const { token } = await issueSession(user, res);
 
   res.status(200).json(
     new ApiResponse(
@@ -184,9 +200,40 @@ export const getMe = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, userData, "User details fetched successfully"));
 });
 export const logout = asyncHandler(async (req, res) => {
+  const refreshToken = readRefreshToken(req);
+  if (refreshToken) {
+    await revokeRefreshToken(refreshToken);
+  }
+  clearRefreshCookie(res);
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Logged out successfully"));
+});
+
+export const refresh = asyncHandler(async (req, res) => {
+  const refreshToken = readRefreshToken(req);
+  if (!refreshToken) {
+    clearRefreshCookie(res);
+    throw new ApiError(401, "Refresh session is required");
+  }
+
+  const result = await rotateRefreshSession(refreshToken);
+  if (result.kind !== "rotated") {
+    clearRefreshCookie(res);
+    throw new ApiError(401, "Refresh session is invalid or expired");
+  }
+
+  const user = await User.findById(result.session.userId).select("-password");
+  if (!user || !user.isActive || !user.isEmailVerified) {
+    await revokeRefreshSessions(result.session.userId);
+    clearRefreshCookie(res);
+    throw new ApiError(401, "Refresh session is invalid");
+  }
+
+  res.cookie(REFRESH_COOKIE_NAME, result.token, getRefreshCookieOptions());
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { token: user.getJWTToken() }, "Token refreshed"));
 });
 export const resendOTP = asyncHandler(async (req, res) => {
   const { email } = req.body;
@@ -384,6 +431,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(400, "Reset session expired. Please start again.");
   }
+  await revokeRefreshSessions(user._id);
 
   emailService
     .sendPasswordResetConfirmation(user.email, user.name)
@@ -539,7 +587,7 @@ if (user.role === USER_ROLES.STUDENT && !user.isEmailVerified) {
     $set: { lastLogin: lastLoginDate },
   }).catch((err) => console.error("Last login update failed:", err));
 
-  const token = user.getJWTToken();
+  const { token } = await issueSession(user, res);
 
   let userData = {};
 
