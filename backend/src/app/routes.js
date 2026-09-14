@@ -8,6 +8,7 @@ import uploadRoutes from "../modules/uploads/upload.routes.js";
 import managementRoutes from "../modules/management/management.routes.js";
 import adminManagementRoutes from "../modules/admin-management/admin-management.routes.js";
 import {
+  getRoot,
   getLegacyHealth,
   getLiveness,
   getReadiness,
@@ -32,6 +33,7 @@ const apiLimiter = rateLimit({
 });
 
 export const registerRoutes = (app) => {
+  app.get("/", getRoot);
   app.use("/api/auth", authLimiter, authRoutes);
   app.use("/api/lostitems", apiLimiter, lostItemRoutes);
   app.use("/api/founditems", apiLimiter, foundItemRoutes);

@@ -7,6 +7,13 @@ export const setDraining = (value) => {
   isDraining = value;
 };
 
+export const getRoot = (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Lost and Found API is running",
+  });
+};
+
 export const getLiveness = (_req, res) => {
   res.status(200).json({
     success: true,
