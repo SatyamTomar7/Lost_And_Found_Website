@@ -2,9 +2,10 @@ import React from "react";
 import { FaPaperPlane, FaPlusCircle } from "react-icons/fa";
 import authStyles from "../../auth/Auth.module.css";
 import buttonStyles from "../../../shared/ui/Button.module.css";
+import ColorSelect from "../../../shared/ui/ColorSelect";
 import styles from "../StudentDashboard.module.css";
 import {
-  COLORS,
+  COLOR_OPTIONS,
   ITEM_CONDITIONS,
   ITEM_NAME,
   getLocationsByRole,
@@ -66,20 +67,13 @@ const ReportLostTab = ({
             <label htmlFor="itemColor" className={authStyles["form-label"]}>
               Color *
             </label>
-            <select
+            <ColorSelect
               id="itemColor"
               {...register("color")}
-              className={`${authStyles["form-control"]} ${errors.color ? authStyles["is-invalid"] : ""}`}
+              options={COLOR_OPTIONS}
+              invalid={Boolean(errors.color)}
               disabled={isFormDisabled}
-              aria-invalid={errors.color ? "true" : "false"}
-            >
-              <option value="">Select a color</option>
-              {COLORS.map((color) => (
-                <option key={color} value={color}>
-                  {color}
-                </option>
-              ))}
-            </select>
+            />
             {errors.color && (
               <div className={authStyles["error-message"]} role="alert">
                 {errors.color.message}
