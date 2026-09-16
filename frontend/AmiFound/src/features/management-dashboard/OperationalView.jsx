@@ -15,11 +15,12 @@ import {
 import NotificationPanel from "../../shared/components/NotificationPanel";
 import authStyles from "../auth/Auth.module.css";
 import studentStyles from "../student-dashboard/StudentDashboard.module.css";
+import ColorSelect from "../../shared/ui/ColorSelect";
 import managementStyles from "./ManagementDashboard.module.css";
 import buttonStyles from "../../shared/ui/Button.module.css";
 import { applyBackendFormErrors } from "../../shared/lib/formErrorMapper";
 import {
-  COLORS,
+  COLOR_OPTIONS,
   FOUND_ITEM_RECOVERY_MODES,
   getLocationsByRole,
   ITEM_CONDITIONS,
@@ -725,19 +726,13 @@ export default function OperationalView({
                       >
                         Color *
                       </label>
-                      <select
+                      <ColorSelect
                         id="itemColor"
                         {...register("color")}
-                        className={`${authStyles["form-control"]} ${errors.color ? authStyles["is-invalid"] : ""}`}
+                        options={COLOR_OPTIONS}
+                        invalid={Boolean(errors.color)}
                         disabled={isFormDisabled}
-                      >
-                        <option value="">Select a color</option>
-                        {COLORS.map((color) => (
-                          <option key={color} value={color}>
-                            {color}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       {errors.color && (
                         <div
                           className={authStyles["error-message"]}
