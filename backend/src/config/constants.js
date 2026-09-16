@@ -79,6 +79,7 @@ const COLORS = [
   "Blue",
   "Navy Blue",
   "Light Blue",
+  "Sky Blue",
   "Green",
   "Dark Green",
   "Yellow",
