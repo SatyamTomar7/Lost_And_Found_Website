@@ -16,10 +16,10 @@ export const hashRefreshToken = (token) =>
 export const getRefreshCookieOptions = () => ({
   httpOnly: true,
   secure: process.env.COOKIE_SECURE !== "false",
-  sameSite: process.env.COOKIE_SAME_SITE || "lax",
-  ...(process.env.COOKIE_DOMAIN
-    ? { domain: process.env.COOKIE_DOMAIN }
-    : {}),
+  sameSite:
+    process.env.COOKIE_SAME_SITE ||
+    (process.env.NODE_ENV === "production" ? "none" : "lax"),
+  ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
   path: "/api/auth",
   maxAge: getRefreshLifetimeMs(),
 });

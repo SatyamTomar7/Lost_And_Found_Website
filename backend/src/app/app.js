@@ -12,16 +12,20 @@ import { requestLoggerMiddleware } from "../shared/middleware/requestLogger.midd
 
 const app = express();
 
-const trustProxy = process.env.TRUST_PROXY;
-if (trustProxy === "true") {
-  app.set("trust proxy", true);
-} else if (trustProxy === "false" || !trustProxy) {
-  app.set("trust proxy", false);
-} else if (/^\d+$/.test(trustProxy)) {
-  app.set("trust proxy", Number(trustProxy));
-} else {
-  app.set("trust proxy", trustProxy);
-}
+// Render places one trusted reverse proxy in front of the application.
+// Trusting exactly one hop prevents client-supplied forwarded IPs from
+// bypassing rate limits while allowing Express to determine the real client IP.
+const trustProxy =
+  process.env.NODE_ENV === "production"
+    ? 1
+    : process.env.TRUST_PROXY === "true"
+      ? true
+      : process.env.TRUST_PROXY === "false" || !process.env.TRUST_PROXY
+        ? false
+        : /^\d+$/.test(process.env.TRUST_PROXY)
+          ? Number(process.env.TRUST_PROXY)
+          : false;
+app.set("trust proxy", trustProxy);
 
 const allowedOrigin = process.env.CLIENT_URL;
 const originValidator = (origin, callback) => {

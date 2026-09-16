@@ -6,13 +6,13 @@ REST API for the Amity University Lost & Found Management System.
 
 ## Tech Stack
 
-* Node.js
-* Express.js
-* MongoDB + Mongoose
-* JWT Authentication
-* Socket.io
-* Cloudinary
-* Nodemailer
+- Node.js
+- Express.js
+- MongoDB + Mongoose
+- JWT Authentication
+- Socket.io
+- Cloudinary
+- Nodemailer
 
 ---
 
@@ -35,7 +35,11 @@ NODE_ENV=development
 JWT_SECRET=your_jwt_secret
 JWT_EXPIRE=15m
 OTP_EXPIRE=10
-TRUST_PROXY=false
+TRUST_PROXY=1
+
+# Cross-site frontend/API deployments such as Vercel + Render
+COOKIE_SECURE=true
+COOKIE_SAME_SITE=none
 
 CLIENT_ID=your_google_client_id
 CLIENT_SECRET=your_google_client_secret
@@ -69,16 +73,16 @@ npm start
 
 # Features
 
-* JWT Authentication
-* Email OTP Verification
-* Lost Item Reporting
-* Found Item Reporting
-* AI-based Match Detection
-* Real-time Notifications using Socket.io
-* Cloudinary Image Upload
-* Admin & Security Management
-* Match Status Reconciliation
-* One-to-Many Matching Support
+- JWT Authentication
+- Email OTP Verification
+- Lost Item Reporting
+- Found Item Reporting
+- AI-based Match Detection
+- Real-time Notifications using Socket.io
+- Cloudinary Image Upload
+- Admin & Security Management
+- Match Status Reconciliation
+- One-to-Many Matching Support
 
 ---
 
@@ -86,10 +90,10 @@ npm start
 
 ## Health Probes
 
-| Method | Route | Description |
-| ------ | ----- | ----------- |
-| GET | `/api/health/live` | Lightweight process liveness probe |
-| GET | `/api/health/ready` | Readiness probe; returns `503` when MongoDB is unavailable or the server is draining |
+| Method | Route               | Description                                                                          |
+| ------ | ------------------- | ------------------------------------------------------------------------------------ |
+| GET    | `/api/health/live`  | Lightweight process liveness probe                                                   |
+| GET    | `/api/health/ready` | Readiness probe; returns `503` when MongoDB is unavailable or the server is draining |
 
 ## Authentication
 
@@ -144,8 +148,8 @@ npm start
 
 # Notes
 
-* Socket.io is used for real-time notifications.
-* Cloudinary is used for image storage.
-* Pending uploads are automatically cleaned up.
-* Matching system supports multiple matches between lost and found items.
-* Admins and Security users have separate management flows.
+- Socket.io is used for real-time notifications.
+- Cloudinary is used for image storage.
+- Pending uploads are automatically cleaned up.
+- Matching system supports multiple matches between lost and found items.
+- Admins and Security users have separate management flows.
