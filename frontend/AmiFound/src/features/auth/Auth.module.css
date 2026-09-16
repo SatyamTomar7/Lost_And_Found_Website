@@ -375,6 +375,7 @@ input[type="radio"] {
 
   .auth-header p {
     font-size: var(--text-md);
+  }
 
   .form-label-row {
     flex-direction: column;
