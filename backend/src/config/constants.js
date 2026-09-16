@@ -27,6 +27,7 @@ const ITEM_NAME = [
   "Laptop",
   "Mobile Phone",
   "Mobile Cover",
+  "Mouse",
   "Student ID Card",
   "Library Card",
   "Admit Card",
