@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 import {
   COLORS,
   ITEM_CONDITIONS_VALUES,
+  ITEM_NAME,
   ITEM_STATUS,
 } from "../../config/constants.js";
 const lostItemSchema = new Schema(
@@ -14,6 +15,7 @@ const lostItemSchema = new Schema(
     name: {
       type: String,
       required: true,
+      enum: ITEM_NAME,
       trim: true,
       maxlength: [100, "Item name can not exceed 100 characters"],
     },
@@ -41,20 +43,21 @@ const lostItemSchema = new Schema(
       type: Date,
       required: [true, "Date lost is required"],
       validate: {
-validator: function (date) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+        validator: function (date) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
-  const minDate = new Date();
-  minDate.setHours(0, 0, 0, 0);
-  minDate.setDate(minDate.getDate() - 6);
+          const minDate = new Date();
+          minDate.setHours(0, 0, 0, 0);
+          minDate.setDate(minDate.getDate() - 6);
 
-  const inputDate = new Date(date);
-  inputDate.setHours(0, 0, 0, 0);
+          const inputDate = new Date(date);
+          inputDate.setHours(0, 0, 0, 0);
 
-  return inputDate >= minDate && inputDate <= today;
-},
-        message: "Date lost must be within the last 7 days and cannot be in the future",
+          return inputDate >= minDate && inputDate <= today;
+        },
+        message:
+          "Date lost must be within the last 7 days and cannot be in the future",
       },
     },
     placeLost: {

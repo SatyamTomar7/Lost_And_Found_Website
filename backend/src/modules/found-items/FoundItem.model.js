@@ -3,6 +3,7 @@ import {
   COLORS,
   FOUND_ITEM_RECOVERY_MODES,
   ITEM_CONDITIONS_VALUES,
+  ITEM_NAME,
   ITEM_STATUS,
 } from "../../config/constants.js";
 
@@ -77,6 +78,7 @@ const foundItemSchema = new Schema(
     name: {
       type: String,
       required: [true, "Item name is required"],
+      enum: ITEM_NAME,
       trim: true,
       maxlength: [100, "Item can not exceed 100 characters"],
     },

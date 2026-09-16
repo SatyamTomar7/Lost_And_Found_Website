@@ -34,6 +34,7 @@ export const ITEM_NAME = [
   "Bag",
   "Laptop",
   "Mobile Phone",
+  "Mobile Cover",
   "Student ID Card",
   "Library Card",
   "Admit Card",
@@ -216,22 +217,11 @@ export const COURSE_BRANCHES = {
     "Environmental Sciences",
     "Artificial Intelligence & Cyber Security",
   ],
-  BCA: [
-    "General",
-    "Artificial Intelligence & Cyber Security",
-  ],
-  MCA: [
-    "General",
-  ],
-  BBA: [
-    "General",
-  ],
-  MBA: [
-    "General",
-  ],
-  "B.Com": [
-    "General",
-  ],
+  BCA: ["General", "Artificial Intelligence & Cyber Security"],
+  MCA: ["General"],
+  BBA: ["General"],
+  MBA: ["General"],
+  "B.Com": ["General"],
   BA: [
     "Economics",
     "English",
@@ -246,50 +236,21 @@ export const COURSE_BRANCHES = {
     "Applied Psychology",
     "Clinical Psychology",
   ],
-  "B.Pharm": [
-    "General",
-  ],
-  "M.Pharm": [
-    "Pharmaceutics",
-    "Pharmacology",
-  ],
-  "BA LLB": [
-    "General",
-  ],
-  "BBA LLB": [
-    "General",
-  ],
-  LLB: [
-    "General",
-  ],
-  LLM: [
-    "General",
-  ],
-  "B.Des": [
-    "Fashion Design",
-  ],
-  "M.Des": [
-    "Fashion Design",
-  ],
-  "B.Arch": [
-    "General",
-  ],
-  "M.Plan": [
-    "Urban & Regional Planning",
-  ],
+  "B.Pharm": ["General"],
+  "M.Pharm": ["Pharmaceutics", "Pharmacology"],
+  "BA LLB": ["General"],
+  "BBA LLB": ["General"],
+  LLB: ["General"],
+  LLM: ["General"],
+  "B.Des": ["Fashion Design"],
+  "M.Des": ["Fashion Design"],
+  "B.Arch": ["General"],
+  "M.Plan": ["Urban & Regional Planning"],
   PhD: [],
-  "B.Sc + M.Sc": [
-    "Biotechnology (Dual Degree)",
-  ],
-  "Bachelor of Interior Design": [
-    "General",
-  ],
-  "Master of Interior Design": [
-    "General",
-  ],
-  "Bachelor in Clinical Psychology": [
-    "General",
-  ],
+  "B.Sc + M.Sc": ["Biotechnology (Dual Degree)"],
+  "Bachelor of Interior Design": ["General"],
+  "Master of Interior Design": ["General"],
+  "Bachelor in Clinical Psychology": ["General"],
 };
 
 export const SEMESTER_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8"];
