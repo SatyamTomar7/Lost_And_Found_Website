@@ -31,6 +31,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
 
   const {
     register,
+    control,
     handleSubmit,
     setError,
     watch,
@@ -131,6 +132,7 @@ const StudentDashboard = ({ currentUser, setLoading, showMessage }) => {
           {activeTab === "report-lost" && (
             <ReportLostTab
               register={register}
+              control={control}
               errors={errors}
               handleSubmit={handleSubmit}
               handleFormSubmit={handleFormSubmit}

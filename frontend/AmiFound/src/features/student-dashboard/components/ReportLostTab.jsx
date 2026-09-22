@@ -1,4 +1,5 @@
 import React from "react";
+import { Controller } from "react-hook-form";
 import { FaPaperPlane, FaPlusCircle } from "react-icons/fa";
 import authStyles from "../../auth/Auth.module.css";
 import buttonStyles from "../../../shared/ui/Button.module.css";
@@ -13,6 +14,7 @@ import {
 
 const ReportLostTab = ({
   register,
+  control,
   errors,
   handleSubmit,
   handleFormSubmit,
@@ -67,12 +69,18 @@ const ReportLostTab = ({
             <label htmlFor="itemColor" className={authStyles["form-label"]}>
               Color *
             </label>
-            <ColorSelect
-              id="itemColor"
-              {...register("color")}
-              options={COLOR_OPTIONS}
-              invalid={Boolean(errors.color)}
-              disabled={isFormDisabled}
+            <Controller
+              name="color"
+              control={control}
+              render={({ field }) => (
+                <ColorSelect
+                  id="itemColor"
+                  {...field}
+                  options={COLOR_OPTIONS}
+                  invalid={Boolean(errors.color)}
+                  disabled={isFormDisabled}
+                />
+              )}
             />
             {errors.color && (
               <div className={authStyles["error-message"]} role="alert">
