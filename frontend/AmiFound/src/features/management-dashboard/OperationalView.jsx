@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import {
   FaBell,
   FaBox,
@@ -87,6 +87,7 @@ export default function OperationalView({
 
   const {
     register,
+    control,
     handleSubmit,
     setError,
     watch,
@@ -726,12 +727,18 @@ export default function OperationalView({
                       >
                         Color *
                       </label>
-                      <ColorSelect
-                        id="itemColor"
-                        {...register("color")}
-                        options={COLOR_OPTIONS}
-                        invalid={Boolean(errors.color)}
-                        disabled={isFormDisabled}
+                      <Controller
+                        name="color"
+                        control={control}
+                        render={({ field }) => (
+                          <ColorSelect
+                            id="itemColor"
+                            {...field}
+                            options={COLOR_OPTIONS}
+                            invalid={Boolean(errors.color)}
+                            disabled={isFormDisabled}
+                          />
+                        )}
                       />
                       {errors.color && (
                         <div
